@@ -6,6 +6,7 @@ WORKDIR /src
 COPY PathfinderPhotography.sln .
 COPY PathfinderPhotography.csproj .
 COPY PathfinderPhotography.ServiceDefaults/PathfinderPhotography.ServiceDefaults.csproj PathfinderPhotography.ServiceDefaults/
+COPY PathfinderPhotography.AppHost/PathfinderPhotography.AppHost.csproj PathfinderPhotography.AppHost/
 RUN dotnet restore PathfinderPhotography.csproj
 
 # Copy everything else and build
