@@ -2,6 +2,8 @@
 
 A Blazor Server web application for SDA Pathfinders from Corona SDA church to submit photos demonstrating 10 photography composition rules. Built with .NET Aspire for improved observability and service orchestration.
 
+[![Docker Build](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml)
+
 ## Features
 
 - **.NET Aspire**: Modern cloud-native application with built-in observability, service discovery, and health checks
@@ -12,7 +14,8 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 - **Gallery View**: Browse all submitted photos with filtering by rule or pathfinder name
 - **PostgreSQL Database**: Robust data persistence for submissions
 - **Observability**: Built-in telemetry, metrics, and distributed tracing with OpenTelemetry
-- **Docker Support**: Easy deployment using Docker containers
+- **Docker Support**: Pre-built images on GitHub Container Registry for easy deployment
+- **Home Lab Ready**: Simple deployment to your home lab infrastructure
 
 ## 10 Composition Rules
 
@@ -27,11 +30,54 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 9. Center Dominant Eye
 10. Picture to Ground
 
+## Quick Start - Home Lab Deployment 🏠
+
+The easiest way to deploy is using the pre-built Docker image from GitHub Container Registry:
+
+### Pull and Run
+
+```bash
+# Create deployment directory
+mkdir -p ~/pathfinder-photography
+cd ~/pathfinder-photography
+
+# Download compose file
+curl -o docker-compose.yml https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/docker-compose.homelab.yml
+
+# Create .env file with your Google OAuth credentials
+cat > .env << EOF
+GOOGLE_CLIENT_ID=your_client_id_here
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+POSTGRES_PASSWORD=your_secure_password
+EOF
+
+# Start the application
+docker compose up -d
+```
+
+Access at: http://your-server:8080
+
+**📖 For detailed home lab deployment, see [HOMELAB_DEPLOYMENT.md](HOMELAB_DEPLOYMENT.md)**
+
+## Docker Images
+
+Pre-built multi-arch images are available on GitHub Container Registry:
+
+```bash
+# Pull latest image
+docker pull ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:latest
+
+# Pull specific version
+docker pull ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:v1.0.0
+```
+
+**Supported Platforms**: `linux/amd64`, `linux/arm64`
+
 ## Prerequisites
 
-- .NET 9.0 SDK (for local development)
-- Docker Desktop (for Aspire and containerized deployment)
-- Google OAuth 2.0 credentials (see setup instructions below)
+- **For Home Lab**: Docker and Docker Compose
+- **For Development**: .NET 9.0 SDK, Docker Desktop
+- **For All**: Google OAuth 2.0 credentials
 
 ## Google OAuth Setup
 
@@ -44,9 +90,9 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 7. Add authorized redirect URIs:
    - For local development: `https://localhost:5001/signin-google`
    - For Aspire: `https://localhost:7152/signin-google` (check actual port in Aspire Dashboard)
-   - For production: `https://your-domain.com/signin-google`
+   - For home lab: `http://your-server:8080/signin-google` or `https://yourdomain.com/signin-google`
 8. Copy the Client ID and Client Secret
-9. Update `appsettings.Development.json` with your credentials
+9. Add to your `.env` file or `appsettings.Development.json`
 
 ## Running with .NET Aspire (Recommended)
 

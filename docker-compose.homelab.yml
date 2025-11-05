@@ -1,0 +1,55 @@
+version: '3.8'
+
+# Docker Compose for Home Lab Deployment
+# Pulls pre-built image from GitHub Container Registry
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pathfinder-postgres
+    environment:
+      POSTGRES_DB: pathfinder_photography
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - pathfinder-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  pathfinder-photography:
+    image: ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:latest
+    container_name: pathfinder-app
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persist uploaded photos
+      - ./uploads:/app/wwwroot/uploads
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=pathfinder_photography;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
+      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
+      - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pathfinder-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    name: pathfinder-postgres-data
+
+networks:
+  pathfinder-network:
+    name: pathfinder-network
+    driver: bridge
