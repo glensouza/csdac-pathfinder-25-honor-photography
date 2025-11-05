@@ -1,0 +1,12 @@
+**/.git
+**/.gitignore
+**/.vscode
+**/.vs
+**/bin
+**/obj
+**/node_modules
+**/.env
+**/uploads
+**/data
+README.md
+LICENSE
