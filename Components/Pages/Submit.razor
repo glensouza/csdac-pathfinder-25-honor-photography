@@ -1,0 +1,232 @@
+@page "/submit"
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@using Microsoft.AspNetCore.Components.Forms
+@inject CompositionRuleService RuleService
+@inject PhotoSubmissionService SubmissionService
+@inject IWebHostEnvironment Environment
+@rendermode InteractiveServer
+
+<PageTitle>Submit Photos</PageTitle>
+
+<div class="container mt-4">
+    <h1>Submit Your Photos</h1>
+    <p class="lead">Upload one photo for each composition rule and explain how you applied it.</p>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="@(() => successMessage = string.Empty)"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="@(() => errorMessage = string.Empty)"></button>
+        </div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <EditForm Model="@currentSubmission" OnValidSubmit="@HandleSubmit">
+                <DataAnnotationsValidator />
+                
+                <div class="mb-3">
+                    <label class="form-label">Your Name</label>
+                    <InputText class="form-control" @bind-Value="currentSubmission.PathfinderName" placeholder="Enter your name" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Composition Rule</label>
+                    <InputSelect class="form-select" @bind-Value="currentSubmission.CompositionRuleId">
+                        <option value="0">-- Select a Rule --</option>
+                        @foreach (var rule in rules)
+                        {
+                            <option value="@rule.Id">@rule.Id. @rule.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                @if (currentSubmission.CompositionRuleId > 0)
+                {
+                    var selectedRule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
+                    if (selectedRule != null)
+                    {
+                        <div class="alert alert-info">
+                            <strong>@selectedRule.Name:</strong> @selectedRule.Description
+                        </div>
+                    }
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Upload Photo</label>
+                    <InputFile class="form-control" OnChange="@HandleFileSelected" accept="image/*" />
+                    @if (!string.IsNullOrEmpty(selectedFileName))
+                    {
+                        <small class="text-muted">Selected: @selectedFileName</small>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Describe How You Applied This Rule</label>
+                    <InputTextArea class="form-control" @bind-Value="currentSubmission.Description" 
+                                   rows="4" 
+                                   placeholder="Explain what you did in this photo to demonstrate the composition rule..." />
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Submitting...</span>
+                        }
+                        else
+                        {
+                            <span>Submit Photo</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h3>Your Submissions</h3>
+        @if (!string.IsNullOrEmpty(currentSubmission.PathfinderName))
+        {
+            if (userSubmissions.Any())
+            {
+                <div class="row">
+                    @foreach (var submission in userSubmissions)
+                    {
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <img src="/uploads/@submission.ImagePath" class="card-img-top" alt="@submission.CompositionRuleName" 
+                                     style="height: 200px; object-fit: cover;" />
+                                <div class="card-body">
+                                    <h6 class="card-title">@submission.CompositionRuleName</h6>
+                                    <p class="card-text small">@submission.Description</p>
+                                    <small class="text-muted">@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">No submissions yet. Start uploading your photos!</p>
+            }
+        }
+    </div>
+
+    <div class="mt-4">
+        <a href="/" class="btn btn-outline-secondary">← Back to Rules</a>
+    </div>
+</div>
+
+@code {
+    private List<CompositionRule> rules = new();
+    private PhotoSubmission currentSubmission = new();
+    private IBrowserFile? selectedFile;
+    private string selectedFileName = string.Empty;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+    private bool isSubmitting = false;
+    private List<PhotoSubmission> userSubmissions = new();
+
+    protected override void OnInitialized()
+    {
+        rules = RuleService.GetAllRules();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(currentSubmission.PathfinderName))
+        {
+            userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentSubmission.PathfinderName);
+        }
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        selectedFileName = e.File.Name;
+        errorMessage = string.Empty;
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(currentSubmission.PathfinderName))
+        {
+            errorMessage = "Please enter your name.";
+            return;
+        }
+
+        if (currentSubmission.CompositionRuleId == 0)
+        {
+            errorMessage = "Please select a composition rule.";
+            return;
+        }
+
+        if (selectedFile == null)
+        {
+            errorMessage = "Please select a photo to upload.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(currentSubmission.Description))
+        {
+            errorMessage = "Please describe how you applied the composition rule.";
+            return;
+        }
+
+        // Check file size (max 10MB)
+        if (selectedFile.Size > 10 * 1024 * 1024)
+        {
+            errorMessage = "File size must be less than 10MB.";
+            return;
+        }
+
+        isSubmitting = true;
+
+        try
+        {
+            // Save the uploaded file
+            using var stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            var fileName = await SubmissionService.SaveUploadedFileAsync(stream, selectedFile.Name);
+
+            // Create submission
+            var rule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
+            currentSubmission.CompositionRuleName = rule?.Name ?? "Unknown";
+            currentSubmission.ImagePath = fileName;
+
+            await SubmissionService.AddSubmissionAsync(currentSubmission);
+
+            userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentSubmission.PathfinderName);
+            successMessage = $"Photo submitted successfully! You've submitted {userSubmissions.Count} out of 10 photos.";
+
+            // Reset form for next submission, but keep the name
+            var name = currentSubmission.PathfinderName;
+            currentSubmission = new PhotoSubmission { PathfinderName = name };
+            selectedFile = null;
+            selectedFileName = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error submitting photo: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

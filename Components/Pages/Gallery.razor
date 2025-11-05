@@ -1,0 +1,146 @@
+@page "/gallery"
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@inject PhotoSubmissionService SubmissionService
+@inject CompositionRuleService RuleService
+@rendermode InteractiveServer
+
+<PageTitle>Photo Gallery</PageTitle>
+
+<div class="container mt-4">
+    <h1>Photo Gallery</h1>
+    <p class="lead">View all submitted photos by Corona SDA Pathfinders</p>
+
+    <div class="mb-4">
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">Filter by Composition Rule</label>
+                <select class="form-select" @onchange="FilterByRule">
+                    <option value="0">All Rules</option>
+                    @foreach (var rule in rules)
+                    {
+                        <option value="@rule.Id">@rule.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Filter by Pathfinder</label>
+                <input type="text" class="form-control" placeholder="Enter name..." @bind="nameFilter" @bind:event="oninput" />
+            </div>
+        </div>
+    </div>
+
+    @if (filteredSubmissions.Any())
+    {
+        <div class="row">
+            @foreach (var submission in filteredSubmissions)
+            {
+                <div class="col-md-4 col-lg-3 mb-4">
+                    <div class="card h-100">
+                        <img src="/uploads/@submission.ImagePath" 
+                             class="card-img-top" 
+                             alt="@submission.CompositionRuleName by @submission.PathfinderName"
+                             style="height: 250px; object-fit: cover; cursor: pointer;"
+                             @onclick="() => ShowModal(submission)" />
+                        <div class="card-body">
+                            <h6 class="card-title">@submission.CompositionRuleName</h6>
+                            <p class="card-text">
+                                <strong>By:</strong> @submission.PathfinderName<br />
+                                <small class="text-muted">@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <p class="mb-0">No submissions found. Be the first to <a href="/submit">submit a photo</a>!</p>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a href="/" class="btn btn-outline-secondary">← Back to Rules</a>
+    </div>
+</div>
+
+@if (selectedSubmission != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@selectedSubmission.CompositionRuleName</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <img src="/uploads/@selectedSubmission.ImagePath" 
+                         class="img-fluid mb-3" 
+                         alt="@selectedSubmission.CompositionRuleName" />
+                    <p><strong>Pathfinder:</strong> @selectedSubmission.PathfinderName</p>
+                    <p><strong>Submitted:</strong> @selectedSubmission.SubmissionDate.ToString("MMMM dd, yyyy")</p>
+                    <p><strong>Description:</strong></p>
+                    <p>@selectedSubmission.Description</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CompositionRule> rules = new();
+    private List<PhotoSubmission> allSubmissions = new();
+    private List<PhotoSubmission> filteredSubmissions = new();
+    private PhotoSubmission? selectedSubmission;
+    private int selectedRuleId = 0;
+    private string nameFilter = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        rules = RuleService.GetAllRules();
+        allSubmissions = await SubmissionService.GetAllSubmissionsAsync();
+        filteredSubmissions = allSubmissions;
+    }
+
+    private void FilterByRule(ChangeEventArgs e)
+    {
+        selectedRuleId = int.Parse(e.Value?.ToString() ?? "0");
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        filteredSubmissions = allSubmissions;
+
+        if (selectedRuleId > 0)
+        {
+            filteredSubmissions = filteredSubmissions.Where(s => s.CompositionRuleId == selectedRuleId).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameFilter))
+        {
+            filteredSubmissions = filteredSubmissions.Where(s => 
+                s.PathfinderName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        ApplyFilters();
+    }
+
+    private void ShowModal(PhotoSubmission submission)
+    {
+        selectedSubmission = submission;
+    }
+
+    private void CloseModal()
+    {
+        selectedSubmission = null;
+    }
+}
