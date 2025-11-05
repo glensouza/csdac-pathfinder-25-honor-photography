@@ -7,12 +7,28 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="PathfinderPhotography.AppHost/**" />
+    <Compile Remove="PathfinderPhotography.ServiceDefaults/**" />
+    <Content Remove="PathfinderPhotography.AppHost/**" />
+    <Content Remove="PathfinderPhotography.ServiceDefaults/**" />
+    <EmbeddedResource Remove="PathfinderPhotography.AppHost/**" />
+    <EmbeddedResource Remove="PathfinderPhotography.ServiceDefaults/**" />
+    <None Remove="PathfinderPhotography.AppHost/**" />
+    <None Remove="PathfinderPhotography.ServiceDefaults/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.5.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="PathfinderPhotography.ServiceDefaults\PathfinderPhotography.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>
