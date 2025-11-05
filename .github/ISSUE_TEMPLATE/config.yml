@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/glensouza/csdac-pathfinder-25-honor-photography/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🔒 Security Issue
+    url: https://github.com/glensouza/csdac-pathfinder-25-honor-photography/blob/main/.github/SECURITY.md
+    about: Report security vulnerabilities privately
