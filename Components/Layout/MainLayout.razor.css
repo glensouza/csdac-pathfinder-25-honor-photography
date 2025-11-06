@@ -36,6 +36,14 @@ main {
         text-overflow: ellipsis;
     }
 
+    .top-row .welcome-message {
+        margin-right: auto;
+    }
+
+    .top-row ::deep form {
+        display: inline;
+    }
+
 @media (max-width: 640.98px) {
     .top-row {
         justify-content: space-between;

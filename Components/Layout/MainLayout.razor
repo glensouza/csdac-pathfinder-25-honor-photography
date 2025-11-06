@@ -14,9 +14,9 @@
         <div class="top-row px-4">
             <AuthorizeView>
                 <Authorized>
-                    <span style="margin-right: auto;">Welcome, @pathfinderName!</span>
-                    <form action="/logout" method="post" style="display: inline;">
-                        <button type="submit" class="btn btn-link" style="text-decoration: none;">Sign Out</button>
+                    <span class="welcome-message">Welcome, @pathfinderName!</span>
+                    <form action="/logout" method="post">
+                        <button type="submit" class="btn btn-link">Sign Out</button>
                     </form>
                 </Authorized>
                 <NotAuthorized>
