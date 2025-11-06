@@ -48,6 +48,12 @@ public class UserService
         return user?.Role == UserRole.Instructor;
     }
 
+    public async Task<bool> IsAdminAsync(string email)
+    {
+        var user = await GetUserByEmailAsync(email);
+        return user?.Role == UserRole.Admin;
+    }
+
     public async Task SetUserRoleAsync(string email, UserRole role)
     {
         using var context = await _contextFactory.CreateDbContextAsync();

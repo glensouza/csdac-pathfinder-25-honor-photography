@@ -36,6 +36,15 @@
                         </NavLink>
                     </div>
                 }
+
+                @if (isAdmin)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="admin/users">
+                            <span class="bi bi-people-nav-menu" aria-hidden="true"></span> User Management
+                        </NavLink>
+                    </div>
+                }
             </Authorized>
             <NotAuthorized>
                 <div class="nav-item px-3">
@@ -84,6 +93,7 @@
 
 @code {
     private bool isInstructor = false;
+    private bool isAdmin = false;
     
     protected override async Task OnInitializedAsync()
     {
@@ -115,11 +125,13 @@
             if (!string.IsNullOrEmpty(email))
             {
                 isInstructor = await UserService.IsInstructorAsync(email);
+                isAdmin = await UserService.IsAdminAsync(email);
             }
         }
         else
         {
             isInstructor = false;
+            isAdmin = false;
         }
     }
 

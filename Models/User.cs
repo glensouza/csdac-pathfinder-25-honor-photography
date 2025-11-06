@@ -12,5 +12,6 @@ public class User
 public enum UserRole
 {
     Pathfinder = 0,
-    Instructor = 1
+    Instructor = 1,
+    Admin = 2
 }
