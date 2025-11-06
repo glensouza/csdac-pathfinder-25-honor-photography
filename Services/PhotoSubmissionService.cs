@@ -89,12 +89,6 @@ public class PhotoSubmissionService
         return (imageData, contentType);
     }
 
-    public async Task<PhotoSubmission?> GetSubmissionWithImageAsync(int id)
-    {
-        using var context = await _contextFactory.CreateDbContextAsync();
-        return await context.PhotoSubmissions.FindAsync(id);
-    }
-
     public async Task GradeSubmissionAsync(int submissionId, GradeStatus status, string gradedBy)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
