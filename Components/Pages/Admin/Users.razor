@@ -24,8 +24,19 @@
         </div>
     }
 
+    @if (!isAdmin)
+    {
+        <div class="alert alert-danger">
+            <h4>Access Denied</h4>
+            <p>You must be an admin to access this page.</p>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    }
+    else
+    {
+
     <div class="alert alert-info mb-4">
-        <strong>Note:</strong> This page allows you to promote users to instructors. All authenticated users start as Pathfinders by default.
+        <strong>Note:</strong> This page allows admins to promote users to instructors and demote them back to pathfinders. All authenticated users start as Pathfinders by default.
         <br/>
         <strong>Access URL:</strong> Navigate to <code>/admin/users</code> to access this page.
     </div>
@@ -50,7 +61,11 @@
                             <td>@user.Name</td>
                             <td>@user.Email</td>
                             <td>
-                                @if (user.Role == UserRole.Instructor)
+                                @if (user.Role == UserRole.Admin)
+                                {
+                                    <span class="badge bg-danger">Admin</span>
+                                }
+                                else if (user.Role == UserRole.Instructor)
                                 {
                                     <span class="badge bg-primary">Instructor</span>
                                 }
@@ -61,7 +76,7 @@
                             </td>
                             <td>@user.CreatedDate.ToString("MMM dd, yyyy")</td>
                             <td>
-                                @if (user.Email != currentUserEmail)
+                                @if (user.Email != currentUserEmail && user.Role != UserRole.Admin)
                                 {
                                     @if (user.Role == UserRole.Pathfinder)
                                     {
@@ -75,6 +90,10 @@
                                             Demote to Pathfinder
                                         </button>
                                     }
+                                }
+                                else if (user.Role == UserRole.Admin)
+                                {
+                                    <span class="text-muted">Admin (Database Only)</span>
                                 }
                                 else
                                 {
@@ -97,6 +116,7 @@
     <div class="mt-4">
         <a href="/" class="btn btn-outline-secondary">← Back to Home</a>
     </div>
+    }
 </div>
 
 @code {
@@ -104,6 +124,7 @@
     private string message = string.Empty;
     private bool isError = false;
     private string currentUserEmail = string.Empty;
+    private bool isAdmin = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -119,6 +140,9 @@
             {
                 // Ensure user exists in database
                 await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
+                
+                // Check if current user is admin
+                isAdmin = await UserService.IsAdminAsync(currentUserEmail);
             }
         }
         else
@@ -127,7 +151,10 @@
             return;
         }
 
-        await LoadUsers();
+        if (isAdmin)
+        {
+            await LoadUsers();
+        }
     }
 
     private async Task LoadUsers()

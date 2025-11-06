@@ -252,6 +252,48 @@ For local development without Docker, edit `appsettings.Development.json`:
 
 ## Database Management
 
+### Setting Up Admin Users
+
+The application has three user roles:
+- **Pathfinder** (default): Can submit photos and vote
+- **Instructor**: Can grade submissions in addition to Pathfinder capabilities
+- **Admin**: Can manage user roles (promote/demote between Pathfinder and Instructor) and grade submissions
+
+**Important**: The first user to log into the system is automatically assigned the Admin role.
+
+For subsequent admin users, they must be created manually in the database. To create an admin user:
+
+```bash
+# Using Docker
+docker exec -it postgres psql -U postgres pathfinder_photography
+
+# Local PostgreSQL
+psql -U postgres pathfinder_photography
+
+# Set a user as admin (replace email@example.com with the actual email)
+UPDATE "Users" SET "Role" = 2 WHERE "Email" = 'email@example.com';
+
+# Verify the change
+SELECT "Name", "Email", "Role" FROM "Users";
+
+# Exit
+\q
+```
+
+User role values:
+- `0` = Pathfinder (default)
+- `1` = Instructor
+- `2` = Admin
+
+Once a user is set as Admin, they can:
+- Access the User Management page at `/admin/users`
+- Promote Pathfinders to Instructors
+- Demote Instructors back to Pathfinders
+- View all users and their roles
+- Grade photo submissions (same as Instructors)
+
+**Note**: Admin role can only be assigned/removed through direct database updates, not through the web interface.
+
 ### Backup Database
 ```bash
 # Using Docker
