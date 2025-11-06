@@ -8,6 +8,8 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 
 - **.NET Aspire**: Modern cloud-native application with built-in observability, service discovery, and health checks
 - **Google Authentication**: Secure login with Google accounts to track submissions
+- **Role-Based Access**: Three-tier role system (Pathfinder, Instructor, Admin) for granular permissions
+- **User Management**: Admin users can promote/demote users between Pathfinder and Instructor roles
 - **Educational Content**: Learn about 10 essential photography composition rules with descriptions and explanations
 - **Photo Submission**: Upload photos for each composition rule with personal descriptions
 - **Automatic Name Tracking**: User names are automatically pulled from Google account
@@ -213,6 +215,16 @@ dotnet ef database update --project PathfinderPhotography.csproj
 7. **Describe**: Explain how you applied the rule in your photo
 8. **Submit**: Click submit to save your photo
 9. **View Gallery**: Check out all submitted photos in the gallery
+
+### User Roles
+
+The application has three user roles with different permissions:
+
+- **Pathfinder** (Default): Can submit photos, vote on photos, and view the gallery
+- **Instructor**: Can grade photo submissions in addition to all Pathfinder capabilities
+- **Admin**: Can manage user roles (promote/demote between Pathfinder and Instructor), grade photo submissions, and access the User Management page
+
+**Important**: The first user to sign in to the system is automatically assigned the Admin role to bootstrap the application. Subsequent admin users must be created manually in the database. See [SETUP.md](SETUP.md) for instructions on creating admin users.
 
 ## Technology Stack
 
