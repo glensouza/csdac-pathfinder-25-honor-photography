@@ -31,16 +31,10 @@ public class VotingService
             return (null, null);
         }
 
-        // Randomly select two different photos
-        var random = new Random();
-        var photo1Index = random.Next(submissions.Count);
-        var photo2Index = random.Next(submissions.Count);
-        
-        // Ensure we get two different photos
-        while (photo2Index == photo1Index)
-        {
-            photo2Index = random.Next(submissions.Count);
-        }
+        // Randomly select two different photos using Random.Shared for better randomness
+        var photo1Index = Random.Shared.Next(submissions.Count);
+        var remainingIndices = Enumerable.Range(0, submissions.Count).Where(i => i != photo1Index).ToList();
+        var photo2Index = remainingIndices[Random.Shared.Next(remainingIndices.Count)];
 
         return (submissions[photo1Index], submissions[photo2Index]);
     }
