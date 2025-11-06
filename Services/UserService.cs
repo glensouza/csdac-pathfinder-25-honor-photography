@@ -27,11 +27,15 @@ public class UserService
         
         if (user == null)
         {
+            // Check if this is the first user in the system
+            var userCount = await context.Users.CountAsync();
+            var isFirstUser = userCount == 0;
+            
             user = new User
             {
                 Email = email,
                 Name = name,
-                Role = UserRole.Pathfinder,
+                Role = isFirstUser ? UserRole.Admin : UserRole.Pathfinder,
                 CreatedDate = DateTime.UtcNow
             };
             
@@ -52,6 +56,12 @@ public class UserService
     {
         var user = await GetUserByEmailAsync(email);
         return user?.Role == UserRole.Admin;
+    }
+
+    public async Task<bool> IsInstructorOrAdminAsync(string email)
+    {
+        var user = await GetUserByEmailAsync(email);
+        return user?.Role == UserRole.Instructor || user?.Role == UserRole.Admin;
     }
 
     public async Task SetUserRoleAsync(string email, UserRole role)

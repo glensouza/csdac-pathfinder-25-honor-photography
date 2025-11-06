@@ -17,11 +17,11 @@
     <h1>Grade Photo Submissions</h1>
     <p class="lead">Review and grade Pathfinder photo submissions</p>
 
-    @if (!isInstructor)
+    @if (!isInstructor && !isAdmin)
     {
         <div class="alert alert-danger">
             <h4>Access Denied</h4>
-            <p>You must be an instructor to access this page.</p>
+            <p>You must be an instructor or admin to access this page.</p>
             <a href="/" class="btn btn-primary">Return to Home</a>
         </div>
     }
@@ -221,6 +221,7 @@
     private string nameFilter = string.Empty;
     private string? successMessage;
     private bool isInstructor = false;
+    private bool isAdmin = false;
     private string currentUserEmail = string.Empty;
     private string currentUserName = string.Empty;
 
@@ -239,12 +240,13 @@
                 // Ensure user exists in database
                 await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
                 
-                // Check if user is instructor
+                // Check if user is instructor or admin
                 isInstructor = await UserService.IsInstructorAsync(currentUserEmail);
+                isAdmin = await UserService.IsAdminAsync(currentUserEmail);
             }
         }
 
-        if (!isInstructor)
+        if (!isInstructor && !isAdmin)
         {
             return;
         }

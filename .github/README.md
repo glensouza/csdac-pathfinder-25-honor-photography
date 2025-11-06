@@ -222,9 +222,9 @@ The application has three user roles with different permissions:
 
 - **Pathfinder** (Default): Can submit photos, vote on photos, and view the gallery
 - **Instructor**: Can grade photo submissions in addition to all Pathfinder capabilities
-- **Admin**: Can manage user roles (promote/demote between Pathfinder and Instructor) through the User Management page
+- **Admin**: Can manage user roles (promote/demote between Pathfinder and Instructor), grade photo submissions, and access the User Management page
 
-Admin users must be created manually in the database. See [SETUP.md](SETUP.md) for instructions on creating admin users.
+**Important**: The first user to sign in to the system is automatically assigned the Admin role to bootstrap the application. Subsequent admin users must be created manually in the database. See [SETUP.md](SETUP.md) for instructions on creating admin users.
 
 ## Technology Stack
 

@@ -257,9 +257,11 @@ For local development without Docker, edit `appsettings.Development.json`:
 The application has three user roles:
 - **Pathfinder** (default): Can submit photos and vote
 - **Instructor**: Can grade submissions in addition to Pathfinder capabilities
-- **Admin**: Can manage user roles (promote/demote between Pathfinder and Instructor)
+- **Admin**: Can manage user roles (promote/demote between Pathfinder and Instructor) and grade submissions
 
-Admin users must be created manually in the database. To create an admin user:
+**Important**: The first user to log into the system is automatically assigned the Admin role.
+
+For subsequent admin users, they must be created manually in the database. To create an admin user:
 
 ```bash
 # Using Docker
@@ -288,6 +290,7 @@ Once a user is set as Admin, they can:
 - Promote Pathfinders to Instructors
 - Demote Instructors back to Pathfinders
 - View all users and their roles
+- Grade photo submissions (same as Instructors)
 
 **Note**: Admin role can only be assigned/removed through direct database updates, not through the web interface.
 
