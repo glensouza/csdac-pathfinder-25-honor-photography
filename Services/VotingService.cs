@@ -4,25 +4,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PathfinderPhotography.Services;
 
-public class VotingService
+public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactory)
 {
-    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
-    private const double K_FACTOR = 32.0; // Standard ELO K-factor
-
-    public VotingService(IDbContextFactory<ApplicationDbContext> contextFactory)
-    {
-        _contextFactory = contextFactory;
-    }
+    private const double KFactor = 32.0; // Standard ELO K-factor
 
     /// <summary>
     /// Get two random photos for comparison, excluding photos from the current user
     /// </summary>
     public async Task<(PhotoSubmission?, PhotoSubmission?)> GetRandomPhotoPairAsync(string currentUserEmail)
     {
-        using var context = await _contextFactory.CreateDbContextAsync();
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
         // Get all submissions excluding current user's photos
-        var submissions = await context.PhotoSubmissions
+        List<PhotoSubmission> submissions = await context.PhotoSubmissions
             .Where(s => s.PathfinderEmail.ToLower() != currentUserEmail.ToLower())
             .ToListAsync();
 
@@ -32,9 +26,9 @@ public class VotingService
         }
 
         // Randomly select two different photos using Random.Shared for better randomness
-        var photo1Index = Random.Shared.Next(submissions.Count);
-        var remainingIndices = Enumerable.Range(0, submissions.Count).Where(i => i != photo1Index).ToList();
-        var photo2Index = remainingIndices[Random.Shared.Next(remainingIndices.Count)];
+        int photo1Index = Random.Shared.Next(submissions.Count);
+        List<int> remainingIndices = Enumerable.Range(0, submissions.Count).Where(i => i != photo1Index).ToList();
+        int photo2Index = remainingIndices[Random.Shared.Next(remainingIndices.Count)];
 
         return (submissions[photo1Index], submissions[photo2Index]);
     }
@@ -44,10 +38,10 @@ public class VotingService
     /// </summary>
     public async Task RecordVoteAsync(string voterEmail, int winnerPhotoId, int loserPhotoId)
     {
-        using var context = await _contextFactory.CreateDbContextAsync();
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
         // Check if user already voted on this pair
-        var existingVote = await context.PhotoVotes
+        PhotoVote? existingVote = await context.PhotoVotes
             .FirstOrDefaultAsync(v => v.VoterEmail.ToLower() == voterEmail.ToLower() &&
                 ((v.WinnerPhotoId == winnerPhotoId && v.LoserPhotoId == loserPhotoId) ||
                  (v.WinnerPhotoId == loserPhotoId && v.LoserPhotoId == winnerPhotoId)));
@@ -59,8 +53,8 @@ public class VotingService
         }
 
         // Get the photos
-        var winnerPhoto = await context.PhotoSubmissions.FindAsync(winnerPhotoId);
-        var loserPhoto = await context.PhotoSubmissions.FindAsync(loserPhotoId);
+        PhotoSubmission? winnerPhoto = await context.PhotoSubmissions.FindAsync(winnerPhotoId);
+        PhotoSubmission? loserPhoto = await context.PhotoSubmissions.FindAsync(loserPhotoId);
 
         if (winnerPhoto == null || loserPhoto == null)
         {
@@ -68,7 +62,7 @@ public class VotingService
         }
 
         // Calculate ELO changes
-        var (newWinnerRating, newLoserRating) = CalculateEloRatings(
+        (double newWinnerRating, double newLoserRating) = CalculateEloRatings(
             winnerPhoto.EloRating, 
             loserPhoto.EloRating
         );
@@ -78,7 +72,7 @@ public class VotingService
         loserPhoto.EloRating = newLoserRating;
 
         // Record the vote
-        var vote = new PhotoVote
+        PhotoVote vote = new PhotoVote
         {
             VoterEmail = voterEmail,
             WinnerPhotoId = winnerPhotoId,
@@ -98,14 +92,14 @@ public class VotingService
         double loserRating)
     {
         // Expected score for winner
-        var expectedWinner = 1.0 / (1.0 + Math.Pow(10, (loserRating - winnerRating) / 400.0));
+        double expectedWinner = 1.0 / (1.0 + Math.Pow(10, (loserRating - winnerRating) / 400.0));
         
         // Expected score for loser
-        var expectedLoser = 1.0 / (1.0 + Math.Pow(10, (winnerRating - loserRating) / 400.0));
+        double expectedLoser = 1.0 / (1.0 + Math.Pow(10, (winnerRating - loserRating) / 400.0));
 
         // New ratings (winner gets 1 point, loser gets 0 points)
-        var newWinnerRating = winnerRating + K_FACTOR * (1.0 - expectedWinner);
-        var newLoserRating = loserRating + K_FACTOR * (0.0 - expectedLoser);
+        double newWinnerRating = winnerRating + KFactor * (1.0 - expectedWinner);
+        double newLoserRating = loserRating + KFactor * (0.0 - expectedLoser);
 
         return (newWinnerRating, newLoserRating);
     }
@@ -115,7 +109,7 @@ public class VotingService
     /// </summary>
     public async Task<List<PhotoSubmission>> GetTopPhotosByRatingAsync(int count = 20)
     {
-        using var context = await _contextFactory.CreateDbContextAsync();
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
         return await context.PhotoSubmissions
             .OrderByDescending(s => s.EloRating)
@@ -129,7 +123,7 @@ public class VotingService
     /// </summary>
     public async Task<int> GetVoteCountForPhotoAsync(int photoId)
     {
-        using var context = await _contextFactory.CreateDbContextAsync();
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
         return await context.PhotoVotes
             .Where(v => v.WinnerPhotoId == photoId || v.LoserPhotoId == photoId)
@@ -141,9 +135,9 @@ public class VotingService
     /// </summary>
     public async Task<bool> CanUserVoteAsync(string userEmail)
     {
-        using var context = await _contextFactory.CreateDbContextAsync();
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
-        var otherSubmissionsCount = await context.PhotoSubmissions
+        int otherSubmissionsCount = await context.PhotoSubmissions
             .Where(s => s.PathfinderEmail.ToLower() != userEmail.ToLower())
             .CountAsync();
 

@@ -6,10 +6,13 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add Aspire service defaults (telemetry, health checks, service discovery)
 builder.AddServiceDefaults();
+
+// Register Npgsql DataSource from Aspire PostgreSQL resource "pathfinder-photography"
+builder.AddNpgsqlDbContext<ApplicationDbContext>(connectionName: "pathfinder-photography");
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -35,8 +38,17 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
-// Add database context with Aspire PostgreSQL integration
-builder.AddNpgsqlDbContext<ApplicationDbContext>("pathfinder_photography");
+// Add database context
+builder.Services.AddDbContextFactory<ApplicationDbContext>((sp, options) =>
+{
+    string? cs = builder.Configuration.GetConnectionString("pathfinder-photography");
+    if (string.IsNullOrWhiteSpace(cs))
+    {
+        throw new InvalidOperationException("Missing connection string 'pathfinder-photography'.");
+    }
+
+    options.UseNpgsql(cs);
+});
 
 // Add custom services
 builder.Services.AddSingleton<CompositionRuleService>();
@@ -44,13 +56,13 @@ builder.Services.AddScoped<PhotoSubmissionService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<VotingService>();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Ensure database is created
-using (var scope = app.Services.CreateScope())
+using (IServiceScope scope = app.Services.CreateScope())
 {
-    var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-    using var context = await dbContextFactory.CreateDbContextAsync();
+    IDbContextFactory<ApplicationDbContext> dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+    await using ApplicationDbContext context = await dbContextFactory.CreateDbContextAsync();
     await context.Database.MigrateAsync();
 }
 
@@ -58,7 +70,6 @@ using (var scope = app.Services.CreateScope())
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 

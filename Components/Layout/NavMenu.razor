@@ -1,3 +1,4 @@
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
 @using PathfinderPhotography.Services
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -106,12 +107,12 @@
 
     private async Task CheckInstructorStatus()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
         
         if (user.Identity?.IsAuthenticated == true)
         {
-            var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            string? email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
             if (!string.IsNullOrEmpty(email))
             {
                 isInstructor = await UserService.IsInstructorAsync(email);

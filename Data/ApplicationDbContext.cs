@@ -3,13 +3,8 @@ using PathfinderPhotography.Models;
 
 namespace PathfinderPhotography.Data;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
-    {
-    }
-
     public DbSet<PhotoSubmission> PhotoSubmissions { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<PhotoVote> PhotoVotes { get; set; }

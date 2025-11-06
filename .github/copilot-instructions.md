@@ -29,6 +29,7 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 
 ## Code Style
 
+- Always use explicit types; never use `var` in C# code
 - Write clear, readable code with meaningful variable and function names
 - Comment your code when necessary, especially for complex logic
 - Follow existing code patterns and conventions in the project

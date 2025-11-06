@@ -1,4 +1,5 @@
 @page "/vote"
+@using System.Security.Claims
 @using PathfinderPhotography.Services
 @using PathfinderPhotography.Models
 @using Microsoft.AspNetCore.Components.Authorization
@@ -121,8 +122,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
         
         if (user.Identity?.IsAuthenticated == true)
         {
@@ -131,7 +132,7 @@
             if (!string.IsNullOrEmpty(currentUserEmail))
             {
                 // Check if user can vote
-                var canVote = await VotingService.CanUserVoteAsync(currentUserEmail);
+                bool canVote = await VotingService.CanUserVoteAsync(currentUserEmail);
                 if (!canVote)
                 {
                     errorMessage = "There aren't enough photos from other Pathfinders to vote on yet. ";
@@ -154,7 +155,7 @@
         }
 
         isLoading = true;
-        var (p1, p2) = await VotingService.GetRandomPhotoPairAsync(currentUserEmail);
+        (PhotoSubmission? p1, PhotoSubmission? p2) = await VotingService.GetRandomPhotoPairAsync(currentUserEmail);
         
         if (p1 == null || p2 == null)
         {

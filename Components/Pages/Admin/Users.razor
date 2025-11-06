@@ -1,4 +1,5 @@
 @page "/admin/users"
+@using System.Security.Claims
 @using PathfinderPhotography.Services
 @using PathfinderPhotography.Models
 @using Microsoft.AspNetCore.Components.Authorization
@@ -43,7 +44,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var user in users)
+                    @foreach (User user in users)
                     {
                         <tr>
                             <td>@user.Name</td>
@@ -106,13 +107,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
         
         if (user.Identity?.IsAuthenticated == true)
         {
             currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
-            var currentUserName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "";
+            string currentUserName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "";
             
             if (!string.IsNullOrEmpty(currentUserEmail))
             {

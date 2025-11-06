@@ -1,14 +1,18 @@
-var builder = DistributedApplication.CreateBuilder(args);
+IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(args);
 
 // Add PostgreSQL database
-var postgres = builder.AddPostgres("postgres")
+IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgres")
     .WithDataVolume()
-    .WithPgAdmin();
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithPgAdmin(pgAdmin => pgAdmin.WithLifetime(ContainerLifetime.Persistent));
 
-var pathfinderDb = postgres.AddDatabase("pathfinder_photography");
+IResourceBuilder<PostgresDatabaseResource> pathfinderDb = postgres.AddDatabase("pathfinder-photography"); // resource name (kebab-case)
+
+// If your version exposes it, set the actual DB name explicitly:
+// pathfinderDb.WithDatabaseName("pathfinder_photography");
 
 // Add the main web application
-var webApp = builder.AddProject<Projects.PathfinderPhotography>("webapp")
+IResourceBuilder<ProjectResource> webApp = builder.AddProject<Projects.PathfinderPhotography>("webapp")
     .WithReference(pathfinderDb)
     .WithExternalHttpEndpoints();
 

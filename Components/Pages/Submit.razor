@@ -1,7 +1,7 @@
 @page "/submit"
+@using System.Security.Claims
 @using PathfinderPhotography.Services
 @using PathfinderPhotography.Models
-@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Authorization
 @inject CompositionRuleService RuleService
@@ -49,7 +49,7 @@
                     <label class="form-label">Composition Rule</label>
                     <InputSelect class="form-select" @bind-Value="currentSubmission.CompositionRuleId" @bind-Value:after="OnRuleChanged">
                         <option value="0">-- Select a Rule --</option>
-                        @foreach (var rule in rules)
+                        @foreach (CompositionRule rule in rules)
                         {
                             <option value="@rule.Id">@rule.Id. @rule.Name</option>
                         }
@@ -58,7 +58,7 @@
 
                 @if (currentSubmission.CompositionRuleId > 0)
                 {
-                    var selectedRule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
+                    CompositionRule? selectedRule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
                     if (selectedRule != null)
                     {
                         <div class="alert alert-info">
@@ -66,7 +66,7 @@
                         </div>
                     }
 
-                    var existingSubmission = userSubmissions.FirstOrDefault(s => s.CompositionRuleId == currentSubmission.CompositionRuleId);
+                    PhotoSubmission? existingSubmission = userSubmissions.FirstOrDefault(s => s.CompositionRuleId == currentSubmission.CompositionRuleId);
                     if (existingSubmission != null)
                     {
                         <div class="alert alert-warning">
@@ -137,7 +137,7 @@
         @if (userSubmissions.Any())
         {
             <div class="row">
-                @foreach (var submission in userSubmissions)
+                @foreach (PhotoSubmission submission in userSubmissions)
                 {
                     <div class="col-md-4 mb-3">
                         <div class="card">
@@ -211,8 +211,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
         
         if (user.Identity?.IsAuthenticated == true)
         {
@@ -282,7 +282,7 @@
         }
 
         // Check if there's an existing submission for this rule
-        var existingSubmission = await SubmissionService.GetLatestSubmissionForRuleAsync(currentUserEmail, currentSubmission.CompositionRuleId);
+        PhotoSubmission? existingSubmission = await SubmissionService.GetLatestSubmissionForRuleAsync(currentUserEmail, currentSubmission.CompositionRuleId);
         
         // If there's an existing submission that passed, don't allow resubmission
         if (existingSubmission != null && existingSubmission.GradeStatus == GradeStatus.Pass)
@@ -303,11 +303,11 @@
         try
         {
             // Save the uploaded file
-            using var stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            var fileName = await SubmissionService.SaveUploadedFileAsync(stream, selectedFile.Name);
+            await using Stream stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            string fileName = await SubmissionService.SaveUploadedFileAsync(stream, selectedFile.Name);
 
             // Create submission
-            var rule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
+            CompositionRule? rule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
             currentSubmission.CompositionRuleName = rule?.Name ?? "Unknown";
             currentSubmission.ImagePath = fileName;
             currentSubmission.GradeStatus = GradeStatus.NotGraded;
@@ -337,8 +337,8 @@
             }
 
             // Reset form for next submission, but keep the name
-            var name = currentSubmission.PathfinderName;
-            var email = currentSubmission.PathfinderEmail;
+            string name = currentSubmission.PathfinderName;
+            string email = currentSubmission.PathfinderEmail;
             currentSubmission = new PhotoSubmission { PathfinderName = name, PathfinderEmail = email };
             selectedFile = null;
             selectedFileName = string.Empty;
