@@ -39,6 +39,7 @@
 
 @code {
     private string pathfinderName = string.Empty;
+    private string? cachedEmail = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,21 +63,33 @@
 
     private async Task UpdatePathfinderName()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        System.Security.Claims.ClaimsPrincipal user = authState.User;
 
         if (user.Identity?.IsAuthenticated == true)
         {
-            var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            string? email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
             if (!string.IsNullOrEmpty(email))
             {
-                var dbUser = await UserService.GetUserByEmailAsync(email);
-                pathfinderName = dbUser?.Name ?? user.Identity.Name ?? "Pathfinder";
+                // Only query database if email has changed to avoid unnecessary database calls
+                if (email != cachedEmail)
+                {
+                    PathfinderPhotography.Models.User? dbUser = await UserService.GetUserByEmailAsync(email);
+                    pathfinderName = dbUser?.Name ?? user.Identity.Name ?? "Pathfinder";
+                    cachedEmail = email;
+                }
+            }
+            else
+            {
+                // Reset if email is missing
+                pathfinderName = "Pathfinder";
+                cachedEmail = null;
             }
         }
         else
         {
             pathfinderName = string.Empty;
+            cachedEmail = null;
         }
     }
 
