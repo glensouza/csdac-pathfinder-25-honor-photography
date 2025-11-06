@@ -42,7 +42,7 @@
         <div class="row g-4">
             <div class="col-md-6">
                 <div class="card h-100 vote-card" @onclick="() => RecordVote(photo1.Id, photo2.Id)">
-                    <img src="/uploads/@photo1.ImagePath" 
+                    <img src="/api/images/@photo1.Id" 
                          class="card-img-top vote-image" 
                          alt="Photo Option 1"
                          style="height: 400px; object-fit: cover; cursor: pointer;" />
@@ -60,7 +60,7 @@
 
             <div class="col-md-6">
                 <div class="card h-100 vote-card" @onclick="() => RecordVote(photo2.Id, photo1.Id)">
-                    <img src="/uploads/@photo2.ImagePath" 
+                    <img src="/api/images/@photo2.Id" 
                          class="card-img-top vote-image" 
                          alt="Photo Option 2"
                          style="height: 400px; object-fit: cover; cursor: pointer;" />

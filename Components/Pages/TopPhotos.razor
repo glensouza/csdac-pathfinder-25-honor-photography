@@ -42,7 +42,7 @@
                                 <span class="badge @GetBadgeClass(index) fs-5">@GetRankIcon(index) #@(index + 1)</span>
                             </div>
                         }
-                        <img src="/uploads/@photo.ImagePath" 
+                        <img src="/api/images/@photo.Id" 
                              class="card-img-top" 
                              alt="@photo.CompositionRuleName by @photo.PathfinderName"
                              style="height: 300px; object-fit: cover; cursor: pointer;"
@@ -95,7 +95,7 @@
                     <button type="button" class="btn-close" @onclick="CloseModal"></button>
                 </div>
                 <div class="modal-body">
-                    <img src="/uploads/@selectedSubmission.ImagePath" 
+                    <img src="/api/images/@selectedSubmission.Id" 
                          class="img-fluid mb-3" 
                          alt="@selectedSubmission.CompositionRuleName" />
                     <p><strong>Pathfinder:</strong> @selectedSubmission.PathfinderName</p>
