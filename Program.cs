@@ -90,21 +90,36 @@ app.MapPost("/logout", async (HttpContext context) =>
     context.Response.Redirect("/");
 });
 
-// Add endpoint to serve images from database
-app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
+// Add endpoint to serve images from database, with authentication and authorization
+app.MapGet("/api/images/{id:int}", async (HttpContext httpContext, int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
 {
+    // Require authentication
+    if (!httpContext.User.Identity?.IsAuthenticated ?? true)
+    {
+        return Results.Unauthorized();
+    }
+
     using var context = await contextFactory.CreateDbContextAsync();
-    var imageInfo = await context.PhotoSubmissions
+    var photo = await context.PhotoSubmissions
         .Where(p => p.Id == id)
-        .Select(p => new { p.ImageData, p.ImageContentType })
+        .Select(p => new { p.ImageData, p.ImageContentType, p.UserId, p.IsPublic })
         .FirstOrDefaultAsync();
-    
-    if (imageInfo?.ImageData == null)
+
+    if (photo?.ImageData == null)
     {
         return Results.NotFound();
     }
-    
-    return Results.File(imageInfo.ImageData, imageInfo.ImageContentType ?? "image/jpeg");
-});
 
+    // Get current user ID (assumes NameIdentifier claim is used for user ID)
+    var userId = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+    // Only allow access if the image is public or belongs to the current user
+    if (!(photo.IsPublic || (userId != null && photo.UserId == userId)))
+    {
+        return Results.Forbid();
+    }
+
+    return Results.File(photo.ImageData, photo.ImageContentType ?? "image/jpeg");
+})
+.RequireAuthorization();
 app.Run();
