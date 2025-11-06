@@ -18,7 +18,7 @@ The team and community take security bugs seriously. We appreciate your efforts 
 
 Instead, please report security vulnerabilities by emailing the maintainer at:
 
-**[INSERT SECURITY EMAIL]**
+**glenster75@gmail.com**
 
 You should receive a response within 48 hours. If for some reason you do not, please follow up via email to ensure we received your original message.
 

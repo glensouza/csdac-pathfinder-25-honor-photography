@@ -9,6 +9,28 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PathfinderPhotography.AppHo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PathfinderPhotography.ServiceDefaults", "PathfinderPhotography.ServiceDefaults\PathfinderPhotography.ServiceDefaults.csproj", "{E4155DBF-D730-46DB-950F-750F7010CB0A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionFiles", "SolutionFiles", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{1EDF97D4-3F7B-4C88-B78D-80F40D6A4A8C}"
+	ProjectSection(SolutionItems) = preProject
+		.github\CONTAINER_IMAGES.md = .github\CONTAINER_IMAGES.md
+		.github\copilot-instructions.md = .github\copilot-instructions.md
+		.github\FUNDING.yml = .github\FUNDING.yml
+		.github\PULL_REQUEST_TEMPLATE.md = .github\PULL_REQUEST_TEMPLATE.md
+		.github\README.md = .github\README.md
+		.github\SECURITY.md = .github\SECURITY.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IssueTemplates", "IssueTemplates", "{365360C0-8ED1-4933-A6C7-3BA0A895A165}"
+	ProjectSection(SolutionItems) = preProject
+		.github\ISSUE_TEMPLATE\bug_report.yml = .github\ISSUE_TEMPLATE\bug_report.yml
+		.github\ISSUE_TEMPLATE\config.yml = .github\ISSUE_TEMPLATE\config.yml
+		.github\ISSUE_TEMPLATE\documentation.yml = .github\ISSUE_TEMPLATE\documentation.yml
+		.github\ISSUE_TEMPLATE\feature_request.yml = .github\ISSUE_TEMPLATE\feature_request.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,5 +80,12 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1EDF97D4-3F7B-4C88-B78D-80F40D6A4A8C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{365360C0-8ED1-4933-A6C7-3BA0A895A165} = {1EDF97D4-3F7B-4C88-B78D-80F40D6A4A8C}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BA556C42-3CF4-43D9-8ABE-3551512C551D}
 	EndGlobalSection
 EndGlobal
