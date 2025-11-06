@@ -1,0 +1,193 @@
+@page "/vote"
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@inject VotingService VotingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>Vote on Photos</PageTitle>
+
+<div class="container mt-4">
+    <h1>Vote on Photos</h1>
+    <p class="lead">Help rank the best photos by choosing which photo is better. Your votes are anonymous!</p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-warning">
+            @errorMessage
+            <a href="/submit" class="alert-link">Submit photos</a> to enable voting.
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading photos to compare...</p>
+        </div>
+    }
+    else if (photo1 != null && photo2 != null)
+    {
+        <div class="mb-3">
+            <p class="text-muted">
+                <strong>Instructions:</strong> Click on the photo you think is better. 
+                Names are hidden to ensure fair voting.
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100 vote-card" @onclick="() => RecordVote(photo1.Id, photo2.Id)">
+                    <img src="/uploads/@photo1.ImagePath" 
+                         class="card-img-top vote-image" 
+                         alt="Photo Option 1"
+                         style="height: 400px; object-fit: cover; cursor: pointer;" />
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Photo A</h5>
+                        <p class="card-text">
+                            <strong>Composition Rule:</strong> @photo1.CompositionRuleName
+                        </p>
+                        <button class="btn btn-primary btn-lg w-100" @onclick="() => RecordVote(photo1.Id, photo2.Id)">
+                            Choose This Photo
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100 vote-card" @onclick="() => RecordVote(photo2.Id, photo1.Id)">
+                    <img src="/uploads/@photo2.ImagePath" 
+                         class="card-img-top vote-image" 
+                         alt="Photo Option 2"
+                         style="height: 400px; object-fit: cover; cursor: pointer;" />
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Photo B</h5>
+                        <p class="card-text">
+                            <strong>Composition Rule:</strong> @photo2.CompositionRuleName
+                        </p>
+                        <button class="btn btn-primary btn-lg w-100" @onclick="() => RecordVote(photo2.Id, photo1.Id)">
+                            Choose This Photo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <button class="btn btn-outline-secondary" @onclick="LoadPhotoPair">
+                Skip This Pair
+            </button>
+            <a href="/top-photos" class="btn btn-outline-primary ms-2">
+                View Top Ranked Photos
+            </a>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a href="/" class="btn btn-outline-secondary">← Back to Home</a>
+    </div>
+</div>
+
+<style>
+    .vote-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+    }
+
+    .vote-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .vote-image {
+        transition: opacity 0.2s;
+    }
+
+    .vote-card:hover .vote-image {
+        opacity: 0.9;
+    }
+</style>
+
+@code {
+    private PhotoSubmission? photo1;
+    private PhotoSubmission? photo2;
+    private string? currentUserEmail;
+    private string? errorMessage;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            
+            if (!string.IsNullOrEmpty(currentUserEmail))
+            {
+                // Check if user can vote
+                var canVote = await VotingService.CanUserVoteAsync(currentUserEmail);
+                if (!canVote)
+                {
+                    errorMessage = "There aren't enough photos from other Pathfinders to vote on yet. ";
+                    isLoading = false;
+                    return;
+                }
+
+                await LoadPhotoPair();
+            }
+        }
+        
+        isLoading = false;
+    }
+
+    private async Task LoadPhotoPair()
+    {
+        if (string.IsNullOrEmpty(currentUserEmail))
+        {
+            return;
+        }
+
+        isLoading = true;
+        var (p1, p2) = await VotingService.GetRandomPhotoPairAsync(currentUserEmail);
+        
+        if (p1 == null || p2 == null)
+        {
+            errorMessage = "Not enough photos available to vote on. ";
+            photo1 = null;
+            photo2 = null;
+        }
+        else
+        {
+            photo1 = p1;
+            photo2 = p2;
+            errorMessage = null;
+        }
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task RecordVote(int winnerPhotoId, int loserPhotoId)
+    {
+        if (string.IsNullOrEmpty(currentUserEmail))
+        {
+            return;
+        }
+
+        try
+        {
+            await VotingService.RecordVoteAsync(currentUserEmail, winnerPhotoId, loserPhotoId);
+            await LoadPhotoPair();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error recording vote: {ex.Message}";
+        }
+    }
+}
