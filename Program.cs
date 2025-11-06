@@ -90,36 +90,27 @@ app.MapPost("/logout", async (HttpContext context) =>
     context.Response.Redirect("/");
 });
 
-// Add endpoint to serve images from database, with authentication and authorization
-app.MapGet("/api/images/{id:int}", async (HttpContext httpContext, int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
+// Add endpoint to serve images from database
+app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
 {
-    // Require authentication
-    if (!httpContext.User.Identity?.IsAuthenticated ?? true)
-    {
-        return Results.Unauthorized();
-    }
-
     using var context = await contextFactory.CreateDbContextAsync();
-    var photo = await context.PhotoSubmissions
+    var imageInfo = await context.PhotoSubmissions
         .Where(p => p.Id == id)
-        .Select(p => new { p.ImageData, p.ImageContentType, p.UserId, p.IsPublic })
+        .Select(p => new { p.ImageData, p.ImageContentType })
         .FirstOrDefaultAsync();
-
-    if (photo?.ImageData == null)
+    
+    if (imageInfo?.ImageData == null)
     {
         return Results.NotFound();
     }
-
-    // Get current user ID (assumes NameIdentifier claim is used for user ID)
-    var userId = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-    // Only allow access if the image is public or belongs to the current user
-    if (!(photo.IsPublic || (userId != null && photo.UserId == userId)))
+    
+    const int MaxImageSizeBytes = 10 * 1024 * 1024; // 10MB
+    if (imageInfo.ImageData.Length > MaxImageSizeBytes)
     {
-        return Results.Forbid();
+        return Results.StatusCode(413); // Payload Too Large
     }
+    
+    return Results.File(imageInfo.ImageData, imageInfo.ImageContentType ?? "image/jpeg");
+});
 
-    return Results.File(photo.ImageData, photo.ImageContentType ?? "image/jpeg");
-})
-.RequireAuthorization();
 app.Run();
