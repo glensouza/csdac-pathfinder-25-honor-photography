@@ -101,4 +101,27 @@ app.MapPost("/logout", async (HttpContext context) =>
     context.Response.Redirect("/");
 });
 
+// Add endpoint to serve images from database
+app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
+{
+    using var context = await contextFactory.CreateDbContextAsync();
+    var imageInfo = await context.PhotoSubmissions
+        .Where(p => p.Id == id)
+        .Select(p => new { p.ImageData, p.ImageContentType })
+        .FirstOrDefaultAsync();
+    
+    if (imageInfo?.ImageData == null)
+    {
+        return Results.NotFound();
+    }
+    
+    const int MaxImageSizeBytes = 10 * 1024 * 1024; // 10MB
+    if (imageInfo.ImageData.Length > MaxImageSizeBytes)
+    {
+        return Results.StatusCode(413); // Payload Too Large
+    }
+    
+    return Results.File(imageInfo.ImageData, imageInfo.ImageContentType ?? "image/jpeg");
+});
+
 app.Run();

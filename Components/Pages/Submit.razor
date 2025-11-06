@@ -141,7 +141,7 @@
                 {
                     <div class="col-md-4 mb-3">
                         <div class="card">
-                            <img src="/uploads/@submission.ImagePath" class="card-img-top" alt="@submission.CompositionRuleName" 
+                            <img src="/api/images/@submission.Id" class="card-img-top" alt="@submission.CompositionRuleName" 
                                  style="height: 200px; object-fit: cover;" />
                             <div class="card-body">
                                 <h6 class="card-title">
@@ -302,14 +302,16 @@
 
         try
         {
-            // Save the uploaded file
-            await using Stream stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            string fileName = await SubmissionService.SaveUploadedFileAsync(stream, selectedFile.Name);
+            // Save the image data to database
+            using var stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            var (imageData, contentType) = await SubmissionService.SaveImageDataAsync(stream, selectedFile.Name);
 
             // Create submission
             CompositionRule? rule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
             currentSubmission.CompositionRuleName = rule?.Name ?? "Unknown";
-            currentSubmission.ImagePath = fileName;
+            currentSubmission.ImagePath = selectedFile.Name; // Keep original filename for reference
+            currentSubmission.ImageData = imageData;
+            currentSubmission.ImageContentType = contentType;
             currentSubmission.GradeStatus = GradeStatus.NotGraded;
             
             // Set version number

@@ -60,6 +60,69 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
         return uniqueFileName;
     }
 
+    public async Task<(byte[] imageData, string contentType)> SaveImageDataAsync(Stream fileStream, string fileName)
+    {
+        using var memoryStream = new MemoryStream();
+        await fileStream.CopyToAsync(memoryStream);
+        var imageData = memoryStream.ToArray();
+        
+        // Validate file content by checking magic bytes/file signatures
+        var detectedContentType = DetectImageTypeFromMagicBytes(imageData);
+        if (detectedContentType == null)
+        {
+            throw new InvalidOperationException("Invalid image file. The file content does not match any supported image format.");
+        }
+        
+        // Validate that extension matches detected content type
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var expectedContentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".webp" => "image/webp",
+            _ => null
+        };
+        
+        if (expectedContentType != null && expectedContentType != detectedContentType)
+        {
+            throw new InvalidOperationException($"File extension '{extension}' does not match detected image type '{detectedContentType}'.");
+        }
+
+        return (imageData, detectedContentType);
+    }
+
+    private string? DetectImageTypeFromMagicBytes(byte[] data)
+    {
+        if (data.Length < 12) return null;
+
+        // JPEG: FF D8 FF
+        if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+            return "image/jpeg";
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 &&
+            data[4] == 0x0D && data[5] == 0x0A && data[6] == 0x1A && data[7] == 0x0A)
+            return "image/png";
+
+        // GIF: GIF87a or GIF89a
+        if (data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x38 &&
+            (data[4] == 0x37 || data[4] == 0x39) && data[5] == 0x61)
+            return "image/gif";
+
+        // BMP: 42 4D
+        if (data[0] == 0x42 && data[1] == 0x4D)
+            return "image/bmp";
+
+        // WebP: RIFF....WEBP
+        if (data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 &&
+            data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50)
+            return "image/webp";
+
+        return null;
+    }
+
     public async Task GradeSubmissionAsync(int submissionId, GradeStatus status, string gradedBy)
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();

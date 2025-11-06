@@ -21,6 +21,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.PathfinderEmail).IsRequired().HasMaxLength(200);
             entity.Property(e => e.CompositionRuleName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.ImagePath).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.ImageData);
+            entity.Property(e => e.ImageContentType).HasMaxLength(100);
             entity.Property(e => e.Description).IsRequired().HasMaxLength(2000);
             entity.Property(e => e.SubmissionDate).IsRequired();
             entity.Property(e => e.GradeStatus).IsRequired();
