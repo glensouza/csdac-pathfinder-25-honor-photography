@@ -32,7 +32,24 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
 });
 
-builder.Services.AddAuthorization();
+// Add authorization with custom policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("InstructorOnly", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireAssertion(context =>
+              {
+                  var userService = context.Resource as IServiceProvider;
+                  if (userService == null) return false;
+                  
+                  var email = context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                  if (string.IsNullOrEmpty(email)) return false;
+                  
+                  var service = userService.GetRequiredService<UserService>();
+                  return service.IsInstructorAsync(email).GetAwaiter().GetResult();
+              }));
+});
+
 builder.Services.AddCascadingAuthenticationState();
 
 // Add database context with Aspire PostgreSQL integration
@@ -41,6 +58,7 @@ builder.AddNpgsqlDbContext<ApplicationDbContext>("pathfinder_photography");
 // Add custom services
 builder.Services.AddSingleton<CompositionRuleService>();
 builder.Services.AddScoped<PhotoSubmissionService>();
+builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 

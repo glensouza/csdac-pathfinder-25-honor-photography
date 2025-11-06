@@ -23,13 +23,23 @@ public class PhotoSubmissionService
             .ToListAsync();
     }
 
-    public async Task<List<PhotoSubmission>> GetSubmissionsByPathfinderAsync(string pathfinderName)
+    public async Task<List<PhotoSubmission>> GetSubmissionsByPathfinderAsync(string pathfinderEmail)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.PhotoSubmissions
-            .Where(s => s.PathfinderName.ToLower() == pathfinderName.ToLower())
+            .Where(s => s.PathfinderEmail.ToLower() == pathfinderEmail.ToLower())
             .OrderByDescending(s => s.SubmissionDate)
             .ToListAsync();
+    }
+
+    public async Task<PhotoSubmission?> GetLatestSubmissionForRuleAsync(string pathfinderEmail, int compositionRuleId)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.PhotoSubmissions
+            .Where(s => s.PathfinderEmail.ToLower() == pathfinderEmail.ToLower() 
+                     && s.CompositionRuleId == compositionRuleId)
+            .OrderByDescending(s => s.SubmissionVersion)
+            .FirstOrDefaultAsync();
     }
 
     public async Task AddSubmissionAsync(PhotoSubmission submission)
@@ -57,5 +67,34 @@ public class PhotoSubmissionService
         }
 
         return uniqueFileName;
+    }
+
+    public async Task GradeSubmissionAsync(int submissionId, GradeStatus status, string gradedBy)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var submission = await context.PhotoSubmissions.FindAsync(submissionId);
+        if (submission != null)
+        {
+            submission.GradeStatus = status;
+            submission.GradedBy = gradedBy;
+            submission.GradedDate = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<List<PhotoSubmission>> GetSubmissionsForGradingAsync()
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.PhotoSubmissions
+            .OrderBy(s => s.GradeStatus)
+            .ThenByDescending(s => s.SubmissionDate)
+            .ToListAsync();
+    }
+
+    public async Task<PhotoSubmission?> GetSubmissionByIdAsync(int id)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.PhotoSubmissions.FindAsync(id);
     }
 }

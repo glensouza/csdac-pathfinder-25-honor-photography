@@ -2,9 +2,15 @@
 @using PathfinderPhotography.Services
 @using PathfinderPhotography.Models
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
 @inject CompositionRuleService RuleService
 @inject PhotoSubmissionService SubmissionService
+@inject UserService UserService
 @inject IWebHostEnvironment Environment
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
 @rendermode InteractiveServer
 
 <PageTitle>Submit Photos</PageTitle>
@@ -36,12 +42,12 @@
                 
                 <div class="mb-3">
                     <label class="form-label">Your Name</label>
-                    <InputText class="form-control" @bind-Value="currentSubmission.PathfinderName" placeholder="Enter your name" />
+                    <InputText class="form-control" @bind-Value="currentSubmission.PathfinderName" disabled />
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Composition Rule</label>
-                    <InputSelect class="form-select" @bind-Value="currentSubmission.CompositionRuleId">
+                    <InputSelect class="form-select" @bind-Value="currentSubmission.CompositionRuleId" @bind-Value:after="OnRuleChanged">
                         <option value="0">-- Select a Rule --</option>
                         @foreach (var rule in rules)
                         {
@@ -57,6 +63,38 @@
                     {
                         <div class="alert alert-info">
                             <strong>@selectedRule.Name:</strong> @selectedRule.Description
+                        </div>
+                    }
+
+                    var existingSubmission = userSubmissions.FirstOrDefault(s => s.CompositionRuleId == currentSubmission.CompositionRuleId);
+                    if (existingSubmission != null)
+                    {
+                        <div class="alert alert-warning">
+                            <strong>Existing Submission:</strong> You have already submitted a photo for this rule.
+                            <br/>
+                            <strong>Status:</strong> 
+                            @if (existingSubmission.GradeStatus == GradeStatus.NotGraded)
+                            {
+                                <span class="badge bg-secondary">Not Graded Yet</span>
+                            }
+                            else if (existingSubmission.GradeStatus == GradeStatus.Pass)
+                            {
+                                <span class="badge bg-success">✓ Pass</span>
+                            }
+                            else if (existingSubmission.GradeStatus == GradeStatus.Fail)
+                            {
+                                <span class="badge bg-danger">✗ Fail - You can resubmit</span>
+                            }
+                            @if (existingSubmission.GradeStatus == GradeStatus.Fail)
+                            {
+                                <br/>
+                                <small>This will be version @(existingSubmission.SubmissionVersion + 1) of your submission.</small>
+                            }
+                            else if (existingSubmission.GradeStatus == GradeStatus.Pass)
+                            {
+                                <br/>
+                                <small>You cannot resubmit a photo that has already passed.</small>
+                            }
                         </div>
                     }
                 }
@@ -96,31 +134,61 @@
 
     <div class="mt-4">
         <h3>Your Submissions</h3>
-        @if (!string.IsNullOrEmpty(currentSubmission.PathfinderName))
+        @if (userSubmissions.Any())
         {
-            if (userSubmissions.Any())
-            {
-                <div class="row">
-                    @foreach (var submission in userSubmissions)
-                    {
-                        <div class="col-md-4 mb-3">
-                            <div class="card">
-                                <img src="/uploads/@submission.ImagePath" class="card-img-top" alt="@submission.CompositionRuleName" 
-                                     style="height: 200px; object-fit: cover;" />
-                                <div class="card-body">
-                                    <h6 class="card-title">@submission.CompositionRuleName</h6>
-                                    <p class="card-text small">@submission.Description</p>
-                                    <small class="text-muted">@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
+            <div class="row">
+                @foreach (var submission in userSubmissions)
+                {
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <img src="/uploads/@submission.ImagePath" class="card-img-top" alt="@submission.CompositionRuleName" 
+                                 style="height: 200px; object-fit: cover;" />
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    @submission.CompositionRuleName
+                                    @if (submission.SubmissionVersion > 1)
+                                    {
+                                        <span class="badge bg-warning">v@submission.SubmissionVersion</span>
+                                    }
+                                </h6>
+                                <p class="card-text small">@submission.Description</p>
+                                <div class="mb-2">
+                                    @if (submission.GradeStatus == GradeStatus.NotGraded)
+                                    {
+                                        <span class="badge bg-secondary">Not Graded Yet</span>
+                                    }
+                                    else if (submission.GradeStatus == GradeStatus.Pass)
+                                    {
+                                        <span class="badge bg-success">✓ Pass</span>
+                                    }
+                                    else if (submission.GradeStatus == GradeStatus.Fail)
+                                    {
+                                        <span class="badge bg-danger">✗ Fail</span>
+                                    }
                                 </div>
+                                <small class="text-muted">@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                                @if (!string.IsNullOrEmpty(submission.GradedBy))
+                                {
+                                    <br/>
+                                    <small class="text-muted">Graded by @submission.GradedBy</small>
+                                }
                             </div>
                         </div>
-                    }
-                </div>
-            }
-            else
-            {
-                <p class="text-muted">No submissions yet. Start uploading your photos!</p>
-            }
+                    </div>
+                }
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <strong>Progress:</strong> You've submitted @userSubmissions.Count out of 10 photos.
+                <br/>
+                <strong>Graded:</strong> @userSubmissions.Count(s => s.GradeStatus != GradeStatus.NotGraded) submissions
+                <br/>
+                <strong>Passed:</strong> @userSubmissions.Count(s => s.GradeStatus == GradeStatus.Pass) submissions
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No submissions yet. Start uploading your photos!</p>
         }
     </div>
 
@@ -138,18 +206,42 @@
     private string errorMessage = string.Empty;
     private bool isSubmitting = false;
     private List<PhotoSubmission> userSubmissions = new();
+    private string currentUserEmail = string.Empty;
+    private string currentUserName = string.Empty;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+            currentUserName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "";
+            
+            if (!string.IsNullOrEmpty(currentUserEmail))
+            {
+                // Ensure user exists in database
+                await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
+                
+                currentSubmission.PathfinderName = currentUserName;
+                currentSubmission.PathfinderEmail = currentUserEmail;
+                
+                userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentUserEmail);
+            }
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/login");
+        }
+
         rules = RuleService.GetAllRules();
     }
 
-    protected override async Task OnParametersSetAsync()
+    private async Task OnRuleChanged()
     {
-        if (!string.IsNullOrEmpty(currentSubmission.PathfinderName))
-        {
-            userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentSubmission.PathfinderName);
-        }
+        // Refresh submissions when rule changes
+        await Task.CompletedTask;
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)
@@ -189,6 +281,16 @@
             return;
         }
 
+        // Check if there's an existing submission for this rule
+        var existingSubmission = await SubmissionService.GetLatestSubmissionForRuleAsync(currentUserEmail, currentSubmission.CompositionRuleId);
+        
+        // If there's an existing submission that passed, don't allow resubmission
+        if (existingSubmission != null && existingSubmission.GradeStatus == GradeStatus.Pass)
+        {
+            errorMessage = "You cannot resubmit a photo that has already passed.";
+            return;
+        }
+
         // Check file size (max 10MB)
         if (selectedFile.Size > 10 * 1024 * 1024)
         {
@@ -208,15 +310,36 @@
             var rule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
             currentSubmission.CompositionRuleName = rule?.Name ?? "Unknown";
             currentSubmission.ImagePath = fileName;
+            currentSubmission.GradeStatus = GradeStatus.NotGraded;
+            
+            // Set version number
+            if (existingSubmission != null)
+            {
+                currentSubmission.SubmissionVersion = existingSubmission.SubmissionVersion + 1;
+                currentSubmission.PreviousSubmissionId = existingSubmission.Id;
+            }
+            else
+            {
+                currentSubmission.SubmissionVersion = 1;
+            }
 
             await SubmissionService.AddSubmissionAsync(currentSubmission);
 
-            userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentSubmission.PathfinderName);
-            successMessage = $"Photo submitted successfully! You've submitted {userSubmissions.Count} out of 10 photos.";
+            userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentUserEmail);
+            
+            if (existingSubmission != null && existingSubmission.GradeStatus == GradeStatus.Fail)
+            {
+                successMessage = $"Photo resubmitted successfully (version {currentSubmission.SubmissionVersion})! You've submitted {userSubmissions.Count} out of 10 photos.";
+            }
+            else
+            {
+                successMessage = $"Photo submitted successfully! You've submitted {userSubmissions.Count} out of 10 photos.";
+            }
 
             // Reset form for next submission, but keep the name
             var name = currentSubmission.PathfinderName;
-            currentSubmission = new PhotoSubmission { PathfinderName = name };
+            var email = currentSubmission.PathfinderEmail;
+            currentSubmission = new PhotoSubmission { PathfinderName = name, PathfinderEmail = email };
             selectedFile = null;
             selectedFileName = string.Empty;
         }
