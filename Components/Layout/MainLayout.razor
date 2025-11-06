@@ -1,4 +1,9 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using PathfinderPhotography.Services
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserService UserService
+@implements IDisposable
 
 <div class="page">
     <div class="sidebar">
@@ -7,7 +12,17 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <AuthorizeView>
+                <Authorized>
+                    <span style="margin-right: auto;">Welcome, @pathfinderName!</span>
+                    <form action="/logout" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-link" style="text-decoration: none;">Sign Out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login">Sign In</a>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
 
         <article class="content px-4">
@@ -21,3 +36,51 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private string pathfinderName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await UpdatePathfinderName();
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            await UpdatePathfinderName();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Ignore errors during async event handling
+        }
+    }
+
+    private async Task UpdatePathfinderName()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrEmpty(email))
+            {
+                var dbUser = await UserService.GetUserByEmailAsync(email);
+                pathfinderName = dbUser?.Name ?? user.Identity.Name ?? "Pathfinder";
+            }
+        }
+        else
+        {
+            pathfinderName = string.Empty;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}
