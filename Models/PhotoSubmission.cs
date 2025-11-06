@@ -15,6 +15,7 @@ public class PhotoSubmission
     public DateTime? GradedDate { get; set; }
     public int SubmissionVersion { get; set; } = 1;
     public int? PreviousSubmissionId { get; set; }
+    public double EloRating { get; set; } = 1000.0;
 }
 
 public enum GradeStatus

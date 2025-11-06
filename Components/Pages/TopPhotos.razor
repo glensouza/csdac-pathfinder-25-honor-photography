@@ -1,0 +1,185 @@
+@page "/top-photos"
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@inject VotingService VotingService
+@rendermode InteractiveServer
+
+<PageTitle>Top Ranked Photos</PageTitle>
+
+<div class="container mt-4">
+    <h1>🏆 Top Ranked Photos</h1>
+    <p class="lead">Photos ranked by community votes using the ELO rating system</p>
+
+    <div class="mb-3">
+        <p class="text-muted">
+            <small>
+                <strong>How it works:</strong> Each photo starts with a rating of 1000. 
+                When people vote, ratings are adjusted based on expected outcomes. 
+                Higher ratings indicate photos that consistently win comparisons.
+            </small>
+        </p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading top photos...</p>
+        </div>
+    }
+    else if (topPhotos.Any())
+    {
+        <div class="row">
+            @foreach (var (photo, index) in topPhotos.Select((p, i) => (p, i)))
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 @GetRankClass(index)">
+                        @if (index < 3)
+                        {
+                            <div class="position-absolute top-0 start-0 m-2">
+                                <span class="badge @GetBadgeClass(index) fs-5">@GetRankIcon(index) #@(index + 1)</span>
+                            </div>
+                        }
+                        <img src="/uploads/@photo.ImagePath" 
+                             class="card-img-top" 
+                             alt="@photo.CompositionRuleName by @photo.PathfinderName"
+                             style="height: 300px; object-fit: cover; cursor: pointer;"
+                             @onclick="() => ShowModal(photo)" />
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">
+                                    @if (index >= 3)
+                                    {
+                                        <span class="badge bg-secondary me-1">#@(index + 1)</span>
+                                    }
+                                    @photo.CompositionRuleName
+                                </h6>
+                                <span class="badge bg-info">@Math.Round(photo.EloRating, 0)</span>
+                            </div>
+                            <p class="card-text">
+                                <strong>By:</strong> @photo.PathfinderName<br />
+                                <small class="text-muted">@photo.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                            </p>
+                            @if (photo.GradeStatus == GradeStatus.Pass)
+                            {
+                                <span class="badge bg-success">✓ Pass</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <p class="mb-0">No photos have been ranked yet. <a href="/vote">Start voting</a> to build the rankings!</p>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a href="/vote" class="btn btn-primary">Vote on Photos</a>
+        <a href="/" class="btn btn-outline-secondary ms-2">← Back to Home</a>
+    </div>
+</div>
+
+@if (selectedSubmission != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@selectedSubmission.CompositionRuleName</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <img src="/uploads/@selectedSubmission.ImagePath" 
+                         class="img-fluid mb-3" 
+                         alt="@selectedSubmission.CompositionRuleName" />
+                    <p><strong>Pathfinder:</strong> @selectedSubmission.PathfinderName</p>
+                    <p><strong>ELO Rating:</strong> @Math.Round(selectedSubmission.EloRating, 1)</p>
+                    <p><strong>Submitted:</strong> @selectedSubmission.SubmissionDate.ToString("MMMM dd, yyyy")</p>
+                    <p><strong>Description:</strong></p>
+                    <p>@selectedSubmission.Description</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .rank-gold {
+        border: 3px solid gold;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    }
+
+    .rank-silver {
+        border: 3px solid silver;
+        box-shadow: 0 0 15px rgba(192, 192, 192, 0.5);
+    }
+
+    .rank-bronze {
+        border: 3px solid #cd7f32;
+        box-shadow: 0 0 15px rgba(205, 127, 50, 0.5);
+    }
+</style>
+
+@code {
+    private List<PhotoSubmission> topPhotos = new();
+    private PhotoSubmission? selectedSubmission;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        topPhotos = await VotingService.GetTopPhotosByRatingAsync(20);
+        isLoading = false;
+    }
+
+    private string GetRankClass(int index)
+    {
+        return index switch
+        {
+            0 => "rank-gold",
+            1 => "rank-silver",
+            2 => "rank-bronze",
+            _ => ""
+        };
+    }
+
+    private string GetBadgeClass(int index)
+    {
+        return index switch
+        {
+            0 => "bg-warning text-dark",
+            1 => "bg-light text-dark",
+            2 => "bg-warning",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetRankIcon(int index)
+    {
+        return index switch
+        {
+            0 => "🥇",
+            1 => "🥈",
+            2 => "🥉",
+            _ => ""
+        };
+    }
+
+    private void ShowModal(PhotoSubmission submission)
+    {
+        selectedSubmission = submission;
+    }
+
+    private void CloseModal()
+    {
+        selectedSubmission = null;
+    }
+}

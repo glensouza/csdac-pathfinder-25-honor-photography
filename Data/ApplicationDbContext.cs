@@ -12,6 +12,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<PhotoSubmission> PhotoSubmissions { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<PhotoVote> PhotoVotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.GradeStatus).IsRequired();
             entity.Property(e => e.GradedBy).HasMaxLength(200);
             entity.Property(e => e.SubmissionVersion).IsRequired();
+            entity.Property(e => e.EloRating).IsRequired().HasDefaultValue(1000.0);
             
             entity.HasIndex(e => e.PathfinderName);
             entity.HasIndex(e => e.PathfinderEmail);
@@ -47,6 +49,19 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedDate).IsRequired();
             
             entity.HasIndex(e => e.Email).IsUnique();
+        });
+
+        // Configure PhotoVote entity
+        modelBuilder.Entity<PhotoVote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VoterEmail).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.WinnerPhotoId).IsRequired();
+            entity.Property(e => e.LoserPhotoId).IsRequired();
+            entity.Property(e => e.VoteDate).IsRequired();
+            
+            entity.HasIndex(e => e.VoterEmail);
+            entity.HasIndex(e => new { e.VoterEmail, e.WinnerPhotoId, e.LoserPhotoId });
         });
     }
 }
