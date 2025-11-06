@@ -32,24 +32,7 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
 });
 
-// Add authorization with custom policies
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("InstructorOnly", policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireAssertion(context =>
-              {
-                  var userService = context.Resource as IServiceProvider;
-                  if (userService == null) return false;
-                  
-                  var email = context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-                  if (string.IsNullOrEmpty(email)) return false;
-                  
-                  var service = userService.GetRequiredService<UserService>();
-                  return service.IsInstructorAsync(email).GetAwaiter().GetResult();
-              }));
-});
-
+builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
 // Add database context with Aspire PostgreSQL integration

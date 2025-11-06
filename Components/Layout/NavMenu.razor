@@ -77,8 +77,15 @@
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
-        await CheckInstructorStatus();
-        StateHasChanged();
+        try
+        {
+            await CheckInstructorStatus();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Ignore errors during async event handling
+        }
     }
 
     private async Task CheckInstructorStatus()

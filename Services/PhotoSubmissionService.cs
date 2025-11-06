@@ -74,13 +74,15 @@ public class PhotoSubmissionService
         using var context = await _contextFactory.CreateDbContextAsync();
         
         var submission = await context.PhotoSubmissions.FindAsync(submissionId);
-        if (submission != null)
+        if (submission == null)
         {
-            submission.GradeStatus = status;
-            submission.GradedBy = gradedBy;
-            submission.GradedDate = DateTime.UtcNow;
-            await context.SaveChangesAsync();
+            throw new InvalidOperationException($"Submission with ID {submissionId} not found.");
         }
+        
+        submission.GradeStatus = status;
+        submission.GradedBy = gradedBy;
+        submission.GradedDate = DateTime.UtcNow;
+        await context.SaveChangesAsync();
     }
 
     public async Task<List<PhotoSubmission>> GetSubmissionsForGradingAsync()
