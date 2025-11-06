@@ -56,12 +56,24 @@ public class UserService
 
     public async Task SetUserRoleAsync(string email, UserRole role)
     {
+        // Prevent setting admin role through API - admin can only be set via direct database update
+        if (role == UserRole.Admin)
+        {
+            throw new InvalidOperationException("Admin role can only be set through direct database updates for security purposes.");
+        }
+
         using var context = await _contextFactory.CreateDbContextAsync();
         
         var user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         
         if (user != null)
         {
+            // Prevent modifying admin users through API
+            if (user.Role == UserRole.Admin)
+            {
+                throw new InvalidOperationException("Cannot modify admin user roles through API. Use direct database updates.");
+            }
+
             user.Role = role;
             await context.SaveChangesAsync();
         }
