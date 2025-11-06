@@ -94,14 +94,17 @@ app.MapPost("/logout", async (HttpContext context) =>
 app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
 {
     using var context = await contextFactory.CreateDbContextAsync();
-    var submission = await context.PhotoSubmissions.FindAsync(id);
+    var imageInfo = await context.PhotoSubmissions
+        .Where(p => p.Id == id)
+        .Select(p => new { p.ImageData, p.ImageContentType })
+        .FirstOrDefaultAsync();
     
-    if (submission?.ImageData == null)
+    if (imageInfo?.ImageData == null)
     {
         return Results.NotFound();
     }
     
-    return Results.File(submission.ImageData, submission.ImageContentType ?? "image/jpeg");
+    return Results.File(imageInfo.ImageData, imageInfo.ImageContentType ?? "image/jpeg");
 });
 
 app.Run();

@@ -83,7 +83,7 @@ public class PhotoSubmissionService
             ".gif" => "image/gif",
             ".bmp" => "image/bmp",
             ".webp" => "image/webp",
-            _ => "image/jpeg"
+            _ => throw new InvalidOperationException($"Unsupported image format: {extension}. Supported formats are: .jpg, .jpeg, .png, .gif, .bmp, .webp")
         };
 
         return (imageData, contentType);
