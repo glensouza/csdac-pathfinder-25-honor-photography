@@ -84,7 +84,7 @@
                         {
                             <tr>
                                 <td>
-                                    <img src="/uploads/@submission.ImagePath" 
+                                    <img src="/api/images/@submission.Id" 
                                          alt="@submission.CompositionRuleName" 
                                          style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;"
                                          @onclick="() => ShowModal(submission)" />
@@ -167,7 +167,7 @@
                     <button type="button" class="btn-close" @onclick="CloseModal"></button>
                 </div>
                 <div class="modal-body">
-                    <img src="/uploads/@selectedSubmission.ImagePath" 
+                    <img src="/api/images/@selectedSubmission.Id" 
                          class="img-fluid mb-3" 
                          alt="@selectedSubmission.CompositionRuleName" />
                     <p><strong>Pathfinder:</strong> @selectedSubmission.PathfinderName (@selectedSubmission.PathfinderEmail)</p>

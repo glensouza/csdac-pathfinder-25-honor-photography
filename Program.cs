@@ -90,4 +90,18 @@ app.MapPost("/logout", async (HttpContext context) =>
     context.Response.Redirect("/");
 });
 
+// Add endpoint to serve images from database
+app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
+{
+    using var context = await contextFactory.CreateDbContextAsync();
+    var submission = await context.PhotoSubmissions.FindAsync(id);
+    
+    if (submission?.ImageData == null)
+    {
+        return Results.NotFound();
+    }
+    
+    return Results.File(submission.ImageData, submission.ImageContentType ?? "image/jpeg");
+});
+
 app.Run();

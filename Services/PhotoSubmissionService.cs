@@ -69,6 +69,32 @@ public class PhotoSubmissionService
         return uniqueFileName;
     }
 
+    public async Task<(byte[] imageData, string contentType)> SaveImageDataAsync(Stream fileStream, string fileName)
+    {
+        using var memoryStream = new MemoryStream();
+        await fileStream.CopyToAsync(memoryStream);
+        var imageData = memoryStream.ToArray();
+        
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var contentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".webp" => "image/webp",
+            _ => "image/jpeg"
+        };
+
+        return (imageData, contentType);
+    }
+
+    public async Task<PhotoSubmission?> GetSubmissionWithImageAsync(int id)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.PhotoSubmissions.FindAsync(id);
+    }
+
     public async Task GradeSubmissionAsync(int submissionId, GradeStatus status, string gradedBy)
     {
         using var context = await _contextFactory.CreateDbContextAsync();

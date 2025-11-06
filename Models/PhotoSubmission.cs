@@ -8,6 +8,8 @@ public class PhotoSubmission
     public int CompositionRuleId { get; set; }
     public string CompositionRuleName { get; set; } = string.Empty;
     public string ImagePath { get; set; } = string.Empty;
+    public byte[]? ImageData { get; set; }
+    public string? ImageContentType { get; set; }
     public string Description { get; set; } = string.Empty;
     public DateTime SubmissionDate { get; set; } = DateTime.Now;
     public GradeStatus GradeStatus { get; set; } = GradeStatus.NotGraded;
