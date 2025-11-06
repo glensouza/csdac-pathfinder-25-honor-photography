@@ -53,9 +53,10 @@
             await UpdatePathfinderName();
             await InvokeAsync(StateHasChanged);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors during async event handling
+            // Log the exception to aid debugging of authentication issues
+            Console.Error.WriteLine($"Exception in OnAuthenticationStateChanged: {ex}");
         }
     }
 
