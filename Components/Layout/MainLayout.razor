@@ -1,4 +1,9 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using PathfinderPhotography.Services
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserService UserService
+@implements IDisposable
 
 <div class="page">
     <div class="sidebar">
@@ -7,7 +12,17 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <AuthorizeView>
+                <Authorized>
+                    <span class="welcome-message">Welcome, @pathfinderName!</span>
+                    <form action="/logout" method="post">
+                        <button type="submit" class="btn btn-link">Sign Out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login">Sign In</a>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
 
         <article class="content px-4">
@@ -21,3 +36,65 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private string pathfinderName = string.Empty;
+    private string? cachedEmail = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await UpdatePathfinderName();
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            await UpdatePathfinderName();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            // Log the exception to aid debugging of authentication issues
+            Console.Error.WriteLine($"Exception in OnAuthenticationStateChanged: {ex}");
+        }
+    }
+
+    private async Task UpdatePathfinderName()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        System.Security.Claims.ClaimsPrincipal user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            string? email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrEmpty(email))
+            {
+                // Only query database if email has changed to avoid unnecessary database calls
+                if (email != cachedEmail)
+                {
+                    PathfinderPhotography.Models.User? dbUser = await UserService.GetUserByEmailAsync(email);
+                    pathfinderName = dbUser?.Name ?? user.Identity.Name ?? "Pathfinder";
+                    cachedEmail = email;
+                }
+            }
+            else
+            {
+                // Reset if email is missing
+                pathfinderName = "Pathfinder";
+                cachedEmail = null;
+            }
+        }
+        else
+        {
+            pathfinderName = string.Empty;
+            cachedEmail = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}
