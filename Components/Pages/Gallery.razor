@@ -13,7 +13,7 @@
 
     <div class="mb-4">
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label">Filter by Composition Rule</label>
                 <select class="form-select" @onchange="FilterByRule">
                     <option value="0">All Rules</option>
@@ -23,7 +23,16 @@
                     }
                 </select>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <label class="form-label">Filter by Grade Status</label>
+                <select class="form-select" @onchange="FilterByGradeStatus">
+                    <option value="-1">All Submissions</option>
+                    <option value="0">Not Graded</option>
+                    <option value="1">Pass</option>
+                    <option value="2">Fail</option>
+                </select>
+            </div>
+            <div class="col-md-4">
                 <label class="form-label">Filter by Pathfinder</label>
                 <input type="text" class="form-control" placeholder="Enter name..." @bind="nameFilter" @bind:event="oninput" />
             </div>
@@ -43,11 +52,31 @@
                              style="height: 250px; object-fit: cover; cursor: pointer;"
                              @onclick="() => ShowModal(submission)" />
                         <div class="card-body">
-                            <h6 class="card-title">@submission.CompositionRuleName</h6>
+                            <h6 class="card-title">
+                                @submission.CompositionRuleName
+                                @if (submission.SubmissionVersion > 1)
+                                {
+                                    <span class="badge bg-warning">v@submission.SubmissionVersion</span>
+                                }
+                            </h6>
                             <p class="card-text">
                                 <strong>By:</strong> @submission.PathfinderName<br />
                                 <small class="text-muted">@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
                             </p>
+                            <div>
+                                @if (submission.GradeStatus == GradeStatus.NotGraded)
+                                {
+                                    <span class="badge bg-secondary">Not Graded</span>
+                                }
+                                else if (submission.GradeStatus == GradeStatus.Pass)
+                                {
+                                    <span class="badge bg-success">✓ Pass</span>
+                                }
+                                else if (submission.GradeStatus == GradeStatus.Fail)
+                                {
+                                    <span class="badge bg-danger">✗ Fail</span>
+                                }
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -80,7 +109,29 @@
                          class="img-fluid mb-3" 
                          alt="@selectedSubmission.CompositionRuleName" />
                     <p><strong>Pathfinder:</strong> @selectedSubmission.PathfinderName</p>
+                    @if (selectedSubmission.SubmissionVersion > 1)
+                    {
+                        <p><strong>Version:</strong> @selectedSubmission.SubmissionVersion</p>
+                    }
                     <p><strong>Submitted:</strong> @selectedSubmission.SubmissionDate.ToString("MMMM dd, yyyy")</p>
+                    <p><strong>Status:</strong> 
+                        @if (selectedSubmission.GradeStatus == GradeStatus.NotGraded)
+                        {
+                            <span class="badge bg-secondary">Not Graded</span>
+                        }
+                        else if (selectedSubmission.GradeStatus == GradeStatus.Pass)
+                        {
+                            <span class="badge bg-success">✓ Pass</span>
+                        }
+                        else if (selectedSubmission.GradeStatus == GradeStatus.Fail)
+                        {
+                            <span class="badge bg-danger">✗ Fail</span>
+                        }
+                    </p>
+                    @if (!string.IsNullOrEmpty(selectedSubmission.GradedBy))
+                    {
+                        <p><strong>Graded by:</strong> @selectedSubmission.GradedBy on @selectedSubmission.GradedDate?.ToString("MMMM dd, yyyy")</p>
+                    }
                     <p><strong>Description:</strong></p>
                     <p>@selectedSubmission.Description</p>
                 </div>
@@ -98,6 +149,7 @@
     private List<PhotoSubmission> filteredSubmissions = new();
     private PhotoSubmission? selectedSubmission;
     private int selectedRuleId = 0;
+    private int selectedGradeStatus = -1;
     private string nameFilter = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -113,6 +165,12 @@
         ApplyFilters();
     }
 
+    private void FilterByGradeStatus(ChangeEventArgs e)
+    {
+        selectedGradeStatus = int.Parse(e.Value?.ToString() ?? "-1");
+        ApplyFilters();
+    }
+
     private void ApplyFilters()
     {
         filteredSubmissions = allSubmissions;
@@ -120,6 +178,11 @@
         if (selectedRuleId > 0)
         {
             filteredSubmissions = filteredSubmissions.Where(s => s.CompositionRuleId == selectedRuleId).ToList();
+        }
+
+        if (selectedGradeStatus >= 0)
+        {
+            filteredSubmissions = filteredSubmissions.Where(s => (int)s.GradeStatus == selectedGradeStatus).ToList();
         }
 
         if (!string.IsNullOrWhiteSpace(nameFilter))

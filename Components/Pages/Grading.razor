@@ -1,0 +1,311 @@
+@page "/grading"
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject PhotoSubmissionService SubmissionService
+@inject UserService UserService
+@inject CompositionRuleService RuleService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Grade Submissions</PageTitle>
+
+<div class="container mt-4">
+    <h1>Grade Photo Submissions</h1>
+    <p class="lead">Review and grade Pathfinder photo submissions</p>
+
+    @if (!isInstructor)
+    {
+        <div class="alert alert-danger">
+            <h4>Access Denied</h4>
+            <p>You must be an instructor to access this page.</p>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    }
+    else
+    {
+        <div class="mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Status</label>
+                    <select class="form-select" @onchange="FilterByStatus">
+                        <option value="-1">All Submissions</option>
+                        <option value="0" selected>Not Graded</option>
+                        <option value="1">Pass</option>
+                        <option value="2">Fail</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Rule</label>
+                    <select class="form-select" @onchange="FilterByRule">
+                        <option value="0">All Rules</option>
+                        @foreach (var rule in rules)
+                        {
+                            <option value="@rule.Id">@rule.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Pathfinder</label>
+                    <input type="text" class="form-control" placeholder="Enter name..." @bind="nameFilter" @bind:event="oninput" @onchange="ApplyFilters" />
+                </div>
+            </div>
+        </div>
+
+        @if (successMessage != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="@(() => successMessage = null)"></button>
+            </div>
+        }
+
+        @if (filteredSubmissions.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Photo</th>
+                            <th>Pathfinder</th>
+                            <th>Rule</th>
+                            <th>Description</th>
+                            <th>Version</th>
+                            <th>Submitted</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var submission in filteredSubmissions)
+                        {
+                            <tr>
+                                <td>
+                                    <img src="/uploads/@submission.ImagePath" 
+                                         alt="@submission.CompositionRuleName" 
+                                         style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;"
+                                         @onclick="() => ShowModal(submission)" />
+                                </td>
+                                <td>@submission.PathfinderName</td>
+                                <td><span class="badge bg-info">@submission.CompositionRuleName</span></td>
+                                <td>
+                                    <small>@(submission.Description.Length > 50 ? submission.Description.Substring(0, 50) + "..." : submission.Description)</small>
+                                </td>
+                                <td>
+                                    @if (submission.SubmissionVersion > 1)
+                                    {
+                                        <span class="badge bg-warning">v@submission.SubmissionVersion</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">v1</span>
+                                    }
+                                </td>
+                                <td><small>@submission.SubmissionDate.ToString("MMM dd, yyyy")</small></td>
+                                <td>
+                                    @if (submission.GradeStatus == GradeStatus.NotGraded)
+                                    {
+                                        <span class="badge bg-secondary">Not Graded</span>
+                                    }
+                                    else if (submission.GradeStatus == GradeStatus.Pass)
+                                    {
+                                        <span class="badge bg-success">✓ Pass</span>
+                                    }
+                                    else if (submission.GradeStatus == GradeStatus.Fail)
+                                    {
+                                        <span class="badge bg-danger">✗ Fail</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (submission.GradeStatus == GradeStatus.NotGraded)
+                                    {
+                                        <button class="btn btn-sm btn-success me-1" @onclick="() => GradeSubmission(submission.Id, GradeStatus.Pass)">
+                                            Pass
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => GradeSubmission(submission.Id, GradeStatus.Fail)">
+                                            Fail
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ShowModal(submission)">
+                                            View
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-3">
+                <p class="text-muted">
+                    Showing @filteredSubmissions.Count submission(s)
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <p class="mb-0">No submissions found matching the current filters.</p>
+            </div>
+        }
+    }
+</div>
+
+@if (selectedSubmission != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@selectedSubmission.CompositionRuleName - @selectedSubmission.PathfinderName</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <img src="/uploads/@selectedSubmission.ImagePath" 
+                         class="img-fluid mb-3" 
+                         alt="@selectedSubmission.CompositionRuleName" />
+                    <p><strong>Pathfinder:</strong> @selectedSubmission.PathfinderName (@selectedSubmission.PathfinderEmail)</p>
+                    <p><strong>Version:</strong> @selectedSubmission.SubmissionVersion</p>
+                    <p><strong>Submitted:</strong> @selectedSubmission.SubmissionDate.ToString("MMMM dd, yyyy")</p>
+                    <p><strong>Status:</strong> 
+                        @if (selectedSubmission.GradeStatus == GradeStatus.NotGraded)
+                        {
+                            <span class="badge bg-secondary">Not Graded</span>
+                        }
+                        else if (selectedSubmission.GradeStatus == GradeStatus.Pass)
+                        {
+                            <span class="badge bg-success">✓ Pass</span>
+                        }
+                        else if (selectedSubmission.GradeStatus == GradeStatus.Fail)
+                        {
+                            <span class="badge bg-danger">✗ Fail</span>
+                        }
+                    </p>
+                    @if (!string.IsNullOrEmpty(selectedSubmission.GradedBy))
+                    {
+                        <p><strong>Graded by:</strong> @selectedSubmission.GradedBy on @selectedSubmission.GradedDate?.ToString("MMMM dd, yyyy")</p>
+                    }
+                    <p><strong>Description:</strong></p>
+                    <p>@selectedSubmission.Description</p>
+                </div>
+                <div class="modal-footer">
+                    @if (selectedSubmission.GradeStatus == GradeStatus.NotGraded)
+                    {
+                        <button type="button" class="btn btn-success" @onclick="async () => { await GradeSubmission(selectedSubmission.Id, GradeStatus.Pass); CloseModal(); }">Pass</button>
+                        <button type="button" class="btn btn-danger" @onclick="async () => { await GradeSubmission(selectedSubmission.Id, GradeStatus.Fail); CloseModal(); }">Fail</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-warning" @onclick="async () => { await GradeSubmission(selectedSubmission.Id, GradeStatus.NotGraded); CloseModal(); }">Reset Grade</button>
+                    }
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CompositionRule> rules = new();
+    private List<PhotoSubmission> allSubmissions = new();
+    private List<PhotoSubmission> filteredSubmissions = new();
+    private PhotoSubmission? selectedSubmission;
+    private int selectedRuleId = 0;
+    private int selectedStatusFilter = 0; // Default to NotGraded
+    private string nameFilter = string.Empty;
+    private string? successMessage;
+    private bool isInstructor = false;
+    private string currentUserEmail = string.Empty;
+    private string currentUserName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+            currentUserName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "";
+            
+            if (!string.IsNullOrEmpty(currentUserEmail))
+            {
+                // Ensure user exists in database
+                await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
+                
+                // Check if user is instructor
+                isInstructor = await UserService.IsInstructorAsync(currentUserEmail);
+            }
+        }
+
+        if (!isInstructor)
+        {
+            return;
+        }
+
+        rules = RuleService.GetAllRules();
+        allSubmissions = await SubmissionService.GetSubmissionsForGradingAsync();
+        ApplyFilters();
+    }
+
+    private void FilterByRule(ChangeEventArgs e)
+    {
+        selectedRuleId = int.Parse(e.Value?.ToString() ?? "0");
+        ApplyFilters();
+    }
+
+    private void FilterByStatus(ChangeEventArgs e)
+    {
+        selectedStatusFilter = int.Parse(e.Value?.ToString() ?? "-1");
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        filteredSubmissions = allSubmissions;
+
+        if (selectedStatusFilter >= 0)
+        {
+            filteredSubmissions = filteredSubmissions.Where(s => (int)s.GradeStatus == selectedStatusFilter).ToList();
+        }
+
+        if (selectedRuleId > 0)
+        {
+            filteredSubmissions = filteredSubmissions.Where(s => s.CompositionRuleId == selectedRuleId).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameFilter))
+        {
+            filteredSubmissions = filteredSubmissions.Where(s => 
+                s.PathfinderName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    private async Task GradeSubmission(int submissionId, GradeStatus status)
+    {
+        await SubmissionService.GradeSubmissionAsync(submissionId, status, currentUserName);
+        
+        // Refresh submissions
+        allSubmissions = await SubmissionService.GetSubmissionsForGradingAsync();
+        ApplyFilters();
+        
+        successMessage = $"Submission graded as {status}.";
+        StateHasChanged();
+    }
+
+    private void ShowModal(PhotoSubmission submission)
+    {
+        selectedSubmission = submission;
+    }
+
+    private void CloseModal()
+    {
+        selectedSubmission = null;
+    }
+}

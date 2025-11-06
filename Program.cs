@@ -41,6 +41,7 @@ builder.AddNpgsqlDbContext<ApplicationDbContext>("pathfinder_photography");
 // Add custom services
 builder.Services.AddSingleton<CompositionRuleService>();
 builder.Services.AddScoped<PhotoSubmissionService>();
+builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 

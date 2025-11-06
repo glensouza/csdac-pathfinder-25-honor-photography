@@ -1,4 +1,10 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+@using Microsoft.AspNetCore.Components.Authorization
+@using PathfinderPhotography.Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserService UserService
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">📸 Pathfinder Photography</a>
     </div>
@@ -14,17 +20,95 @@
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="submit">
-                <span class="bi bi-upload-nav-menu" aria-hidden="true"></span> Submit Photos
-            </NavLink>
-        </div>
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="submit">
+                        <span class="bi bi-upload-nav-menu" aria-hidden="true"></span> Submit Photos
+                    </NavLink>
+                </div>
+
+                @if (isInstructor)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="grading">
+                            <span class="bi bi-clipboard-check-nav-menu" aria-hidden="true"></span> Grade Submissions
+                        </NavLink>
+                    </div>
+                }
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="/login">
+                        <span class="bi bi-box-arrow-in-right-nav-menu" aria-hidden="true"></span> Sign In
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
 
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="gallery">
                 <span class="bi bi-images-nav-menu" aria-hidden="true"></span> Gallery
             </NavLink>
         </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <form action="/logout" method="post">
+                        <button type="submit" class="nav-link btn btn-link">
+                            <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Sign Out
+                        </button>
+                    </form>
+                </div>
+            </Authorized>
+        </AuthorizeView>
     </nav>
 </div>
 
+@code {
+    private bool isInstructor = false;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await CheckInstructorStatus();
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            await CheckInstructorStatus();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Ignore errors during async event handling
+        }
+    }
+
+    private async Task CheckInstructorStatus()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrEmpty(email))
+            {
+                isInstructor = await UserService.IsInstructorAsync(email);
+            }
+        }
+        else
+        {
+            isInstructor = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}
