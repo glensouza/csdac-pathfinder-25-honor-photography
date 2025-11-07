@@ -1,15 +1,20 @@
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 a, .btn-link {
-    color: #006bb7;
+    color: #2563eb;
 }
 
 .btn-primary {
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    background-color: #2563eb;
+    border-color: #1d4ed8;
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    border-color: #1e40af;
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
