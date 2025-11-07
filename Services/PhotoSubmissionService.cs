@@ -8,7 +8,8 @@ public class PhotoSubmissionService(
     IDbContextFactory<ApplicationDbContext> contextFactory, 
     IWebHostEnvironment env,
     EmailNotificationService emailService,
-    UserService userService)
+    UserService userService,
+    ILogger<PhotoSubmissionService> logger)
 {
     public async Task<List<PhotoSubmission>> GetAllSubmissionsAsync()
     {
@@ -61,9 +62,10 @@ public class PhotoSubmissionService(
                         instructorEmails);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently fail email notifications - they're not critical
+                // Email notifications are non-critical, log and continue
+                logger.LogWarning(ex, "Failed to send new submission email notification for rule {Rule}", submission.CompositionRuleName);
             }
         });
     }
@@ -175,9 +177,10 @@ public class PhotoSubmissionService(
                     status,
                     gradedBy);
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently fail email notifications - they're not critical
+                // Email notifications are non-critical, log and continue
+                logger.LogWarning(ex, "Failed to send grading email notification for rule {Rule}", submission.CompositionRuleName);
             }
         });
     }

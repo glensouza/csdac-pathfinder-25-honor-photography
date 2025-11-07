@@ -92,7 +92,7 @@ services:
       - pathfinder-network
     ports:
       - "6060:6060"   # Query service port
-      - "8080:8080"   # Frontend will be served from here (conflicts with app, use different port)
+      - "8081:8080"   # Query service API (mapped to avoid conflict with app)
     depends_on:
       - signoz-clickhouse
     restart: unless-stopped

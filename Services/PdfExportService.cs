@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PathfinderPhotography.Services;
 
-public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFactory, CompositionRuleService ruleService)
+public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFactory, CompositionRuleService ruleService, ILogger<PdfExportService> logger)
 {
     public async Task<byte[]> GenerateSubmissionsReportAsync(string? pathfinderEmail = null, int? ruleId = null)
     {
@@ -91,7 +91,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
         }
     }
 
-    private static void ComposeSubmissionsList(IContainer container, List<PhotoSubmission> submissions)
+    private void ComposeSubmissionsList(IContainer container, List<PhotoSubmission> submissions)
     {
         container.Column(column =>
         {
@@ -105,7 +105,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
         });
     }
 
-    private static void ComposeSubmissionItem(IContainer container, PhotoSubmission submission)
+    private void ComposeSubmissionItem(IContainer container, PhotoSubmission submission)
     {
         container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(column =>
         {
@@ -144,8 +144,9 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                 {
                     column.Item().PaddingTop(5).Image(submission.ImageData).FitWidth();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
                     column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
                 }
             }
