@@ -15,7 +15,9 @@ This guide walks you through deploying the Pathfinder Photography application in
 - Google OAuth Client ID & Secret (see Redirect URIs below)
 - Secure PostgreSQL password
 - (Optional) Email SMTP credentials for notifications
-- (Optional) SigNoz observability stack (enabled via compose profile)
+- (Optional) SigNoz observability stack
+  - With Aspire: Automatically started and configured
+  - With Docker Compose: Enable via `--profile signoz`
 
 ## Quick Start (Recommended)
 
@@ -170,12 +172,20 @@ docker exec -i pathfinder-postgres psql -U postgres pathfinder_photography < bac
 - PDF Export: `/admin/export`
 
 ## SigNoz (Optional)
+
+### With Aspire (Development)
+When running via `dotnet run --project PathfinderPhotography.AppHost`, SigNoz is automatically included:
+- All 5 SigNoz containers start automatically
+- OTLP endpoints and configuration auto-injected
+- UI available at http://localhost:3301
+
+### With Docker Compose (Home Lab)
 Enable via profile:
 ```bash
 docker compose --profile signoz up -d
 ```
 UI: `http://localhost:3301`
-Ports exposed (default):3301(UI),4317/4318(OTLP),9000/8123(ClickHouse),6060(Query),8081(API),9093(Alertmanager)
+Ports exposed (default): 3301(UI), 4317/4318(OTLP), 9000/8123(ClickHouse), 6060(Query), 8081(API), 9093(Alertmanager)
 
 ## Troubleshooting
 - Check logs: `docker compose logs pathfinder-app`

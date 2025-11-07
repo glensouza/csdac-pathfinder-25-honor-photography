@@ -50,6 +50,7 @@ All10 rules implemented with detailed descriptions and explanations:
 2. `PathfinderPhotography.AppHost` (Aspire Orchestration - development)
  - Service orchestration
  - PostgreSQL configuration
+ - **SigNoz observability stack integration** (ClickHouse, OTLP Collector, Query Service, Frontend, Alert Manager)
  - Resource management
  - Observability dashboard (logs, traces, metrics)
 
@@ -111,22 +112,37 @@ All10 rules implemented with detailed descriptions and explanations:
 
 ## Deployment Options
 
-1) Aspire (Development)
+### Aspire (Development)
 - Command: `dotnet run --project PathfinderPhotography.AppHost`
-- Features: Orchestration, local Postgres, dashboard, observability
+- Features: Orchestration, local Postgres, dashboard, **integrated SigNoz observability**
+- All services (PostgreSQL, webapp, SigNoz stack) start automatically
+- SigNoz UI: http://localhost:3301
 
 2) Docker Compose (Homelab/Production)
 - File: single consolidated `docker-compose.yml`
 - Command: `docker compose up -d`
 - Optional observability: `docker compose --profile signoz up -d`
-- Services: `pathfinder-app`, `pathfinder-postgres` (+ SigNoz services when profile enabled)
+- Services: `pathfinder-app`, `pathfinder-postgres` (+ optional SigNoz services when profile enabled)
+- Note: With Aspire (dev), SigNoz is automatically included; with Docker Compose, it's optional via profile
 
 ## Observability
 
+### Aspire Development
 - Health endpoints: `/health`, `/alive`, `/ready`
 - Metrics endpoint: `/metrics` (Prometheus format)
-- Tracing: OpenTelemetry; when SigNoz profile is enabled, traces export to `signoz-otel-collector`
-- SigNoz UI (optional): `http://localhost:3301` (profile `signoz`)
+- Tracing: OpenTelemetry
+- **SigNoz**: Fully integrated - all containers start automatically with AppHost
+  - SigNoz UI: `http://localhost:3301` (traces, metrics, logs, dashboards)
+  - OpenTelemetry Collector at ports 4317 (gRPC) and 4318 (HTTP)
+  - Automatic OTLP endpoint injection to webapp
+
+### Docker Compose Production/Home Lab
+- Health endpoints: `/health`, `/alive`, `/ready`
+- Metrics endpoint: `/metrics` (Prometheus format)
+- Tracing: OpenTelemetry
+- SigNoz (optional): Enable with profile `docker compose --profile signoz up -d`
+  - When enabled, traces export to `signoz-otel-collector`
+  - SigNoz UI: `http://localhost:3301`
 
 ## Configuration
 

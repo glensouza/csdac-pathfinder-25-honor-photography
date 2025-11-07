@@ -112,7 +112,8 @@ Use this checklist when deploying to your home lab.
  - [ ] `/alive`
  - [ ] `/ready`
 - [ ] Metrics endpoint responding: `/metrics`
-- [ ] (Optional) SigNoz profile enabled: `docker compose --profile signoz up -d`
+- [ ] (Optional - Aspire Dev) SigNoz automatically started with `dotnet run --project PathfinderPhotography.AppHost`
+- [ ] (Optional - Docker Compose) SigNoz profile enabled: `docker compose --profile signoz up -d`
 - [ ] (Optional) SigNoz UI accessible: `http://your-server-ip:3301`
 
 ### Security Hardening
