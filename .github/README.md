@@ -113,12 +113,21 @@ docker pull ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:v1.0.0
 
 ## Running with .NET Aspire (Recommended)
 
+.NET Aspire provides complete application orchestration with integrated SigNoz observability.
+
 1. Configure Google OAuth in `appsettings.Development.json`
 2. Run the AppHost:
  ```bash
  dotnet run --project PathfinderPhotography.AppHost
  ```
-3. Open the Aspire Dashboard and click the `webapp` endpoint to open the Blazor app.
+3. The Aspire Dashboard will auto-open showing all services including:
+   - PostgreSQL database with PgAdmin
+   - Pathfinder Photography web application
+   - **SigNoz observability stack** (ClickHouse, OpenTelemetry Collector, Query Service, Frontend UI, Alert Manager)
+4. Click the `webapp` endpoint to open the Blazor app
+5. Access SigNoz UI at http://localhost:3301 (check Aspire Dashboard for exact URL)
+
+**Benefits**: All services start automatically, connection strings auto-configured, persistent data, built-in observability
 
 ## Running with Docker Compose
 
@@ -147,10 +156,18 @@ Leave `EMAIL_SMTP_HOST` empty to disable email.
 
 ## Observability
 
+### Development with Aspire
+- **Aspire Dashboard**: Built-in telemetry viewer for logs, traces, and metrics
+- **SigNoz Integration**: Full observability stack automatically started with Aspire
+  - SigNoz UI: http://localhost:3301
+  - Distributed tracing, metrics, and log aggregation
+  - No manual configuration required
+
+### Production/Home Lab
 - Health: `/health`, `/alive`, `/ready`
 - Metrics: `/metrics`
-- Aspire provides logs/traces/metrics for local dev with AppHost
-- Optional: `docker-compose.signoz.yml` to run SigNoz locally (`http://localhost:3301`)
+- Optional SigNoz: Enable with `docker compose --profile signoz up -d`
+  - SigNoz UI: `http://localhost:3301`
 
 ## User Roles
 

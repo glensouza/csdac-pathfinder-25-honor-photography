@@ -2,6 +2,7 @@
 
 # Pathfinder Photography - Home Lab Deployment Script
 # Consolidated deployment using single docker-compose.yml
+# For development with Aspire and integrated SigNoz: dotnet run --project PathfinderPhotography.AppHost
 
 set -euo pipefail
 
@@ -136,14 +137,16 @@ echo -e "\n${GREEN}======================================"
 echo -e "Deployment Successful! ✅"
 echo -e "======================================${NC}\n"
 
-echo "App URLs:"; echo " ${APP_URL}"; echo " ${APP_IP_URL}"; echo ""
-echo "Health / Metrics:"; echo " ${APP_URL}/health"; echo " ${APP_URL}/alive"; echo " ${APP_URL}/ready"; echo " ${APP_URL}/metrics"; echo ""
+echo "App URLs:"; echo "  ${APP_URL}"; echo "  ${APP_IP_URL}"; echo ""
+echo "Health / Metrics:"; echo "  ${APP_URL}/health"; echo "  ${APP_URL}/alive"; echo "  ${APP_URL}/ready"; echo "  ${APP_URL}/metrics"; echo ""
 
 if [[ "$WITH_SIGNOZ" == "true" ]]; then
- echo "SigNoz:"; echo " UI: http://localhost:3301"; echo " Collector gRPC:4317 (internal)"; echo " Query API:8081"; echo ""
+  echo "SigNoz:"; echo "  UI: http://localhost:3301"; echo "  Collector gRPC: 4317 (internal)"; echo "  Query API: 8081"; echo ""
 fi
 
-echo "Admin Bootstrap:"; echo " First authenticated Google user becomes Admin automatically."; echo " Additional admins: UPDATE \"Users\" SET \"Role\" =2 WHERE \"Email\"='user@example.com';"; echo ""
+echo "Development with Aspire:"; echo "  For local development with integrated SigNoz and all services:"; echo "  dotnet run --project PathfinderPhotography.AppHost"; echo "  (SigNoz included automatically - no manual setup needed)"; echo ""
+
+echo "Admin Bootstrap:"; echo "  First authenticated Google user becomes Admin automatically."; echo "  Additional admins: UPDATE \"Users\" SET \"Role\" = 2 WHERE \"Email\"='user@example.com';"; echo ""
 
 echo "Email Configuration (optional):"; echo " Set EMAIL_SMTP_* values in .env for notifications."; echo " Leave EMAIL_SMTP_HOST blank to disable."; echo ""
 

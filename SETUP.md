@@ -38,7 +38,7 @@ This guide will walk you through setting up and running the Pathfinder Photograp
 
 ## Running with .NET Aspire (Recommended for Local Dev + Observability)
 
-.NET Aspire provides service orchestration, automatic service discovery, and integrated OpenTelemetry.
+.NET Aspire provides service orchestration, automatic service discovery, and integrated OpenTelemetry with SigNoz.
 
 ### Steps
 1. Configure Google OAuth (below) and ensure PostgreSQL is not already bound to required ports.
@@ -48,12 +48,15 @@ This guide will walk you through setting up and running the Pathfinder Photograp
  ```
 3. The Aspire Dashboard will auto-open (or check console output for its URL).
 4. Click the `webapp` endpoint in the dashboard to open the Blazor Server application.
-5. Dashboard gives access to logs, traces, metrics, and PostgreSQL utility tooling.
+5. Access SigNoz UI at the URL shown in the Aspire Dashboard (typically http://localhost:3301).
+6. Dashboard gives access to logs, traces, metrics, PostgreSQL utility tooling, and SigNoz observability.
 
 ### Aspire Benefits
 - Automatic connection string injection (`ConnectionStrings__DefaultConnection`)
 - Centralized logs, traces, and metrics (OpenTelemetry)
-- Built?in health checks and resource overview
+- Built-in health checks and resource overview
+- **SigNoz integration**: All SigNoz containers (ClickHouse, OpenTelemetry Collector, Query Service, Frontend, and Alert Manager) are automatically started and configured
+- **Automatic telemetry export**: Application automatically sends traces, metrics, and logs to SigNoz
 
 ## Google OAuth2.0 Setup
 
@@ -228,11 +231,22 @@ dotnet ef migrations add MeaningfulName --project PathfinderPhotography.csproj
 
 ## Observability & Health
 
-### Aspire / OpenTelemetry
-When running via AppHost, traces, logs, metrics are collected automatically. Use the dashboard to inspect:
-- Request traces
-- EF Core database spans
-- Runtime metrics
+### Aspire / OpenTelemetry with SigNoz
+When running via AppHost, all SigNoz observability components are automatically started and configured:
+- **SigNoz UI**: Access at http://localhost:3301 (check Aspire Dashboard for exact URL)
+- **Automatic telemetry collection**: Traces, logs, and metrics are automatically sent to SigNoz
+- **ClickHouse database**: Stores all telemetry data with persistent volumes
+- **No manual configuration needed**: Connection strings and secrets are automatically injected
+
+Use the SigNoz UI to inspect:
+- Distributed request traces across services
+- Application and infrastructure metrics
+- Centralized log aggregation with correlation to traces
+- Custom dashboards and alerts
+- EF Core database query performance
+- .NET runtime metrics
+
+You can also use the built-in Aspire Dashboard for basic telemetry viewing.
 
 ### Health & Metrics Endpoints (Production / Docker)
 - Liveness: `/alive`
@@ -246,13 +260,38 @@ Admin PDF export features (requires Admin role):
 - Generate: All submissions report, per-Pathfinder progress report, filtered by composition rule.
 - Uses QuestPDF; images embedded.
 
-## SigNoz (Optional Advanced Telemetry)
-Use the `docker-compose.signoz.yml` to run SigNoz locally:
+## SigNoz Observability (Integrated with Aspire)
+
+SigNoz is now fully integrated with .NET Aspire and starts automatically when you run the AppHost.
+
+### Running with Aspire (Recommended)
 ```bash
-docker-compose -f docker-compose.signoz.yml up -d
+dotnet run --project PathfinderPhotography.AppHost
 ```
-SigNoz UI default: `http://localhost:3301`
-Provides deeper dashboards, traces, metrics, alerts.
+This automatically starts:
+- PostgreSQL database
+- Pathfinder Photography web application
+- SigNoz ClickHouse database
+- SigNoz OpenTelemetry Collector
+- SigNoz Query Service
+- SigNoz Frontend UI
+- SigNoz Alert Manager
+
+Access SigNoz UI at http://localhost:3301 (check Aspire Dashboard for exact URL).
+
+### Running SigNoz Separately with Docker Compose (Alternative)
+If you prefer to run SigNoz separately without Aspire:
+```bash
+docker-compose --profile signoz up -d
+```
+SigNoz UI will be available at `http://localhost:3301`.
+
+### Benefits of Aspire Integration
+- **Zero manual configuration**: All connection strings and secrets are automatically configured
+- **One-command startup**: All services start together with `dotnet run`
+- **Persistent data**: SigNoz data is preserved across restarts
+- **Automatic dependency management**: Services start in the correct order
+- **Development-focused**: Optimized for local development and debugging
 
 ## User Roles & Admin Management
 Roles:
