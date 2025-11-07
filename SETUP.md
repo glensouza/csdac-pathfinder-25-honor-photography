@@ -295,15 +295,23 @@ SigNoz UI will be available at `http://localhost:3301`.
 
 ## User Roles & Admin Management
 Roles:
--0 Pathfinder (default)
--1 Instructor
--2 Admin
+- 0 Pathfinder (default)
+- 1 Instructor
+- 2 Admin
+
 First authenticated user becomes Admin automatically. Subsequent Admins must be promoted via direct DB update.
 
-Promote example:
+### Admin Features
+- Navigate to `/admin/users` to manage users
+- Promote users to Instructor role
+- Demote users back to Pathfinder role
+- Delete users who shouldn't have access (removes user, all submissions, and votes)
+- When a user is deleted, ELO ratings are automatically recalculated for affected photos
+
+### Promote User to Admin (Database)
 ```bash
 psql -U postgres pathfinder_photography
-UPDATE "Users" SET "Role" =2 WHERE "Email" = 'email@example.com';
+UPDATE "Users" SET "Role" = 2 WHERE "Email" = 'email@example.com';
 SELECT "Name","Email","Role" FROM "Users";
 ```
 

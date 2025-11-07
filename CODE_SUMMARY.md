@@ -85,6 +85,8 @@ All10 rules implemented with detailed descriptions and explanations:
 ### Admin/Instructor Features
 - Admin dashboard with statistics
 - User management (promote/demote Pathfinder/Instructor)
+- Delete users who shouldn't have access (removes user, submissions, and votes)
+- Automatic ELO recalculation when users are deleted
 - Grading workflow (Instructor/Admin)
 - PDF export (all submissions, per-pathfinder progress, filter by rule)
 - Optional email notifications for submissions and grading
@@ -98,8 +100,11 @@ All10 rules implemented with detailed descriptions and explanations:
 
 ## Database Schema (high level)
 
-- `PhotoSubmissions` table: `Id`, `PathfinderName`, `CompositionRuleId`, `CompositionRuleName`, `ImagePath`, `Description`, `SubmissionDate`
-- Indexes: `PathfinderName`, `CompositionRuleId`
+- `PhotoSubmissions` table: `Id`, `PathfinderName`, `PathfinderEmail`, `CompositionRuleId`, `CompositionRuleName`, `ImagePath`, `ImageData`, `Description`, `SubmissionDate`, `GradeStatus`, `EloRating`
+- `Users` table: `Id`, `Email`, `Name`, `Role`, `CreatedDate`
+- `PhotoVotes` table: `Id`, `VoterEmail`, `WinnerPhotoId`, `LoserPhotoId`, `VoteDate`
+- Indexes: `PathfinderName`, `PathfinderEmail`, `CompositionRuleId`, `GradeStatus`, `Email` (unique)
+- Note: Deleting a user cascades to remove their submissions and all related votes
 
 ## Security
 
