@@ -39,6 +39,8 @@
         <strong>Note:</strong> This page allows admins to promote users to instructors and demote them back to pathfinders. All authenticated users start as Pathfinders by default.
         <br/>
         <strong>Access URL:</strong> Navigate to <code>/admin/users</code> to access this page.
+        <br/>
+        <strong>Delete Users:</strong> Deleting a user will permanently remove them and all their photo submissions and associated votes from the system.
     </div>
 
     @if (users.Any())
@@ -78,18 +80,23 @@
                             <td>
                                 @if (user.Email != currentUserEmail && user.Role != UserRole.Admin)
                                 {
-                                    @if (user.Role == UserRole.Pathfinder)
-                                    {
-                                        <button class="btn btn-sm btn-primary" @onclick="() => PromoteToInstructor(user.Email)">
-                                            Promote to Instructor
+                                    <div class="btn-group" role="group">
+                                        @if (user.Role == UserRole.Pathfinder)
+                                        {
+                                            <button class="btn btn-sm btn-primary" @onclick="() => PromoteToInstructor(user.Email)">
+                                                Promote to Instructor
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-warning" @onclick="() => DemoteToPathfinder(user.Email)">
+                                                Demote to Pathfinder
+                                            </button>
+                                        }
+                                        <button class="btn btn-sm btn-danger" @onclick="() => ShowDeleteConfirmation(user.Email, user.Name)">
+                                            Delete
                                         </button>
-                                    }
-                                    else
-                                    {
-                                        <button class="btn btn-sm btn-warning" @onclick="() => DemoteToPathfinder(user.Email)">
-                                            Demote to Pathfinder
-                                        </button>
-                                    }
+                                    </div>
                                 }
                                 else if (user.Role == UserRole.Admin)
                                 {
@@ -119,12 +126,47 @@
     }
 </div>
 
+@if (showDeleteConfirmation)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm User Deletion</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Warning:</strong> This action cannot be undone!
+                    </div>
+                    <p>Are you sure you want to delete user <strong>@userToDeleteName</strong> (@userToDeleteEmail)?</p>
+                    <p>This will permanently remove:</p>
+                    <ul>
+                        <li>The user account</li>
+                        <li>All photo submissions by this user</li>
+                        <li>All votes involving their photos</li>
+                        <li>All votes made by this user</li>
+                    </ul>
+                    <p><strong>Note:</strong> ELO ratings will be automatically recalculated for photos affected by removing this user's votes.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<User> users = [];
     private string message = string.Empty;
     private bool isError = false;
     private string currentUserEmail = string.Empty;
     private bool isAdmin = false;
+    private bool showDeleteConfirmation = false;
+    private string userToDeleteEmail = string.Empty;
+    private string userToDeleteName = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -191,6 +233,42 @@
         {
             message = $"Error demoting user: {ex.Message}";
             isError = true;
+        }
+    }
+
+    private void ShowDeleteConfirmation(string email, string name)
+    {
+        userToDeleteEmail = email;
+        userToDeleteName = name;
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirmation = false;
+        userToDeleteEmail = string.Empty;
+        userToDeleteName = string.Empty;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        try
+        {
+            await UserService.DeleteUserAsync(userToDeleteEmail);
+            message = $"User {userToDeleteName} ({userToDeleteEmail}) and all their submissions have been deleted.";
+            isError = false;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error deleting user: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            showDeleteConfirmation = false;
+            userToDeleteEmail = string.Empty;
+            userToDeleteName = string.Empty;
         }
     }
 }

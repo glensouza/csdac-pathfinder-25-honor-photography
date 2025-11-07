@@ -143,4 +143,51 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
         return otherSubmissionsCount >= 2;
     }
+
+    /// <summary>
+    /// Recalculate ELO ratings for specific photos by replaying all votes involving those photos
+    /// </summary>
+    public async Task RecalculateEloRatingsForPhotosAsync(List<int> photoIds)
+    {
+        if (photoIds.Count == 0) return;
+
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        
+        // Get all photos that need recalculation
+        List<PhotoSubmission> photos = await context.PhotoSubmissions
+            .Where(p => photoIds.Contains(p.Id))
+            .ToListAsync();
+
+        // Reset their ELO ratings to default
+        foreach (PhotoSubmission photo in photos)
+        {
+            photo.EloRating = 1000.0;
+        }
+
+        // Get all votes involving these photos, ordered by date
+        List<PhotoVote> votes = await context.PhotoVotes
+            .Where(v => photoIds.Contains(v.WinnerPhotoId) || photoIds.Contains(v.LoserPhotoId))
+            .OrderBy(v => v.VoteDate)
+            .ToListAsync();
+
+        // Replay all votes to recalculate ratings
+        foreach (PhotoVote vote in votes)
+        {
+            PhotoSubmission? winnerPhoto = photos.FirstOrDefault(p => p.Id == vote.WinnerPhotoId);
+            PhotoSubmission? loserPhoto = photos.FirstOrDefault(p => p.Id == vote.LoserPhotoId);
+
+            if (winnerPhoto != null && loserPhoto != null)
+            {
+                (double newWinnerRating, double newLoserRating) = CalculateEloRatings(
+                    winnerPhoto.EloRating,
+                    loserPhoto.EloRating
+                );
+
+                winnerPhoto.EloRating = newWinnerRating;
+                loserPhoto.EloRating = newLoserRating;
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
 }
