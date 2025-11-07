@@ -42,7 +42,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         
         // Check if user already voted on this pair
         PhotoVote? existingVote = await context.PhotoVotes
-            .FirstOrDefaultAsync(v => v.VoterEmail.ToLower() == voterEmail.ToLower() &&
+            .FirstOrDefaultAsync(v => v.VoterEmail.Equals(voterEmail, StringComparison.CurrentCultureIgnoreCase) &&
                 ((v.WinnerPhotoId == winnerPhotoId && v.LoserPhotoId == loserPhotoId) ||
                  (v.WinnerPhotoId == loserPhotoId && v.LoserPhotoId == winnerPhotoId)));
 
@@ -72,7 +72,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         loserPhoto.EloRating = newLoserRating;
 
         // Record the vote
-        PhotoVote vote = new PhotoVote
+        PhotoVote vote = new()
         {
             VoterEmail = voterEmail,
             WinnerPhotoId = winnerPhotoId,
@@ -87,7 +87,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
     /// <summary>
     /// Calculate new ELO ratings after a match
     /// </summary>
-    private (double newWinnerRating, double newLoserRating) CalculateEloRatings(
+    private static (double newWinnerRating, double newLoserRating) CalculateEloRatings(
         double winnerRating, 
         double loserRating)
     {
@@ -138,7 +138,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
         int otherSubmissionsCount = await context.PhotoSubmissions
-            .Where(s => s.PathfinderEmail.ToLower() != userEmail.ToLower())
+            .Where(s => !s.PathfinderEmail.Equals(userEmail, StringComparison.CurrentCultureIgnoreCase))
             .CountAsync();
 
         return otherSubmissionsCount >= 2;

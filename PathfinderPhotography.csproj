@@ -33,4 +33,8 @@
     <ProjectReference Include="PathfinderPhotography.ServiceDefaults\PathfinderPhotography.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\samples\" />
+  </ItemGroup>
+
 </Project>

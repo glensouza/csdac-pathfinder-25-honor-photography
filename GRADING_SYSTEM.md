@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Pathfinder Photography application now includes a role-based grading system that allows instructors to grade photo submissions and pathfinders to resubmit failed photos.
+The Pathfinder Photography application includes a role-based grading system that allows instructors to grade photo submissions and pathfinders to resubmit failed photos.
 
 ## Roles
 
@@ -91,35 +91,6 @@ Navigate to `/admin/users` while signed in to:
 - Promote users to Instructor role
 - Demote instructors back to Pathfinder role
 - See when users joined
-
-**Note:** There is no special admin role - any authenticated user can access `/admin/users`. In a production environment, you should add additional authorization checks to this page or move it to a secure administrative interface.
-
-## Database Changes
-
-The following changes have been made to the database:
-
-### New Tables
-- **Users** - Stores user information and roles
-  - Email (unique)
-  - Name
-  - Role (Pathfinder or Instructor)
-  - CreatedDate
-
-### Updated Tables
-- **PhotoSubmissions** - Enhanced with grading fields
-  - PathfinderEmail - Links submissions to authenticated users
-  - GradeStatus - NotGraded (0), Pass (1), or Fail (2)
-  - GradedBy - Name of instructor who graded the submission
-  - GradedDate - When the submission was graded
-  - SubmissionVersion - Version number for resubmissions
-  - PreviousSubmissionId - Links to the previous version (if resubmission)
-
-## Security Notes
-
-1. **Authentication Required** - All users must sign in with Google to use the system
-2. **Role-Based Access** - Grading page is only accessible to users with Instructor role
-3. **User Isolation** - Pathfinders can only see and resubmit their own photos
-4. **Audit Trail** - All grades include who graded the submission and when
 
 ## Workflow Example
 

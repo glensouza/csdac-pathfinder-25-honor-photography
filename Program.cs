@@ -88,14 +88,11 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 // Add login/logout endpoints
-app.MapGet("/login", (HttpContext context) =>
-{
-    return Results.Challenge(
-        new AuthenticationProperties { RedirectUri = "/" },
-        new[] { GoogleDefaults.AuthenticationScheme });
-});
+app.MapGet("/login", (HttpContext _) => Results.Challenge(
+    new AuthenticationProperties { RedirectUri = "/" },
+    [GoogleDefaults.AuthenticationScheme]));
 
-app.MapPost("/logout", async (HttpContext context) =>
+app.MapPost("/logout", async context =>
 {
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     context.Response.Redirect("/");
@@ -104,7 +101,7 @@ app.MapPost("/logout", async (HttpContext context) =>
 // Add endpoint to serve images from database
 app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationDbContext> contextFactory) =>
 {
-    using var context = await contextFactory.CreateDbContextAsync();
+    await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
     var imageInfo = await context.PhotoSubmissions
         .Where(p => p.Id == id)
         .Select(p => new { p.ImageData, p.ImageContentType })
@@ -115,13 +112,10 @@ app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationD
         return Results.NotFound();
     }
     
-    const int MaxImageSizeBytes = 10 * 1024 * 1024; // 10MB
-    if (imageInfo.ImageData.Length > MaxImageSizeBytes)
-    {
-        return Results.StatusCode(413); // Payload Too Large
-    }
-    
-    return Results.File(imageInfo.ImageData, imageInfo.ImageContentType ?? "image/jpeg");
+    const int maxImageSizeBytes = 10 * 1024 * 1024; // 10MB
+    return imageInfo.ImageData.Length > maxImageSizeBytes
+        ? Results.StatusCode(413) // Payload Too Large
+        : Results.File(imageInfo.ImageData, imageInfo.ImageContentType ?? "image/jpeg");
 });
 
 app.Run();

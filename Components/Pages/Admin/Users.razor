@@ -120,7 +120,7 @@
 </div>
 
 @code {
-    private List<User> users = new();
+    private List<User> users = [];
     private string message = string.Empty;
     private bool isError = false;
     private string currentUserEmail = string.Empty;
@@ -133,8 +133,8 @@
         
         if (user.Identity?.IsAuthenticated == true)
         {
-            currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
-            string currentUserName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "";
+            currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+            string currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
             
             if (!string.IsNullOrEmpty(currentUserEmail))
             {

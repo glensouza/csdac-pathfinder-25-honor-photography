@@ -107,17 +107,19 @@
                                 </td>
                                 <td><small>@submission.SubmissionDate.ToString("MMM dd, yyyy")</small></td>
                                 <td>
-                                    @if (submission.GradeStatus == GradeStatus.NotGraded)
+                                    @switch (submission.GradeStatus)
                                     {
-                                        <span class="badge bg-secondary">Not Graded</span>
-                                    }
-                                    else if (submission.GradeStatus == GradeStatus.Pass)
-                                    {
-                                        <span class="badge bg-success">✓ Pass</span>
-                                    }
-                                    else if (submission.GradeStatus == GradeStatus.Fail)
-                                    {
-                                        <span class="badge bg-danger">✗ Fail</span>
+                                        case GradeStatus.NotGraded:
+                                            <span class="badge bg-secondary">Not Graded</span>
+                                            break;
+                                        case GradeStatus.Pass:
+                                            <span class="badge bg-success">✓ Pass</span>
+                                            break;
+                                        case GradeStatus.Fail:
+                                            <span class="badge bg-danger">✗ Fail</span>
+                                            break;
+                                        default:
+                                            throw new ArgumentOutOfRangeException();
                                     }
                                 </td>
                                 <td>
@@ -213,9 +215,9 @@
 }
 
 @code {
-    private List<CompositionRule> rules = new();
-    private List<PhotoSubmission> allSubmissions = new();
-    private List<PhotoSubmission> filteredSubmissions = new();
+    private List<CompositionRule> rules = [];
+    private List<PhotoSubmission> allSubmissions = [];
+    private List<PhotoSubmission> filteredSubmissions = [];
     private PhotoSubmission? selectedSubmission;
     private int selectedRuleId = 0;
     private int selectedStatusFilter = 0; // Default to NotGraded
@@ -233,8 +235,8 @@
         
         if (user.Identity?.IsAuthenticated == true)
         {
-            currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
-            currentUserName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "";
+            currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+            currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
             
             if (!string.IsNullOrEmpty(currentUserEmail))
             {

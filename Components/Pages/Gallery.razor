@@ -17,7 +17,7 @@
                 <label class="form-label">Filter by Composition Rule</label>
                 <select class="form-select" @onchange="FilterByRule">
                     <option value="0">All Rules</option>
-                    @foreach (var rule in rules)
+                    @foreach (CompositionRule rule in rules)
                     {
                         <option value="@rule.Id">@rule.Name</option>
                     }
@@ -42,7 +42,7 @@
     @if (filteredSubmissions.Any())
     {
         <div class="row">
-            @foreach (var submission in filteredSubmissions)
+            @foreach (PhotoSubmission submission in filteredSubmissions)
             {
                 <div class="col-md-4 col-lg-3 mb-4">
                     <div class="card h-100">
@@ -64,17 +64,19 @@
                                 <small class="text-muted">@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
                             </p>
                             <div>
-                                @if (submission.GradeStatus == GradeStatus.NotGraded)
+                                @switch (submission.GradeStatus)
                                 {
-                                    <span class="badge bg-secondary">Not Graded</span>
-                                }
-                                else if (submission.GradeStatus == GradeStatus.Pass)
-                                {
-                                    <span class="badge bg-success">✓ Pass</span>
-                                }
-                                else if (submission.GradeStatus == GradeStatus.Fail)
-                                {
-                                    <span class="badge bg-danger">✗ Fail</span>
+                                    case GradeStatus.NotGraded:
+                                        <span class="badge bg-secondary">Not Graded</span>
+                                        break;
+                                    case GradeStatus.Pass:
+                                        <span class="badge bg-success">✓ Pass</span>
+                                        break;
+                                    case GradeStatus.Fail:
+                                        <span class="badge bg-danger">✗ Fail</span>
+                                        break;
+                                    default:
+                                        throw new ArgumentOutOfRangeException();
                                 }
                             </div>
                         </div>
@@ -144,9 +146,9 @@
 }
 
 @code {
-    private List<CompositionRule> rules = new();
-    private List<PhotoSubmission> allSubmissions = new();
-    private List<PhotoSubmission> filteredSubmissions = new();
+    private List<CompositionRule> rules = [];
+    private List<PhotoSubmission> allSubmissions = [];
+    private List<PhotoSubmission> filteredSubmissions = [];
     private PhotoSubmission? selectedSubmission;
     private int selectedRuleId = 0;
     private int selectedGradeStatus = -1;

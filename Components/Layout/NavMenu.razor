@@ -103,7 +103,7 @@
         
         if (user.Identity?.IsAuthenticated == true)
         {
-            string? email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            string? email = user.FindFirst(ClaimTypes.Email)?.Value;
             if (!string.IsNullOrEmpty(email))
             {
                 isInstructor = await UserService.IsInstructorAsync(email);

@@ -127,7 +127,7 @@
         
         if (user.Identity?.IsAuthenticated == true)
         {
-            currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value;
             
             if (!string.IsNullOrEmpty(currentUserEmail))
             {

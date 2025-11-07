@@ -312,23 +312,15 @@ The application exports telemetry data including:
 
 ### Photos not uploading
 - Check disk space
-- Verify uploads directory has write permissions
 - Check file size (max 10MB)
 
 ## Future Enhancements
 
 - Admin dashboard for reviewing submissions
-- Export submissions to PDF or Excel
-- Photo editing capabilities
-- Support for multiple groups/churches
-- Real-time collaboration features
+- Export submissions to PDF
 - Email notifications
 - Advanced telemetry dashboards
 
 ## License
 
 See LICENSE file for details.
-
----
-
-Presented by Daniels - Corona SDA Church Pathfinders 2025

@@ -18,7 +18,7 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         return await context.PhotoSubmissions
-            .Where(s => s.PathfinderEmail.ToLower() == pathfinderEmail.ToLower())
+            .Where(s => s.PathfinderEmail.Equals(pathfinderEmail, StringComparison.CurrentCultureIgnoreCase))
             .OrderByDescending(s => s.SubmissionDate)
             .ToListAsync();
     }
@@ -27,7 +27,7 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         return await context.PhotoSubmissions
-            .Where(s => s.PathfinderEmail.ToLower() == pathfinderEmail.ToLower() 
+            .Where(s => s.PathfinderEmail.Equals(pathfinderEmail, StringComparison.CurrentCultureIgnoreCase) 
                      && s.CompositionRuleId == compositionRuleId)
             .OrderByDescending(s => s.SubmissionVersion)
             .FirstOrDefaultAsync();
@@ -43,7 +43,7 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
 
     public async Task<string> SaveUploadedFileAsync(Stream fileStream, string fileName)
     {
-        string uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
+        string uniqueFileName = $"{Guid.CreateVersion7()}_{fileName}";
         string uploadsPath = Path.Combine(env.WebRootPath, "uploads");
         string filePath = Path.Combine(uploadsPath, uniqueFileName);
         
@@ -52,30 +52,28 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
             Directory.CreateDirectory(uploadsPath);
         }
 
-        await using (FileStream fileStreamOutput = new FileStream(filePath, FileMode.Create))
-        {
-            await fileStream.CopyToAsync(fileStreamOutput);
-        }
+        await using FileStream fileStreamOutput = new(filePath, FileMode.Create);
+        await fileStream.CopyToAsync(fileStreamOutput);
 
         return uniqueFileName;
     }
 
     public async Task<(byte[] imageData, string contentType)> SaveImageDataAsync(Stream fileStream, string fileName)
     {
-        using var memoryStream = new MemoryStream();
+        using MemoryStream memoryStream = new();
         await fileStream.CopyToAsync(memoryStream);
-        var imageData = memoryStream.ToArray();
+        byte[] imageData = memoryStream.ToArray();
         
         // Validate file content by checking magic bytes/file signatures
-        var detectedContentType = DetectImageTypeFromMagicBytes(imageData);
+        string? detectedContentType = DetectImageTypeFromMagicBytes(imageData);
         if (detectedContentType == null)
         {
             throw new InvalidOperationException("Invalid image file. The file content does not match any supported image format.");
         }
         
         // Validate that extension matches detected content type
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var expectedContentType = extension switch
+        string extension = Path.GetExtension(fileName).ToLowerInvariant();
+        string? expectedContentType = extension switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
             ".png" => "image/png",
@@ -93,7 +91,7 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
         return (imageData, detectedContentType);
     }
 
-    private string? DetectImageTypeFromMagicBytes(byte[] data)
+    private static string? DetectImageTypeFromMagicBytes(byte[] data)
     {
         if (data.Length < 12) return null;
 

@@ -57,7 +57,7 @@
         catch (Exception ex)
         {
             // Log the exception to aid debugging of authentication issues
-            Console.Error.WriteLine($"Exception in OnAuthenticationStateChanged: {ex}");
+            await Console.Error.WriteLineAsync($"Exception in OnAuthenticationStateChanged: {ex}");
         }
     }
 
@@ -74,7 +74,7 @@
                 // Only query database if email has changed to avoid unnecessary database calls
                 if (email != cachedEmail)
                 {
-                    PathfinderPhotography.Models.User? dbUser = await UserService.GetUserByEmailAsync(email);
+                    Models.User? dbUser = await UserService.GetUserByEmailAsync(email);
                     pathfinderName = dbUser?.Name ?? user.Identity.Name ?? "Pathfinder";
                     cachedEmail = email;
                 }

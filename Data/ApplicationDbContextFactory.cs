@@ -7,7 +7,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
 {
     public ApplicationDbContext CreateDbContext(string[] args)
     {
-        DbContextOptionsBuilder<ApplicationDbContext> optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+        DbContextOptionsBuilder<ApplicationDbContext> optionsBuilder = new();
         
         // Use a dummy connection string for migrations
         optionsBuilder.UseNpgsql("Host=localhost;Database=pathfinder_photography;Username=postgres;Password=postgres");

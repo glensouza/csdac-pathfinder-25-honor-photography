@@ -198,14 +198,14 @@
 </div>
 
 @code {
-    private List<CompositionRule> rules = new();
+    private List<CompositionRule> rules = [];
     private PhotoSubmission currentSubmission = new();
     private IBrowserFile? selectedFile;
     private string selectedFileName = string.Empty;
     private string successMessage = string.Empty;
     private string errorMessage = string.Empty;
     private bool isSubmitting = false;
-    private List<PhotoSubmission> userSubmissions = new();
+    private List<PhotoSubmission> userSubmissions = [];
     private string currentUserEmail = string.Empty;
     private string currentUserName = string.Empty;
 
@@ -216,8 +216,8 @@
         
         if (user.Identity?.IsAuthenticated == true)
         {
-            currentUserEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
-            currentUserName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "";
+            currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+            currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
             
             if (!string.IsNullOrEmpty(currentUserEmail))
             {
@@ -238,7 +238,7 @@
         rules = RuleService.GetAllRules();
     }
 
-    private async Task OnRuleChanged()
+    private static async Task OnRuleChanged()
     {
         // Refresh submissions when rule changes
         await Task.CompletedTask;
@@ -303,8 +303,8 @@
         try
         {
             // Save the image data to database
-            using var stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            var (imageData, contentType) = await SubmissionService.SaveImageDataAsync(stream, selectedFile.Name);
+            await using Stream stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            (byte[] imageData, string contentType) = await SubmissionService.SaveImageDataAsync(stream, selectedFile.Name);
 
             // Create submission
             CompositionRule? rule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
