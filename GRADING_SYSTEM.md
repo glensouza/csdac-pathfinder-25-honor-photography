@@ -109,13 +109,13 @@ Admins can delete users who shouldn't be submitting photos to the system:
 - All votes made by that user
 
 **What gets recalculated:**
-- ELO ratings for photos that were voted on by the deleted user (ratings are recalculated from scratch based on remaining votes)
+- ELO ratings for photos that were voted on by the deleted user (ratings are recalculated based on the votes that remain after deletion)
 
 **Important Notes:**
 - Admin users cannot be deleted through the UI (must use direct database access)
 - You cannot delete your own account
 - This action is permanent and cannot be undone
-- When a user is deleted, ELO ratings are automatically recalculated for all photos affected by removing that user's votes
+- When a user is deleted, ELO ratings are recalculated for affected photos based on the remaining votes (the deleted user's votes are excluded from the recalculation)
 
 ## Workflow Example
 

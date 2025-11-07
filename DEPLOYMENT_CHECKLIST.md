@@ -76,8 +76,8 @@ Use this checklist when deploying to your home lab.
 - [ ] (Optional) Promoted additional admin via SQL if needed
 - [ ] Admin can access `/admin/users` page
 - [ ] Admin can promote users to Instructor
-- [ ] Admin can delete unauthorized users (removes user, submissions, and votes)
-- [ ] ELO ratings recalculate automatically when users are deleted
+- [ ] Admin can delete unauthorized users (removes user, submissions, and votes; recalculates ELO ratings)
+- [ ] Verified ELO ratings are recalculated correctly when users are deleted
 
 ### Photo Upload
 - [ ] Navigated to Submit page

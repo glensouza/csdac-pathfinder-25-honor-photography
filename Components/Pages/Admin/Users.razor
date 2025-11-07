@@ -4,6 +4,7 @@
 @using PathfinderPhotography.Models
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
 @inject UserService UserService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
@@ -147,7 +148,7 @@
                         <li>All votes involving their photos</li>
                         <li>All votes made by this user</li>
                     </ul>
-                    <p><strong>Note:</strong> ELO ratings will be automatically recalculated for photos affected by removing this user's votes.</p>
+                    <p><strong>Note:</strong> ELO ratings will be recalculated for photos affected by removing this user's votes (based only on the remaining votes after deletion).</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
@@ -259,9 +260,14 @@
             isError = false;
             await LoadUsers();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             message = $"Error deleting user: {ex.Message}";
+            isError = true;
+        }
+        catch (DbUpdateException ex)
+        {
+            message = $"Database error deleting user: {ex.InnerException?.Message ?? ex.Message}";
             isError = true;
         }
         finally

@@ -106,21 +106,29 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
             .ToListAsync();
 
         // Collect all photo IDs that need ELO recalculation (photos involved in votes made by this user)
+        // Only recalculate if BOTH photos in the vote still exist (not being deleted)
         HashSet<int> photosNeedingRecalculation = new HashSet<int>();
         foreach (PhotoVote vote in votesMadeByUser)
         {
-            // Only recalculate if the photos still exist (not being deleted)
-            if (!photoIds.Contains(vote.WinnerPhotoId))
+            if (!photoIds.Contains(vote.WinnerPhotoId) && !photoIds.Contains(vote.LoserPhotoId))
+            {
                 photosNeedingRecalculation.Add(vote.WinnerPhotoId);
-            if (!photoIds.Contains(vote.LoserPhotoId))
                 photosNeedingRecalculation.Add(vote.LoserPhotoId);
+            }
         }
 
-        // Delete all votes involving user's photos
-        context.PhotoVotes.RemoveRange(votesInvolvingUserPhotos);
+        // Recalculate ELO ratings BEFORE deleting votes (so votes still exist for replay)
+        if (photosNeedingRecalculation.Count > 0)
+        {
+            await votingService.RecalculateEloRatingsForPhotosAsync(photosNeedingRecalculation.ToList(), votesMadeByUser.Select(v => v.Id).ToList());
+        }
 
-        // Delete all votes made by the user
-        context.PhotoVotes.RemoveRange(votesMadeByUser);
+        // Delete all votes involving user's photos and votes made by the user (avoid duplicates)
+        List<PhotoVote> allVotesToDelete = votesInvolvingUserPhotos
+            .Concat(votesMadeByUser)
+            .Distinct()
+            .ToList();
+        context.PhotoVotes.RemoveRange(allVotesToDelete);
 
         // Delete all photo submissions
         context.PhotoSubmissions.RemoveRange(submissions);
@@ -129,11 +137,5 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
         context.Users.Remove(user);
 
         await context.SaveChangesAsync();
-
-        // Recalculate ELO ratings for photos affected by removing the user's votes
-        if (photosNeedingRecalculation.Count > 0)
-        {
-            await votingService.RecalculateEloRatingsForPhotosAsync(photosNeedingRecalculation.ToList());
-        }
     }
 }

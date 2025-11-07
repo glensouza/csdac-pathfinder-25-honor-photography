@@ -147,36 +147,50 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
     /// <summary>
     /// Recalculate ELO ratings for specific photos by replaying all votes involving those photos
     /// </summary>
-    public async Task RecalculateEloRatingsForPhotosAsync(List<int> photoIds)
+    /// <param name="photoIds">List of photo IDs that need ELO recalculation</param>
+    /// <param name="voteIdsToExclude">List of vote IDs to exclude from recalculation (votes being deleted)</param>
+    public async Task RecalculateEloRatingsForPhotosAsync(List<int> photoIds, List<int>? voteIdsToExclude = null)
     {
-        if (photoIds.Count == 0) return;
+        if (photoIds == null || photoIds.Count == 0) return;
+
+        voteIdsToExclude ??= new List<int>();
 
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
-        // Get all photos that need recalculation
-        List<PhotoSubmission> photos = await context.PhotoSubmissions
-            .Where(p => photoIds.Contains(p.Id))
-            .ToListAsync();
-
-        // Reset their ELO ratings to default
-        foreach (PhotoSubmission photo in photos)
-        {
-            photo.EloRating = 1000.0;
-        }
-
-        // Get all votes involving these photos, ordered by date
+        // Get all votes involving these photos (excluding votes that will be deleted), ordered by date
         List<PhotoVote> votes = await context.PhotoVotes
-            .Where(v => photoIds.Contains(v.WinnerPhotoId) || photoIds.Contains(v.LoserPhotoId))
+            .Where(v => (photoIds.Contains(v.WinnerPhotoId) || photoIds.Contains(v.LoserPhotoId))
+                     && !voteIdsToExclude.Contains(v.Id))
             .OrderBy(v => v.VoteDate)
             .ToListAsync();
+
+        // Get all photo IDs that participate in these votes (not just the ones we're recalculating)
+        HashSet<int> allPhotoIdsInVotes = new HashSet<int>(photoIds);
+        foreach (PhotoVote vote in votes)
+        {
+            allPhotoIdsInVotes.Add(vote.WinnerPhotoId);
+            allPhotoIdsInVotes.Add(vote.LoserPhotoId);
+        }
+
+        // Load all photos involved in the votes
+        Dictionary<int, PhotoSubmission> photosDict = await context.PhotoSubmissions
+            .Where(p => allPhotoIdsInVotes.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        // Reset ELO ratings to default ONLY for photos that were in the original photoIds list
+        foreach (int photoId in photoIds)
+        {
+            if (photosDict.TryGetValue(photoId, out PhotoSubmission? photo))
+            {
+                photo.EloRating = 1000.0;
+            }
+        }
 
         // Replay all votes to recalculate ratings
         foreach (PhotoVote vote in votes)
         {
-            PhotoSubmission? winnerPhoto = photos.FirstOrDefault(p => p.Id == vote.WinnerPhotoId);
-            PhotoSubmission? loserPhoto = photos.FirstOrDefault(p => p.Id == vote.LoserPhotoId);
-
-            if (winnerPhoto != null && loserPhoto != null)
+            if (photosDict.TryGetValue(vote.WinnerPhotoId, out PhotoSubmission? winnerPhoto) &&
+                photosDict.TryGetValue(vote.LoserPhotoId, out PhotoSubmission? loserPhoto))
             {
                 (double newWinnerRating, double newLoserRating) = CalculateEloRatings(
                     winnerPhoto.EloRating,

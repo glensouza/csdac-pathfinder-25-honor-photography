@@ -305,8 +305,8 @@ First authenticated user becomes Admin automatically. Subsequent Admins must be 
 - Navigate to `/admin/users` to manage users
 - Promote users to Instructor role
 - Demote users back to Pathfinder role
-- Delete users who shouldn't have access (removes user, all submissions, and votes)
-- When a user is deleted, ELO ratings are automatically recalculated for affected photos
+- Delete users who shouldn't have access (removes user, all submissions, and votes; recalculates ELO ratings for affected photos)
+- When a user is deleted, ELO ratings are recalculated for affected photos based on the remaining votes
 
 ### Promote User to Admin (Database)
 ```bash
