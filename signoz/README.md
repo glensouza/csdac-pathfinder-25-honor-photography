@@ -2,6 +2,28 @@
 
 This directory contains configuration files for integrating SigNoz, an open-source observability platform, with the Pathfinder Photography application.
 
+## Integration with .NET Aspire
+
+**SigNoz is now fully integrated with .NET Aspire!** When you run the AppHost, all SigNoz components are automatically started and configured.
+
+### Quick Start with Aspire (Recommended)
+
+```bash
+# From the repository root
+dotnet run --project PathfinderPhotography.AppHost
+```
+
+This single command will start:
+1. PostgreSQL database
+2. Pathfinder Photography web application  
+3. **SigNoz ClickHouse** - Data storage
+4. **SigNoz OpenTelemetry Collector** - Telemetry receiver
+5. **SigNoz Query Service** - Query processor
+6. **SigNoz Frontend** - Web UI (http://localhost:3301)
+7. **SigNoz Alert Manager** - Alert handling
+
+All connection strings and environment variables are automatically configured by Aspire - no manual setup needed!
+
 ## What is SigNoz?
 
 SigNoz is a comprehensive open-source Application Performance Monitoring (APM) solution that provides:
@@ -26,11 +48,31 @@ The SigNoz setup includes:
 
 ## Quick Start
 
-### Using Docker Compose with SigNoz
+### Option 1: With .NET Aspire (Recommended)
+
+```bash
+# From the repository root
+dotnet run --project PathfinderPhotography.AppHost
+```
+
+Benefits:
+- ✅ Zero configuration required
+- ✅ All services start automatically
+- ✅ Connection strings auto-injected
+- ✅ Persistent data volumes
+- ✅ Service orchestration and health checks
+- ✅ Access Aspire Dashboard for additional insights
+
+Access points:
+- **Application**: Check Aspire Dashboard for URL
+- **SigNoz UI**: http://localhost:3301
+- **Aspire Dashboard**: Shown in console output
+
+### Option 2: Using Docker Compose (Manual Setup)
 
 ```bash
 # Start all services including SigNoz
-docker-compose -f docker-compose.signoz.yml up -d
+docker-compose --profile signoz up -d
 
 # Access the application
 http://localhost:8080
@@ -109,14 +151,26 @@ Alert manager routing and notification configuration.
 
 ## Environment Variables
 
-The application automatically exports telemetry when these variables are set:
+### With Aspire Integration (Automatic)
+
+When running via `dotnet run --project PathfinderPhotography.AppHost`, all environment variables are automatically configured:
+
+- ✅ `OTEL_EXPORTER_OTLP_ENDPOINT` - Auto-set to point to SigNoz collector
+- ✅ `OTEL_RESOURCE_ATTRIBUTES` - Auto-set with service name
+- ✅ All SigNoz container configurations - Auto-configured from these YAML files
+
+No manual configuration needed!
+
+### With Docker Compose (Manual)
+
+The application exports telemetry when these variables are set:
 
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4317
 OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
 ```
 
-These are pre-configured in `docker-compose.signoz.yml`.
+These are pre-configured in `docker-compose.yml` when using the `signoz` profile.
 
 ## Data Persistence
 
@@ -185,14 +239,17 @@ docker-compose -f docker-compose.signoz.yml exec signoz-clickhouse wget -qO- loc
 
 ## Disabling SigNoz
 
+### With Aspire
+
+To run without SigNoz, you would need to modify `PathfinderPhotography.AppHost/Program.cs` and comment out the SigNoz container definitions. However, since SigNoz runs in containers with minimal overhead, it's recommended to keep it enabled for development.
+
+### With Docker Compose
+
 To run the application without SigNoz:
 
 ```bash
-# Use the standard docker-compose file
+# Use the standard docker-compose file without the signoz profile
 docker-compose up -d
-
-# Or use the homelab compose file
-docker-compose -f docker-compose.homelab.yml up -d
 ```
 
 ## Resources

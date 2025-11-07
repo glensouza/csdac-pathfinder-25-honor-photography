@@ -59,7 +59,7 @@ IResourceBuilder<ContainerResource> alertManager = builder.AddContainer("signoz-
 // Add the main web application with reference to OpenTelemetry collector
 IResourceBuilder<ProjectResource> webApp = builder.AddProject<Projects.PathfinderPhotography>("webapp")
     .WithReference(pathfinderDb)
-    .WithReference(otelCollector.GetEndpoint("otlp-grpc"))
+    .WithEnvironment("OTEL_EXPORTER_OTLP_ENDPOINT", otelCollector.GetEndpoint("otlp-grpc"))
     .WithEnvironment("OTEL_RESOURCE_ATTRIBUTES", "service.name=pathfinder-photography")
     .WithExternalHttpEndpoints();
 
