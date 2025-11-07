@@ -1,0 +1,220 @@
+@page "/admin/export"
+@using System.Security.Claims
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@inject PhotoSubmissionService SubmissionService
+@inject UserService UserService
+@inject CompositionRuleService RuleService
+@inject PdfExportService PdfExportService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Export to PDF</PageTitle>
+
+<div class="container mt-4">
+    <h1>Export Submissions to PDF</h1>
+    <p class="lead">Generate PDF reports of photo submissions</p>
+
+    @if (!isAdmin)
+    {
+        <div class="alert alert-danger">
+            <h4>Access Denied</h4>
+            <p>You must be an admin to access this page.</p>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">All Submissions Report</h5>
+                        <p class="card-text">Generate a comprehensive report of all photo submissions.</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Filter by Rule (Optional)</label>
+                            <select class="form-select" @bind="selectedRuleId">
+                                <option value="0">All Rules</option>
+                                @foreach (CompositionRule rule in rules)
+                                {
+                                    <option value="@rule.Id">@rule.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary" @onclick="ExportAllSubmissions" disabled="@isExporting">
+                            @if (isExporting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Generating...</span>
+                            }
+                            else
+                            {
+                                <span>📄 Generate Report</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Pathfinder Progress Report</h5>
+                        <p class="card-text">Generate a progress report for a specific pathfinder.</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Select Pathfinder</label>
+                            <select class="form-select" @bind="selectedPathfinderEmail">
+                                <option value="">-- Select a pathfinder --</option>
+                                @foreach (User user in pathfinders)
+                                {
+                                    <option value="@user.Email">@user.Name (@user.Email)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <button class="btn btn-success" @onclick="ExportPathfinderProgress" disabled="@(isExporting || string.IsNullOrEmpty(selectedPathfinderEmail))">
+                            @if (isExporting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Generating...</span>
+                            }
+                            else
+                            {
+                                <span>📄 Generate Progress Report</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show" role="alert">
+                @statusMessage
+                <button type="button" class="btn-close" @onclick="@(() => statusMessage = string.Empty)"></button>
+            </div>
+        }
+
+        <div class="mt-3">
+            <a href="/admin/dashboard" class="btn btn-outline-secondary">← Back to Dashboard</a>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAdmin = false;
+    private bool isExporting = false;
+    private bool isError = false;
+    private string statusMessage = string.Empty;
+    private List<CompositionRule> rules = [];
+    private List<User> pathfinders = [];
+    private int selectedRuleId = 0;
+    private string selectedPathfinderEmail = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            string currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+            string currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
+            
+            if (!string.IsNullOrEmpty(currentUserEmail))
+            {
+                await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
+                isAdmin = await UserService.IsAdminAsync(currentUserEmail);
+            }
+        }
+
+        if (!isAdmin)
+        {
+            return;
+        }
+
+        rules = RuleService.GetAllRules();
+        List<User> allUsers = await UserService.GetAllUsersAsync();
+        pathfinders = allUsers.Where(u => u.Role == UserRole.Pathfinder).OrderBy(u => u.Name).ToList();
+    }
+
+    private async Task ExportAllSubmissions()
+    {
+        isExporting = true;
+        isError = false;
+        statusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            int? ruleId = selectedRuleId > 0 ? selectedRuleId : null;
+            byte[] pdfBytes = await PdfExportService.GenerateSubmissionsReportAsync(null, ruleId);
+            
+            string fileName = selectedRuleId > 0
+                ? $"Submissions_{rules.First(r => r.Id == selectedRuleId).Name.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.pdf"
+                : $"All_Submissions_{DateTime.Now:yyyyMMdd}.pdf";
+
+            await DownloadFileAsync(fileName, pdfBytes);
+            statusMessage = "PDF report generated successfully!";
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            statusMessage = $"Error generating PDF: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExportPathfinderProgress()
+    {
+        if (string.IsNullOrEmpty(selectedPathfinderEmail))
+        {
+            return;
+        }
+
+        isExporting = true;
+        isError = false;
+        statusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            byte[] pdfBytes = await PdfExportService.GeneratePathfinderProgressReportAsync(selectedPathfinderEmail);
+            
+            User? pathfinder = pathfinders.FirstOrDefault(p => p.Email == selectedPathfinderEmail);
+            string fileName = $"Progress_{pathfinder?.Name.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.pdf";
+
+            await DownloadFileAsync(fileName, pdfBytes);
+            statusMessage = "Progress report generated successfully!";
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            statusMessage = $"Error generating PDF: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DownloadFileAsync(string fileName, byte[] data)
+    {
+        string base64 = Convert.ToBase64String(data);
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+}

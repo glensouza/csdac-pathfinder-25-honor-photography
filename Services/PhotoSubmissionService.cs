@@ -4,7 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PathfinderPhotography.Services;
 
-public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> contextFactory, IWebHostEnvironment env)
+public class PhotoSubmissionService(
+    IDbContextFactory<ApplicationDbContext> contextFactory, 
+    IWebHostEnvironment env,
+    EmailNotificationService emailService,
+    UserService userService)
 {
     public async Task<List<PhotoSubmission>> GetAllSubmissionsAsync()
     {
@@ -39,6 +43,29 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
         submission.SubmissionDate = DateTime.UtcNow;
         context.PhotoSubmissions.Add(submission);
         await context.SaveChangesAsync();
+
+        // Send notification to instructors asynchronously (don't wait)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                List<User> instructors = await userService.GetInstructorsAndAdminsAsync();
+                List<string> instructorEmails = instructors.Select(i => i.Email).ToList();
+                
+                if (instructorEmails.Any())
+                {
+                    await emailService.SendNewSubmissionNotificationAsync(
+                        submission.PathfinderEmail,
+                        submission.PathfinderName,
+                        submission.CompositionRuleName,
+                        instructorEmails);
+                }
+            }
+            catch
+            {
+                // Silently fail email notifications - they're not critical
+            }
+        });
     }
 
     public async Task<string> SaveUploadedFileAsync(Stream fileStream, string fileName)
@@ -135,6 +162,24 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
         submission.GradedBy = gradedBy;
         submission.GradedDate = DateTime.UtcNow;
         await context.SaveChangesAsync();
+
+        // Send notification to pathfinder asynchronously (don't wait)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await emailService.SendGradingNotificationAsync(
+                    submission.PathfinderEmail,
+                    submission.PathfinderName,
+                    submission.CompositionRuleName,
+                    status,
+                    gradedBy);
+            }
+            catch
+            {
+                // Silently fail email notifications - they're not critical
+            }
+        });
     }
 
     public async Task<List<PhotoSubmission>> GetSubmissionsForGradingAsync()

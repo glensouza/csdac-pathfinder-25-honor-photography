@@ -10,12 +10,16 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 - **Google Authentication**: Secure login with Google accounts to track submissions
 - **Role-Based Access**: Three-tier role system (Pathfinder, Instructor, Admin) for granular permissions
 - **User Management**: Admin users can promote/demote users between Pathfinder and Instructor roles
+- **Admin Dashboard**: Comprehensive dashboard with statistics, analytics, and quick actions for admins
+- **PDF Export**: Generate detailed PDF reports of submissions and pathfinder progress
+- **Email Notifications**: Automatic email notifications for grading and new submissions (optional)
 - **Educational Content**: Learn about 10 essential photography composition rules with descriptions and explanations
 - **Photo Submission**: Upload photos for each composition rule with personal descriptions
 - **Automatic Name Tracking**: User names are automatically pulled from Google account
 - **Gallery View**: Browse all submitted photos with filtering by rule or pathfinder name
 - **PostgreSQL Database**: Robust data persistence for submissions
 - **Observability**: Built-in telemetry, metrics, and distributed tracing with OpenTelemetry
+- **SigNoz Integration**: Advanced telemetry dashboards with SigNoz (optional)
 - **Docker Support**: Pre-built images on GitHub Container Registry for easy deployment
 - **Home Lab Ready**: Simple deployment to your home lab infrastructure
 
@@ -222,9 +226,59 @@ The application has three user roles with different permissions:
 
 - **Pathfinder** (Default): Can submit photos, vote on photos, and view the gallery
 - **Instructor**: Can grade photo submissions in addition to all Pathfinder capabilities
-- **Admin**: Can manage user roles (promote/demote between Pathfinder and Instructor), grade photo submissions, and access the User Management page
+- **Admin**: Can access the Admin Dashboard, manage user roles (promote/demote between Pathfinder and Instructor), export reports to PDF, grade photo submissions, and access the User Management page
 
 **Important**: The first user to sign in to the system is automatically assigned the Admin role to bootstrap the application. Subsequent admin users must be created manually in the database. See [SETUP.md](SETUP.md) for instructions on creating admin users.
+
+### Admin Features
+
+Admins have access to powerful features:
+
+1. **Admin Dashboard** (`/admin/dashboard`): 
+   - View comprehensive statistics on submissions and users
+   - See pending, passed, and failed submissions
+   - Monitor submissions by composition rule
+   - View recent activity
+
+2. **PDF Export** (`/admin/export`):
+   - Generate PDF reports of all submissions
+   - Create individual pathfinder progress reports
+   - Filter exports by composition rule
+   - Professional PDF formatting with images
+
+3. **Email Notifications** (Optional):
+   - Instructors receive notifications when new photos are submitted
+   - Pathfinders receive notifications when their photos are graded
+   - Configure SMTP settings to enable (see Email Configuration below)
+
+### Email Configuration
+
+Email notifications are optional. To enable them, configure your SMTP settings in `appsettings.json` or environment variables:
+
+```json
+"Email": {
+  "SmtpHost": "smtp.gmail.com",
+  "SmtpPort": "587",
+  "SmtpUsername": "your-email@gmail.com",
+  "SmtpPassword": "your-app-password",
+  "UseSsl": "true",
+  "FromAddress": "noreply@pathfinderphotography.local",
+  "FromName": "Pathfinder Photography"
+}
+```
+
+Or using environment variables:
+```bash
+EMAIL_SMTP_HOST=smtp.gmail.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USERNAME=your-email@gmail.com
+EMAIL_SMTP_PASSWORD=your-app-password
+EMAIL_USE_SSL=true
+EMAIL_FROM_ADDRESS=noreply@pathfinderphotography.local
+EMAIL_FROM_NAME=Pathfinder Photography
+```
+
+**Note**: Leave `SmtpHost` empty to disable email notifications. The application will function normally without email configured.
 
 ## Technology Stack
 
@@ -233,7 +287,10 @@ The application has three user roles with different permissions:
 - **Database**: PostgreSQL 16
 - **ORM**: Entity Framework Core
 - **Authentication**: Google OAuth 2.0
+- **PDF Generation**: QuestPDF
+- **Email**: MailKit
 - **Observability**: OpenTelemetry (traces, metrics, logs)
+- **Telemetry Platform**: SigNoz (optional)
 - **UI**: Bootstrap 5
 - **Container**: Docker & Docker Compose
 
@@ -314,12 +371,57 @@ The application exports telemetry data including:
 - Check disk space
 - Check file size (max 10MB)
 
-## Future Enhancements
+## Advanced Features
 
-- Admin dashboard for reviewing submissions
-- Export submissions to PDF
-- Email notifications
-- Advanced telemetry dashboards
+### SigNoz Telemetry Dashboard
+
+For comprehensive observability, you can optionally deploy SigNoz alongside the application. SigNoz provides:
+
+- **Distributed Tracing**: Track requests across services and identify bottlenecks
+- **Metrics Monitoring**: Monitor application performance and infrastructure
+- **Log Management**: Centralized log aggregation and analysis
+- **Custom Dashboards**: Create visualizations for your specific needs
+- **Alerts**: Set up alerts based on metrics and traces
+
+To use SigNoz:
+
+```bash
+# Use the SigNoz-enabled docker-compose file
+docker-compose -f docker-compose.signoz.yml up -d
+
+# Access SigNoz UI
+http://localhost:3301
+```
+
+See [signoz/README.md](signoz/README.md) for detailed documentation.
+
+**Why SigNoz?**
+- Open-source alternative to commercial APM tools
+- Built on OpenTelemetry standards
+- Self-hosted for data privacy
+- Comprehensive observability in one platform
+
+### PDF Export Capabilities
+
+The application can generate professional PDF reports:
+
+1. **All Submissions Report**: Export all photo submissions with optional filtering by composition rule
+2. **Pathfinder Progress Report**: Individual progress reports showing completion status for each pathfinder
+
+PDFs include:
+- Submission details (pathfinder, rule, date, status)
+- Photo images
+- Descriptions and grading information
+- Summary statistics
+
+### Email Notification System
+
+When configured, the application sends automatic email notifications:
+
+- **To Pathfinders**: When their photo submissions are graded
+- **To Instructors/Admins**: When new photos are submitted for review
+
+Notifications are sent asynchronously and don't block the user interface. If email is not configured, the application works perfectly without it.
 
 ## License
 
