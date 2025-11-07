@@ -6,56 +6,64 @@ Use this checklist when deploying to your home lab.
 
 ### Required Information
 - [ ] Google OAuth Client ID
-- [ ] Google OAuth Client Secret  
+- [ ] Google OAuth Client Secret 
 - [ ] Home lab server IP address or hostname
-- [ ] Desired port (default: 8080)
+- [ ] Desired port (default:8080)
 - [ ] PostgreSQL password (secure, random)
+- [ ] (Optional) SMTP settings for email notifications
 
 ### Prerequisites Verified
-- [ ] Docker installed (version 20.10+)
-- [ ] Docker Compose installed (version 2.0+)
-- [ ] At least 2GB free disk space
-- [ ] Port 8080 available (or alternative port)
+- [ ] Docker installed (version20.10+)
+- [ ] Docker Compose installed (version2.0+)
+- [ ] At least2GB free disk space
+- [ ] Port8080 available (or alternative port)
+- [ ] Port5432 available (or adjust compose mapping)
 - [ ] Internet connection for pulling images
 
 ## Google OAuth Configuration
 
 - [ ] Created Google Cloud project
 - [ ] Enabled Google+ API
-- [ ] Created OAuth 2.0 credentials
+- [ ] Created OAuth2.0 credentials
 - [ ] Configured OAuth consent screen
 - [ ] Added authorized redirect URIs:
-  - [ ] `http://your-server:8080/signin-google`
-  - [ ] `https://your-domain.com/signin-google` (if using reverse proxy)
+ - [ ] `http://localhost:8080/signin-google`
+ - [ ] `http://your-server:8080/signin-google`
+ - [ ] `https://your-domain.com/signin-google` (if using reverse proxy/HTTPS)
 - [ ] Saved Client ID and Client Secret
 
 ## Deployment Steps
 
 ### Quick Deployment
 - [ ] Ran one-command deployment script:
-  ```bash
-  curl -sSL https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh | bash
-  ```
+ ```bash
+ curl -sSL https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh | bash
+ ```
+- [ ] (Optional) Ran with SigNoz enabled:
+ ```bash
+ curl -sSL https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh | bash -s -- --signoz
+ ```
 
 ### OR Manual Deployment
 - [ ] Created deployment directory: `mkdir -p ~/pathfinder-photography`
-- [ ] Downloaded docker-compose.homelab.yml
-- [ ] Created .env file with credentials
+- [ ] Downloaded `docker-compose.yml`
+- [ ] Created `.env` file with credentials (GOOGLE_CLIENT_ID/SECRET, POSTGRES_PASSWORD, optional EMAIL_* settings)
 - [ ] Pulled images: `docker compose pull`
 - [ ] Started services: `docker compose up -d`
+- [ ] (Optional) Started with observability: `docker compose --profile signoz up -d`
 
 ## Post-Deployment Verification
 
 ### Services Running
 - [ ] Check containers: `docker compose ps`
-- [ ] Both containers show "Up"
+- [ ] All containers show "Up"
 - [ ] No error messages in status
 
 ### Application Access
 - [ ] Accessed http://localhost:8080 (from server)
 - [ ] Accessed http://your-server-ip:8080 (from network)
 - [ ] Home page loads correctly
-- [ ] Can see all 10 composition rules
+- [ ] Can see all10 composition rules
 
 ### Google Authentication
 - [ ] "Sign in with Google" button appears
@@ -63,41 +71,53 @@ Use this checklist when deploying to your home lab.
 - [ ] After authentication, redirected back to app
 - [ ] Signed in with correct user name
 
+### User Roles
+- [ ] First signed-in user automatically has Admin role
+- [ ] (Optional) Promoted additional admin via SQL if needed
+
 ### Photo Upload
 - [ ] Navigated to Submit page
 - [ ] Selected a composition rule
-- [ ] Uploaded a test photo (< 10MB)
+- [ ] Uploaded a test photo (<10MB)
 - [ ] Added description
 - [ ] Submitted successfully
 - [ ] Photo appears in gallery
+- [ ] Uploads persist after container restart (volume mounted)
 
 ### Database
 - [ ] Database is accessible: 
-  ```bash
-  docker exec -it pathfinder-postgres psql -U postgres -d pathfinder_photography -c "SELECT COUNT(*) FROM \"PhotoSubmissions\";"
-  ```
+ ```bash
+ docker exec -it pathfinder-postgres psql -U postgres -d pathfinder_photography -c "SELECT COUNT(*) FROM \"PhotoSubmissions\";"
+ ```
 - [ ] Data persists after container restart
 
 ## Optional Configuration
+
+### Email Notifications
+- [ ] Configured EMAIL_* variables in `.env` (SMTP host, port, username, password, SSL, from address/name)
+- [ ] Tested email by submitting and grading a photo
 
 ### Reverse Proxy (Nginx/Traefik)
 - [ ] Configured reverse proxy
 - [ ] SSL/TLS certificate installed
 - [ ] HTTPS redirects working
-- [ ] Updated Google OAuth redirect URIs
+- [ ] Updated Google OAuth redirect URIs to HTTPS domain
 
 ### Monitoring
 - [ ] Configured log rotation
 - [ ] Set up backup script
 - [ ] Added to monitoring system
 - [ ] Health endpoints responding:
-  - [ ] `/health`
-  - [ ] `/alive`
-  - [ ] `/ready`
+ - [ ] `/health`
+ - [ ] `/alive`
+ - [ ] `/ready`
+- [ ] Metrics endpoint responding: `/metrics`
+- [ ] (Optional) SigNoz profile enabled: `docker compose --profile signoz up -d`
+- [ ] (Optional) SigNoz UI accessible: `http://your-server-ip:3301`
 
 ### Security Hardening
 - [ ] Changed default PostgreSQL password
-- [ ] Configured firewall rules
+- [ ] Configured firewall rules (allow only needed ports)
 - [ ] Using strong passwords
 - [ ] Secrets not in version control
 - [ ] SSL/TLS enabled (if exposed to internet)
@@ -115,9 +135,9 @@ Use this checklist when deploying to your home lab.
 If issues occurred, verify resolved:
 
 - [ ] Container logs checked: `docker compose logs`
-- [ ] Port conflicts resolved
+- [ ] Port conflicts resolved (app and Postgres)
 - [ ] Environment variables correct
-- [ ] Google OAuth redirect URI matches
+- [ ] Google OAuth redirect URI matches exactly
 - [ ] Database connection working
 - [ ] File permissions correct for uploads
 - [ ] Network connectivity verified
@@ -125,7 +145,7 @@ If issues occurred, verify resolved:
 ## Documentation Reviewed
 
 - [ ] Read README.md
-- [ ] Read HOMELAB_DEPLOYMENT.md  
+- [ ] Read HOMELAB_DEPLOYMENT.md 
 - [ ] Read SETUP.md (if doing development)
 - [ ] Bookmarked useful commands
 - [ ] Know where to find logs
@@ -184,7 +204,7 @@ Add any deployment-specific notes here:
 ---
 
 **Next Steps After Deployment:**
-1. Monitor logs for first 24 hours
+1. Monitor logs for first24 hours
 2. Test with small group before full rollout
 3. Ensure backup is working
 4. Share access information with pathfinders
@@ -213,4 +233,3 @@ docker exec -t pathfinder-postgres pg_dump -U postgres pathfinder_photography > 
 
 # Stop everything
 docker compose down
-```

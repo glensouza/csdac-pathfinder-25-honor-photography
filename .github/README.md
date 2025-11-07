@@ -1,6 +1,6 @@
 # Photography Honor - Corona SDA Pathfinders
 
-A Blazor Server web application for SDA Pathfinders from Corona SDA church to submit photos demonstrating 10 photography composition rules. Built with .NET Aspire for improved observability and service orchestration.
+A Blazor Server web application for SDA Pathfinders from Corona SDA church to submit photos demonstrating10 photography composition rules. Built with .NET Aspire for improved observability and service orchestration.
 
 [![Docker Build](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml)
 
@@ -13,7 +13,7 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 - **Admin Dashboard**: Comprehensive dashboard with statistics, analytics, and quick actions for admins
 - **PDF Export**: Generate detailed PDF reports of submissions and pathfinder progress
 - **Email Notifications**: Automatic email notifications for grading and new submissions (optional)
-- **Educational Content**: Learn about 10 essential photography composition rules with descriptions and explanations
+- **Educational Content**: Learn about10 essential photography composition rules with descriptions and explanations
 - **Photo Submission**: Upload photos for each composition rule with personal descriptions
 - **Automatic Name Tracking**: User names are automatically pulled from Google account
 - **Gallery View**: Browse all submitted photos with filtering by rule or pathfinder name
@@ -23,7 +23,7 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 - **Docker Support**: Pre-built images on GitHub Container Registry for easy deployment
 - **Home Lab Ready**: Simple deployment to your home lab infrastructure
 
-## 10 Composition Rules
+##10 Composition Rules
 
 1. Rule of Thirds
 2. Leading Lines
@@ -38,32 +38,45 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 
 ## Quick Start - Home Lab Deployment 🏠
 
-The easiest way to deploy is using the pre-built Docker image from GitHub Container Registry:
+The easiest way to deploy is using the pre-built Docker image from GitHub Container Registry.
 
-### Pull and Run
+### Option A: One-line Script
+
+```bash
+curl -sSL -o deploy-homelab.sh https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh && bash deploy-homelab.sh
+```
+
+Script options:
+- `-d <dir>` deployment directory (default: `~/pathfinder-photography`)
+- `-p <port>` host port (default: `8080`)
+- `--update` pull latest image and recreate containers
+
+### Option B: Manual Compose
 
 ```bash
 # Create deployment directory
 mkdir -p ~/pathfinder-photography
 cd ~/pathfinder-photography
 
-# Download compose file
-curl -o docker-compose.yml https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/docker-compose.homelab.yml
+# Download compose and env template
+curl -o docker-compose.yml https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/.env.example
 
-# Create .env file with your Google OAuth credentials
-cat > .env << EOF
-GOOGLE_CLIENT_ID=your_client_id_here
-GOOGLE_CLIENT_SECRET=your_client_secret_here
-POSTGRES_PASSWORD=your_secure_password
-EOF
+# Edit .env (set GOOGLE_CLIENT_ID/SECRET, POSTGRES_PASSWORD, optional EMAIL_* settings)
 
 # Start the application
+docker compose pull
 docker compose up -d
 ```
 
 Access at: http://your-server:8080
 
-**📖 For detailed home lab deployment, see [HOMELAB_DEPLOYMENT.md](HOMELAB_DEPLOYMENT.md)**
+Add Google OAuth redirect URIs:
+- `http://your-server:8080/signin-google`
+- `http://localhost:8080/signin-google`
+- If using HTTPS/reverse proxy: `https://yourdomain.com/signin-google`
+
+**📖 For detailed home lab deployment, see `HOMELAB_DEPLOYMENT.md`**
 
 ## Docker Images
 
@@ -82,213 +95,45 @@ docker pull ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:v1.0.0
 ## Prerequisites
 
 - **For Home Lab**: Docker and Docker Compose
-- **For Development**: .NET 9.0 SDK, Docker Desktop
-- **For All**: Google OAuth 2.0 credentials
+- **For Development**: .NET9.0 SDK, Docker Desktop
+- **For All**: Google OAuth2.0 credentials
 
 ## Google OAuth Setup
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the Google+ API
-4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
-5. Configure the OAuth consent screen
-6. For Application type, select "Web application"
-7. Add authorized redirect URIs:
-   - For local development: `https://localhost:5001/signin-google`
-   - For Aspire: `https://localhost:7152/signin-google` (check actual port in Aspire Dashboard)
-   - For home lab: `http://your-server:8080/signin-google` or `https://yourdomain.com/signin-google`
-8. Copy the Client ID and Client Secret
-9. Add to your `.env` file or `appsettings.Development.json`
+1. Go to https://console.cloud.google.com/
+2. Create a project
+3. Enable Google+ API
+4. Create OAuth2.0 Client ID (Web)
+5. Configure consent screen
+6. Authorized redirect URIs (pick the ones you use):
+ - Local dev: `https://localhost:5001/signin-google`, `http://localhost:5000/signin-google`
+ - Aspire (check port): e.g. `https://localhost:7152/signin-google`
+ - Home lab: `http://your-server:8080/signin-google` or your HTTPS domain
+7. Add Client ID/Secret to `.env` or `appsettings.Development.json`
 
 ## Running with .NET Aspire (Recommended)
 
-.NET Aspire provides a modern development experience with built-in service orchestration, observability, and telemetry.
-
-### Steps
-
-1. **Configure Google OAuth** (see above)
-
-2. **Update appsettings.Development.json** with your Google credentials:
-   ```json
-   {
-     "Authentication": {
-       "Google": {
-         "ClientId": "your_client_id_here.apps.googleusercontent.com",
-         "ClientSecret": "your_client_secret_here"
-       }
-     }
-   }
-   ```
-
-3. **Run with Aspire AppHost**:
-   ```bash
-   dotnet run --project PathfinderPhotography.AppHost
-   ```
-
-4. **Access the Aspire Dashboard**:
-   - The dashboard will automatically open in your browser
-   - View logs, traces, and metrics for all services
-   - Access PostgreSQL admin through PgAdmin integration
-
-5. **Access the Application**:
-   - Click on the `webapp` endpoint in the Aspire Dashboard
-   - Or check the console output for the HTTPS endpoint
-
-### Aspire Features
-
-- **Service Discovery**: Automatic connection to PostgreSQL
-- **Observability**: View logs, traces, and metrics in real-time
-- **Health Checks**: Monitor service health
-- **PgAdmin**: Built-in PostgreSQL administration tool
-- **Resource Management**: Easy management of dependencies
+1. Configure Google OAuth in `appsettings.Development.json`
+2. Run the AppHost:
+ ```bash
+ dotnet run --project PathfinderPhotography.AppHost
+ ```
+3. Open the Aspire Dashboard and click the `webapp` endpoint to open the Blazor app.
 
 ## Running with Docker Compose
 
-### Steps
+1. Copy `.env.example` to `.env` and add Google OAuth credentials
+2. Start:
+ ```bash
+ docker compose up -d
+ ```
+3. App: `http://localhost:8080`
 
-1. Copy `.env.example` to `.env` and add your Google OAuth credentials:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
-   ```
+## Email Configuration (Using Gmail)
 
-2. Start the application:
-   ```bash
-   docker-compose up -d
-   ```
+Use Gmail App Passwords (2FA must be enabled):
 
-3. The application will be available at `http://localhost:8080`
-
-4. To view logs:
-   ```bash
-   docker-compose logs -f pathfinder-photography
-   ```
-
-5. To stop the application:
-   ```bash
-   docker-compose down
-   ```
-
-## Manual Setup (Development without Aspire)
-
-1. Install PostgreSQL and create a database:
-   ```sql
-   CREATE DATABASE pathfinder_photography;
-   ```
-
-2. Update `appsettings.Development.json` with your PostgreSQL connection string and Google OAuth credentials
-
-3. Apply database migrations:
-   ```bash
-   dotnet ef database update --project PathfinderPhotography.csproj
-   ```
-
-4. Run the application:
-   ```bash
-   dotnet run --project PathfinderPhotography.csproj
-   ```
-
-5. The application will be available at `https://localhost:5001` or `http://localhost:5000`
-
-## Database Migrations
-
-To create a new migration after model changes:
-```bash
-dotnet ef migrations add MigrationName --project PathfinderPhotography.csproj
-```
-
-To apply migrations:
-```bash
-dotnet ef database update --project PathfinderPhotography.csproj
-```
-
-## Data Persistence
-
-- **Photos**: Stored in `wwwroot/uploads/` directory
-- **Submission Data**: Stored in PostgreSQL database
-- **Database**: When using Docker/Aspire, PostgreSQL data is persisted
-
-## Usage
-
-1. **Sign In**: Click "Sign in with Google" to authenticate
-2. **View Rules**: Navigate to the home page to learn about all 10 composition rules
-3. **Submit Photos**: Click "Submit Photos" in the navigation menu
-4. **Your Name**: Your name is automatically pulled from your Google account
-5. **Select a Rule**: Choose which composition rule you're demonstrating
-6. **Upload Photo**: Select your photo file (max 10MB)
-7. **Describe**: Explain how you applied the rule in your photo
-8. **Submit**: Click submit to save your photo
-9. **View Gallery**: Check out all submitted photos in the gallery
-
-### User Roles
-
-The application has three user roles with different permissions:
-
-- **Pathfinder** (Default): Can submit photos, vote on photos, and view the gallery
-- **Instructor**: Can grade photo submissions in addition to all Pathfinder capabilities
-- **Admin**: Can access the Admin Dashboard, manage user roles (promote/demote between Pathfinder and Instructor), export reports to PDF, grade photo submissions, and access the User Management page
-
-**Important**: The first user to sign in to the system is automatically assigned the Admin role to bootstrap the application. Subsequent admin users must be created manually in the database. See [SETUP.md](SETUP.md) for instructions on creating admin users.
-
-### Admin Features
-
-Admins have access to powerful features:
-
-1. **Admin Dashboard** (`/admin/dashboard`): 
-   - View comprehensive statistics on submissions and users
-   - See pending, passed, and failed submissions
-   - Monitor submissions by composition rule
-   - View recent activity
-
-2. **PDF Export** (`/admin/export`):
-   - Generate PDF reports of all submissions
-   - Create individual pathfinder progress reports
-   - Filter exports by composition rule
-   - Professional PDF formatting with images
-
-3. **Email Notifications** (Optional):
-   - Instructors receive notifications when new photos are submitted
-   - Pathfinders receive notifications when their photos are graded
-   - Configure SMTP settings to enable (see Email Configuration below)
-
-### Email Configuration (Using Gmail)
-
-Email notifications are optional but recommended. The application is configured to work with Gmail out of the box.
-
-#### Step 1: Get a Gmail App Password
-
-Since Gmail requires 2-factor authentication for SMTP access, you need to create an App Password:
-
-1. Go to your [Google Account](https://myaccount.google.com/)
-2. Click on **Security** in the left sidebar
-3. Under "How you sign in to Google," enable **2-Step Verification** if not already enabled
-4. After enabling 2-Step Verification, you'll see **App passwords**
-5. Click **App passwords**
-6. Select **Mail** and **Other (Custom name)**, enter "Pathfinder Photography"
-7. Click **Generate**
-8. Copy the 16-character app password (you won't be able to see it again)
-
-#### Step 2: Configure the Application
-
-**Option A: Using `appsettings.json` (for local development):**
-
-```json
-"Email": {
-  "SmtpHost": "smtp.gmail.com",
-  "SmtpPort": "587",
-  "SmtpUsername": "your-email@gmail.com",
-  "SmtpPassword": "your-16-char-app-password",
-  "UseSsl": "true",
-  "FromAddress": "your-email@gmail.com",
-  "FromName": "Pathfinder Photography"
-}
-```
-
-**Option B: Using environment variables (recommended for Docker/production):**
-
-Create or update your `.env` file:
-
-```bash
+```env
 EMAIL_SMTP_HOST=smtp.gmail.com
 EMAIL_SMTP_PORT=587
 EMAIL_SMTP_USERNAME=your-email@gmail.com
@@ -298,183 +143,29 @@ EMAIL_FROM_ADDRESS=your-email@gmail.com
 EMAIL_FROM_NAME=Pathfinder Photography
 ```
 
-Then in your `docker-compose.yml` or `docker-compose.homelab.yml`, the environment variables will be automatically loaded.
-
-#### Step 3: Test the Configuration
-
-1. Start the application
-2. Submit a photo (this will trigger a notification to instructors/admins)
-3. Grade a photo (this will trigger a notification to the pathfinder)
-4. Check your Gmail sent folder to verify emails are being sent
-
-#### Troubleshooting Gmail SMTP
-
-**"Username and Password not accepted" error:**
-- Make sure you're using an App Password, not your regular Gmail password
-- Verify 2-Step Verification is enabled on your Google Account
-- Double-check the username is your full Gmail address
-
-**Emails not sending:**
-- Check the application logs for SMTP errors
-- Verify the App Password is correctly copied (no spaces)
-- Ensure port 587 is not blocked by your firewall
-
-**"Less secure app access" message:**
-- This is normal - use App Passwords instead
-- Google recommends App Passwords for third-party apps
-
-#### Using a Different Email Provider
-
-While Gmail is recommended and pre-configured, you can use any SMTP provider:
-
-- **Outlook/Office365**: `smtp.office365.com:587`
-- **Yahoo Mail**: `smtp.mail.yahoo.com:587`
-- **Custom SMTP Server**: Use your own SMTP server details
-
-**Note**: Leave `SmtpHost` empty to disable email notifications. The application will function normally without email configured.
-
-## Technology Stack
-
-- **Framework**: ASP.NET Core Blazor Server (.NET 9.0)
-- **Orchestration**: .NET Aspire
-- **Database**: PostgreSQL 16
-- **ORM**: Entity Framework Core
-- **Authentication**: Google OAuth 2.0
-- **PDF Generation**: QuestPDF
-- **Email**: MailKit
-- **Observability**: OpenTelemetry (traces, metrics, logs)
-- **Telemetry Platform**: SigNoz (optional)
-- **UI**: Bootstrap 5
-- **Container**: Docker & Docker Compose
-
-## Project Structure
-
-```
-├── PathfinderPhotography/           # Main web application
-│   ├── Components/
-│   │   ├── Layout/                  # Navigation and layout components
-│   │   └── Pages/                   # Blazor pages (Home, Submit, Gallery)
-│   ├── Data/                        # Database context and migrations
-│   ├── Models/                      # Data models
-│   ├── Services/                    # Business logic services
-│   ├── wwwroot/                     # Static files and uploads
-│   └── Migrations/                  # EF Core migrations
-├── PathfinderPhotography.AppHost/   # Aspire orchestration
-├── PathfinderPhotography.ServiceDefaults/  # Shared Aspire configuration
-├── Dockerfile                       # Docker configuration
-├── docker-compose.yml               # Docker Compose configuration
-└── .env.example                     # Example environment variables
-```
-
-## Environment Variables
-
-- `ConnectionStrings__DefaultConnection`: PostgreSQL connection string (auto-configured by Aspire)
-- `Authentication__Google__ClientId`: Google OAuth Client ID
-- `Authentication__Google__ClientSecret`: Google OAuth Client Secret
-- `ASPNETCORE_URLS`: Application URLs
-- `ASPNETCORE_ENVIRONMENT`: Environment (Development/Production)
+Leave `EMAIL_SMTP_HOST` empty to disable email.
 
 ## Observability
 
-### With Aspire
+- Health: `/health`, `/alive`, `/ready`
+- Metrics: `/metrics`
+- Aspire provides logs/traces/metrics for local dev with AppHost
+- Optional: `docker-compose.signoz.yml` to run SigNoz locally (`http://localhost:3301`)
 
-The Aspire Dashboard provides comprehensive observability:
+## User Roles
 
-- **Logs**: View structured logs from all services
-- **Traces**: Distributed tracing across services and database calls
-- **Metrics**: Performance metrics and counters
-- **Resources**: Monitor CPU, memory, and other resources
+- Pathfinder (0): submit, vote
+- Instructor (1): grade + Pathfinder abilities
+- Admin (2): dashboard, user management, export, grade
 
-### OpenTelemetry Integration
-
-The application exports telemetry data including:
-
-- HTTP requests and responses
-- Database queries and performance
-- Entity Framework Core operations
-- Runtime metrics
-
-## Security Notes
-
-- Never commit `.env` file or real credentials to version control
-- Use environment variables for sensitive configuration
-- Google OAuth credentials should be kept secure
-- In production, use HTTPS for all connections
-- Aspire provides secure service-to-service communication
+First user to sign in becomes Admin automatically.
 
 ## Troubleshooting
 
-### Aspire Dashboard not opening
-- Ensure Docker Desktop is running
-- Check if port conflicts exist
-- View console output for dashboard URL
-
-### Cannot connect to PostgreSQL
-- With Aspire: Check the dashboard for service status
-- Without Aspire: Ensure PostgreSQL service is running
-- Verify connection string in configuration
-
-### Google OAuth not working
-- Verify Client ID and Secret are correct
-- Check authorized redirect URIs in Google Console
-- Ensure HTTPS is used (required by Google OAuth)
-- Check the actual port from Aspire Dashboard
-
-### Photos not uploading
-- Check disk space
-- Check file size (max 10MB)
-
-## Advanced Features
-
-### SigNoz Telemetry Dashboard
-
-For comprehensive observability, you can optionally deploy SigNoz alongside the application. SigNoz provides:
-
-- **Distributed Tracing**: Track requests across services and identify bottlenecks
-- **Metrics Monitoring**: Monitor application performance and infrastructure
-- **Log Management**: Centralized log aggregation and analysis
-- **Custom Dashboards**: Create visualizations for your specific needs
-- **Alerts**: Set up alerts based on metrics and traces
-
-To use SigNoz:
-
-```bash
-# Use the SigNoz-enabled docker-compose file
-docker-compose -f docker-compose.signoz.yml up -d
-
-# Access SigNoz UI
-http://localhost:3301
-```
-
-See [signoz/README.md](signoz/README.md) for detailed documentation.
-
-**Why SigNoz?**
-- Open-source alternative to commercial APM tools
-- Built on OpenTelemetry standards
-- Self-hosted for data privacy
-- Comprehensive observability in one platform
-
-### PDF Export Capabilities
-
-The application can generate professional PDF reports:
-
-1. **All Submissions Report**: Export all photo submissions with optional filtering by composition rule
-2. **Pathfinder Progress Report**: Individual progress reports showing completion status for each pathfinder
-
-PDFs include:
-- Submission details (pathfinder, rule, date, status)
-- Photo images
-- Descriptions and grading information
-- Summary statistics
-
-### Email Notification System
-
-When configured, the application sends automatic email notifications:
-
-- **To Pathfinders**: When their photo submissions are graded
-- **To Instructors/Admins**: When new photos are submitted for review
-
-Notifications are sent asynchronously and don't block the user interface. If email is not configured, the application works perfectly without it.
+- Validate OAuth redirect URIs
+- Check logs: `docker compose logs -f`
+- Verify ports and firewall
+- Ensure uploads volume exists and is writable
 
 ## License
 
