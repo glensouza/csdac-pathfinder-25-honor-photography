@@ -251,32 +251,85 @@ Admins have access to powerful features:
    - Pathfinders receive notifications when their photos are graded
    - Configure SMTP settings to enable (see Email Configuration below)
 
-### Email Configuration
+### Email Configuration (Using Gmail)
 
-Email notifications are optional. To enable them, configure your SMTP settings in `appsettings.json` or environment variables:
+Email notifications are optional but recommended. The application is configured to work with Gmail out of the box.
+
+#### Step 1: Get a Gmail App Password
+
+Since Gmail requires 2-factor authentication for SMTP access, you need to create an App Password:
+
+1. Go to your [Google Account](https://myaccount.google.com/)
+2. Click on **Security** in the left sidebar
+3. Under "How you sign in to Google," enable **2-Step Verification** if not already enabled
+4. After enabling 2-Step Verification, you'll see **App passwords**
+5. Click **App passwords**
+6. Select **Mail** and **Other (Custom name)**, enter "Pathfinder Photography"
+7. Click **Generate**
+8. Copy the 16-character app password (you won't be able to see it again)
+
+#### Step 2: Configure the Application
+
+**Option A: Using `appsettings.json` (for local development):**
 
 ```json
 "Email": {
   "SmtpHost": "smtp.gmail.com",
   "SmtpPort": "587",
   "SmtpUsername": "your-email@gmail.com",
-  "SmtpPassword": "your-app-password",
+  "SmtpPassword": "your-16-char-app-password",
   "UseSsl": "true",
-  "FromAddress": "noreply@pathfinderphotography.local",
+  "FromAddress": "your-email@gmail.com",
   "FromName": "Pathfinder Photography"
 }
 ```
 
-Or using environment variables:
+**Option B: Using environment variables (recommended for Docker/production):**
+
+Create or update your `.env` file:
+
 ```bash
 EMAIL_SMTP_HOST=smtp.gmail.com
 EMAIL_SMTP_PORT=587
 EMAIL_SMTP_USERNAME=your-email@gmail.com
-EMAIL_SMTP_PASSWORD=your-app-password
+EMAIL_SMTP_PASSWORD=your-16-char-app-password
 EMAIL_USE_SSL=true
-EMAIL_FROM_ADDRESS=noreply@pathfinderphotography.local
+EMAIL_FROM_ADDRESS=your-email@gmail.com
 EMAIL_FROM_NAME=Pathfinder Photography
 ```
+
+Then in your `docker-compose.yml` or `docker-compose.homelab.yml`, the environment variables will be automatically loaded.
+
+#### Step 3: Test the Configuration
+
+1. Start the application
+2. Submit a photo (this will trigger a notification to instructors/admins)
+3. Grade a photo (this will trigger a notification to the pathfinder)
+4. Check your Gmail sent folder to verify emails are being sent
+
+#### Troubleshooting Gmail SMTP
+
+**"Username and Password not accepted" error:**
+- Make sure you're using an App Password, not your regular Gmail password
+- Verify 2-Step Verification is enabled on your Google Account
+- Double-check the username is your full Gmail address
+
+**Emails not sending:**
+- Check the application logs for SMTP errors
+- Verify the App Password is correctly copied (no spaces)
+- Ensure port 587 is not blocked by your firewall
+
+**"Less secure app access" message:**
+- This is normal - use App Passwords instead
+- Google recommends App Passwords for third-party apps
+
+#### Using a Different Email Provider
+
+While Gmail is recommended and pre-configured, you can use any SMTP provider:
+
+- **Outlook/Office365**: `smtp.office365.com:587`
+- **Yahoo Mail**: `smtp.mail.yahoo.com:587`
+- **Custom SMTP Server**: Use your own SMTP server details
 
 **Note**: Leave `SmtpHost` empty to disable email notifications. The application will function normally without email configured.
 

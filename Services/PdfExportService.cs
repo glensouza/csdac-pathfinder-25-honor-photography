@@ -137,12 +137,22 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                 column.Item().PaddingTop(5).Text($"Graded by: {submission.GradedBy} on {submission.GradedDate:MMMM dd, yyyy}").FontSize(9).FontColor(Colors.Grey.Darken1);
             }
 
-            // Image placeholder - note: actual image rendering would require the image bytes
+            // Image rendering with error handling
             if (submission.ImageData != null && submission.ImageData.Length > 0)
             {
                 try
                 {
                     column.Item().PaddingTop(5).Image(submission.ImageData).FitWidth();
+                }
+                catch (ArgumentException ex)
+                {
+                    logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
+                    column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
+                    column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
                 }
                 catch (Exception ex)
                 {

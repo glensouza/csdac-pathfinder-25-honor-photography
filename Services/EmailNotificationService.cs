@@ -1,4 +1,5 @@
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using MimeKit;
 using PathfinderPhotography.Models;
 
@@ -40,7 +41,7 @@ public class EmailNotificationService
 
         try
         {
-            MimeMessage message = new();
+            using MimeMessage message = new();
             message.From.Add(new MailboxAddress(
                 _configuration["Email:FromName"] ?? "Pathfinder Photography",
                 _configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
@@ -85,6 +86,22 @@ Pathfinder Photography Team"
             await SendEmailAsync(message);
             _logger.LogInformation("Grading notification sent for {Rule}", compositionRuleName);
         }
+        catch (SmtpCommandException ex)
+        {
+            _logger.LogError(ex, "SMTP command error while sending grading notification for {Rule}", compositionRuleName);
+        }
+        catch (SmtpProtocolException ex)
+        {
+            _logger.LogError(ex, "SMTP protocol error while sending grading notification for {Rule}", compositionRuleName);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogError(ex, "Email format error while sending grading notification for {Rule}", compositionRuleName);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "IO error while sending grading notification for {Rule}", compositionRuleName);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send grading notification for {Rule}", compositionRuleName);
@@ -105,7 +122,7 @@ Pathfinder Photography Team"
 
         try
         {
-            MimeMessage message = new();
+            using MimeMessage message = new();
             message.From.Add(new MailboxAddress(
                 _configuration["Email:FromName"] ?? "Pathfinder Photography",
                 _configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
@@ -154,6 +171,22 @@ Pathfinder Photography System"
             _logger.LogInformation("New submission notification sent to {Count} instructors for {Rule}", 
                 instructorEmails.Count, compositionRuleName);
         }
+        catch (SmtpCommandException ex)
+        {
+            _logger.LogError(ex, "SMTP command error while sending new submission notification");
+        }
+        catch (SmtpProtocolException ex)
+        {
+            _logger.LogError(ex, "SMTP protocol error while sending new submission notification");
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogError(ex, "Email format error while sending new submission notification");
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "IO error while sending new submission notification");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send new submission notification");
@@ -163,10 +196,21 @@ Pathfinder Photography System"
     private async Task SendEmailAsync(MimeMessage message)
     {
         string? smtpHost = _configuration["Email:SmtpHost"];
-        int smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
+        
+        int smtpPort;
+        if (!int.TryParse(_configuration["Email:SmtpPort"], out smtpPort))
+        {
+            smtpPort = 587;
+        }
+        
         string? smtpUsername = _configuration["Email:SmtpUsername"];
         string? smtpPassword = _configuration["Email:SmtpPassword"];
-        bool useSsl = bool.Parse(_configuration["Email:UseSsl"] ?? "true");
+        
+        bool useSsl;
+        if (!bool.TryParse(_configuration["Email:UseSsl"], out useSsl))
+        {
+            useSsl = true;
+        }
 
         if (string.IsNullOrEmpty(smtpHost))
         {

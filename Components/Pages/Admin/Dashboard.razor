@@ -224,9 +224,9 @@
 
     private async Task LoadStatistics()
     {
-        var allSubmissions = await SubmissionService.GetAllSubmissionsAsync();
-        var allUsers = await UserService.GetAllUsersAsync();
-        var rules = RuleService.GetAllRules();
+        List<PhotoSubmission> allSubmissions = await SubmissionService.GetAllSubmissionsAsync();
+        List<User> allUsers = await UserService.GetAllUsersAsync();
+        List<CompositionRule> rules = RuleService.GetAllRules();
 
         statistics = new DashboardStatistics
         {

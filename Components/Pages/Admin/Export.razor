@@ -159,12 +159,25 @@
             int? ruleId = selectedRuleId > 0 ? selectedRuleId : null;
             byte[] pdfBytes = await PdfExportService.GenerateSubmissionsReportAsync(null, ruleId);
             
-            string fileName = selectedRuleId > 0
-                ? $"Submissions_{rules.First(r => r.Id == selectedRuleId).Name.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.pdf"
-                : $"All_Submissions_{DateTime.Now:yyyyMMdd}.pdf";
+            string fileName;
+            if (selectedRuleId > 0)
+            {
+                CompositionRule? selectedRule = rules.FirstOrDefault(r => r.Id == selectedRuleId);
+                string ruleName = selectedRule != null ? selectedRule.Name.Replace(" ", "_") : "UnknownRule";
+                fileName = $"Submissions_{ruleName}_{DateTime.Now:yyyyMMdd}.pdf";
+            }
+            else
+            {
+                fileName = $"All_Submissions_{DateTime.Now:yyyyMMdd}.pdf";
+            }
 
             await DownloadFileAsync(fileName, pdfBytes);
             statusMessage = "PDF report generated successfully!";
+        }
+        catch (InvalidOperationException ex)
+        {
+            isError = true;
+            statusMessage = $"Error generating PDF: {ex.Message}";
         }
         catch (Exception ex)
         {
@@ -195,10 +208,16 @@
             byte[] pdfBytes = await PdfExportService.GeneratePathfinderProgressReportAsync(selectedPathfinderEmail);
             
             User? pathfinder = pathfinders.FirstOrDefault(p => p.Email == selectedPathfinderEmail);
-            string fileName = $"Progress_{pathfinder?.Name.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.pdf";
+            string pathfinderName = pathfinder?.Name.Replace(" ", "_") ?? "Unknown";
+            string fileName = $"Progress_{pathfinderName}_{DateTime.Now:yyyyMMdd}.pdf";
 
             await DownloadFileAsync(fileName, pdfBytes);
             statusMessage = "Progress report generated successfully!";
+        }
+        catch (InvalidOperationException ex)
+        {
+            isError = true;
+            statusMessage = $"Error generating PDF: {ex.Message}";
         }
         catch (Exception ex)
         {
