@@ -53,7 +53,7 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory)
     public async Task<bool> IsInstructorOrAdminAsync(string email)
     {
         User? user = await this.GetUserByEmailAsync(email);
-        return user?.Role == UserRole.Instructor || user?.Role == UserRole.Admin;
+        return user?.Role is UserRole.Instructor or UserRole.Admin;
     }
 
     public async Task SetUserRoleAsync(string email, UserRole role)
@@ -64,9 +64,9 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory)
             throw new InvalidOperationException("Admin role can only be set through direct database updates for security purposes.");
         }
 
-        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        await using ApplicationDbContext applicationDbContext = await contextFactory.CreateDbContextAsync();
         
-        User? user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+        User? user = await applicationDbContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         
         if (user != null)
         {
@@ -77,7 +77,7 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory)
             }
 
             user.Role = role;
-            await context.SaveChangesAsync();
+            await applicationDbContext.SaveChangesAsync();
         }
     }
 

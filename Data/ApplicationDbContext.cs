@@ -13,6 +13,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.HasPostgresExtension("citext");
+
         // Configure PhotoSubmission entity
         modelBuilder.Entity<PhotoSubmission>(entity =>
         {
@@ -40,12 +42,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(200).HasColumnType("citext");
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Role).IsRequired();
             entity.Property(e => e.CreatedDate).IsRequired();
             
             entity.HasIndex(e => e.Email).IsUnique();
+
         });
 
         // Configure PhotoVote entity
