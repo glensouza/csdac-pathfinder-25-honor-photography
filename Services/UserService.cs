@@ -85,4 +85,12 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory)
     {
         return await this.context.Users.OrderBy(u => u.Name).ToListAsync();
     }
+
+    public async Task<List<User>> GetInstructorsAndAdminsAsync()
+    {
+        return await this.context.Users
+            .Where(u => u.Role == UserRole.Instructor || u.Role == UserRole.Admin)
+            .OrderBy(u => u.Name)
+            .ToListAsync();
+    }
 }

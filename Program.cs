@@ -55,6 +55,8 @@ builder.Services.AddSingleton<CompositionRuleService>();
 builder.Services.AddScoped<PhotoSubmissionService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<VotingService>();
+builder.Services.AddScoped<PdfExportService>();
+builder.Services.AddScoped<EmailNotificationService>();
 
 WebApplication app = builder.Build();
 

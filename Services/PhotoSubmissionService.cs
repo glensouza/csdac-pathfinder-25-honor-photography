@@ -4,7 +4,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PathfinderPhotography.Services;
 
-public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> contextFactory, IWebHostEnvironment env)
+public class PhotoSubmissionService(
+    IDbContextFactory<ApplicationDbContext> contextFactory, 
+    IWebHostEnvironment env,
+    EmailNotificationService emailService,
+    UserService userService,
+    ILogger<PhotoSubmissionService> logger)
 {
     public async Task<List<PhotoSubmission>> GetAllSubmissionsAsync()
     {
@@ -39,6 +44,41 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
         submission.SubmissionDate = DateTime.UtcNow;
         context.PhotoSubmissions.Add(submission);
         await context.SaveChangesAsync();
+
+        // Send notification to instructors asynchronously (don't wait)
+        #pragma warning disable CS4014
+        Task.Run(() => SendNewSubmissionNotificationAsync(submission))
+            .ContinueWith(task =>
+            {
+                if (task.Exception != null)
+                {
+                    logger.LogWarning(task.Exception, "Failed to send new submission email notification for rule {Rule}", submission.CompositionRuleName);
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+        #pragma warning restore CS4014
+    }
+
+    private async Task SendNewSubmissionNotificationAsync(PhotoSubmission submission)
+    {
+        try
+        {
+            List<User> instructors = await userService.GetInstructorsAndAdminsAsync();
+            List<string> instructorEmails = instructors.Select(i => i.Email).ToList();
+
+            if (instructorEmails.Any())
+            {
+                await emailService.SendNewSubmissionNotificationAsync(
+                    submission.PathfinderEmail,
+                    submission.PathfinderName,
+                    submission.CompositionRuleName,
+                    instructorEmails);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        {
+            // Email notifications are non-critical, log and continue
+            logger.LogWarning(ex, "Failed to send new submission email notification for rule {Rule}", submission.CompositionRuleName);
+        }
     }
 
     public async Task<string> SaveUploadedFileAsync(Stream fileStream, string fileName)
@@ -135,6 +175,36 @@ public class PhotoSubmissionService(IDbContextFactory<ApplicationDbContext> cont
         submission.GradedBy = gradedBy;
         submission.GradedDate = DateTime.UtcNow;
         await context.SaveChangesAsync();
+
+        // Send notification to pathfinder asynchronously (don't wait)
+        #pragma warning disable CS4014
+        Task.Run(() => SendGradingNotificationAsync(submission, status, gradedBy))
+            .ContinueWith(task =>
+            {
+                if (task.Exception != null)
+                {
+                    logger.LogWarning(task.Exception, "Failed to send grading email notification for rule {Rule}", submission.CompositionRuleName);
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+        #pragma warning restore CS4014
+    }
+
+    private async Task SendGradingNotificationAsync(PhotoSubmission submission, GradeStatus status, string gradedBy)
+    {
+        try
+        {
+            await emailService.SendGradingNotificationAsync(
+                submission.PathfinderEmail,
+                submission.PathfinderName,
+                submission.CompositionRuleName,
+                status,
+                gradedBy);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException && ex is not OperationCanceledException)
+        {
+            // Email notifications are non-critical, log and continue
+            logger.LogWarning(ex, "Failed to send grading email notification for rule {Rule}", submission.CompositionRuleName);
+        }
     }
 
     public async Task<List<PhotoSubmission>> GetSubmissionsForGradingAsync()

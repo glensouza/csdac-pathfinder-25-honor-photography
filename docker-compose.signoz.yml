@@ -1,0 +1,164 @@
+version: '3.8'
+
+# Docker Compose with SigNoz for Advanced Telemetry
+# This configuration includes SigNoz for comprehensive observability
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pathfinder-postgres
+    environment:
+      POSTGRES_DB: pathfinder_photography
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - pathfinder-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  pathfinder-photography:
+    image: ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:latest
+    container_name: pathfinder-app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uploads:/app/wwwroot/uploads
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=pathfinder_photography;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
+      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
+      - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
+      - Email__SmtpHost=${EMAIL_SMTP_HOST:-}
+      - Email__SmtpPort=${EMAIL_SMTP_PORT:-587}
+      - Email__SmtpUsername=${EMAIL_SMTP_USERNAME:-}
+      - Email__SmtpPassword=${EMAIL_SMTP_PASSWORD:-}
+      - Email__UseSsl=${EMAIL_USE_SSL:-true}
+      - Email__FromAddress=${EMAIL_FROM_ADDRESS:-noreply@pathfinderphotography.local}
+      - Email__FromName=${EMAIL_FROM_NAME:-Pathfinder Photography}
+      # OpenTelemetry configuration for SigNoz
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
+    depends_on:
+      postgres:
+        condition: service_healthy
+      signoz-otel-collector:
+        condition: service_started
+    networks:
+      - pathfinder-network
+    restart: unless-stopped
+
+  # SigNoz - OpenTelemetry Collector
+  signoz-otel-collector:
+    image: signoz/signoz-otel-collector:0.102.9
+    container_name: signoz-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./signoz/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=host.name=signoz-host
+    networks:
+      - pathfinder-network
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    depends_on:
+      - signoz-clickhouse
+    restart: unless-stopped
+
+  # SigNoz - Query Service
+  signoz-query-service:
+    image: signoz/query-service:0.54.1
+    container_name: signoz-query-service
+    command: ["-config=/root/config/prometheus.yml"]
+    volumes:
+      - ./signoz/prometheus.yml:/root/config/prometheus.yml
+      - signoz-data:/var/lib/signoz
+    environment:
+      - ClickHouseUrl=tcp://signoz-clickhouse:9000
+      - STORAGE=clickhouse
+      - GODEBUG=netdns=go
+      - TELEMETRY_ENABLED=true
+      - DEPLOYMENT_TYPE=docker-standalone-amd
+    networks:
+      - pathfinder-network
+    ports:
+      - "6060:6060"   # Query service port
+      - "8081:8080"   # Query service API (mapped to avoid conflict with app)
+    depends_on:
+      - signoz-clickhouse
+    restart: unless-stopped
+
+  # SigNoz - ClickHouse database
+  signoz-clickhouse:
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    container_name: signoz-clickhouse
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./signoz/clickhouse-config.xml:/etc/clickhouse-server/config.d/docker_related_config.xml
+      - ./signoz/clickhouse-users.xml:/etc/clickhouse-server/users.d/users.xml
+    environment:
+      - CLICKHOUSE_DB=signoz
+    networks:
+      - pathfinder-network
+    ports:
+      - "9000:9000"   # Native protocol
+      - "8123:8123"   # HTTP interface
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # SigNoz - Frontend
+  signoz-frontend:
+    image: signoz/frontend:0.54.1
+    container_name: signoz-frontend
+    networks:
+      - pathfinder-network
+    ports:
+      - "3301:3301"   # SigNoz UI
+    environment:
+      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080
+    depends_on:
+      - signoz-query-service
+    restart: unless-stopped
+
+  # SigNoz - Alert Manager
+  signoz-alertmanager:
+    image: signoz/alertmanager:0.23.5
+    container_name: signoz-alertmanager
+    volumes:
+      - ./signoz/alertmanager-config.yaml:/etc/alertmanager/config.yml
+    command:
+      - --queryService.url=http://signoz-query-service:8080
+      - --storage.path=/data
+    networks:
+      - pathfinder-network
+    ports:
+      - "9093:9093"
+    depends_on:
+      - signoz-query-service
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    name: pathfinder-postgres-data
+  signoz-data:
+    name: signoz-data
+  clickhouse-data:
+    name: clickhouse-data
+
+networks:
+  pathfinder-network:
+    name: pathfinder-network
+    driver: bridge
