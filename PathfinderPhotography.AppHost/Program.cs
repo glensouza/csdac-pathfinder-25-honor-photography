@@ -52,6 +52,7 @@ IResourceBuilder<ContainerResource> signozFrontend = builder.AddContainer("signo
 // 5. Alert Manager - handles alerting rules
 IResourceBuilder<ContainerResource> alertManager = builder.AddContainer("signoz-alertmanager", "signoz/alertmanager", "0.23.5")
     .WithBindMount("./signoz/alertmanager-config.yaml", "/etc/alertmanager/config.yml")
+    .WithVolume("alertmanager-data", "/data")
     .WithArgs("--queryService.url=http://signoz-query-service:8080", "--storage.path=/data")
     .WithHttpEndpoint(port: 9093, targetPort: 9093, name: "api")
     .WaitFor(queryService);
