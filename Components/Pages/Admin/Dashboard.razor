@@ -124,7 +124,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var stat in ruleStatistics)
+                                    @foreach (RuleStatistic stat in ruleStatistics)
                                     {
                                         <tr>
                                             <td>@stat.RuleName</td>
@@ -159,7 +159,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var submission in recentSubmissions)
+                                    @foreach (PhotoSubmission submission in recentSubmissions)
                                     {
                                         <tr>
                                             <td>@submission.PathfinderName</td>

@@ -1,5 +1,6 @@
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
+@using PathfinderPhotography.Models
 @using PathfinderPhotography.Services
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserService UserService
@@ -7,10 +8,10 @@
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="" aria-label="Corona SDA Pathfinders Photography Honor Home">
+        <a class="navbar-brand" href="" aria-label="CSDAC Pathfinders Photography Honor Home">
             <div>
                 <span class="brand-icon">📸</span>
-                <span class="brand-text">Corona SDA Pathfinders</span>
+                <span class="brand-text">CSDAC Pathfinders</span>
             </div>
             <div>
                 <small class="brand-subtitle">Photography Honor</small>
@@ -89,7 +90,8 @@
 @code {
     private bool isInstructor = false;
     private bool isAdmin = false;
-    
+    private readonly SemaphoreSlim statusLock = new SemaphoreSlim(1, 1);
+
     protected override async Task OnInitializedAsync()
     {
         AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
@@ -111,27 +113,40 @@
 
     private async Task CheckInstructorStatus()
     {
-        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        ClaimsPrincipal user = authState.User;
-        
-        if (user.Identity?.IsAuthenticated == true)
+        await statusLock.WaitAsync();
+        try
         {
-            string? email = user.FindFirst(ClaimTypes.Email)?.Value;
-            if (!string.IsNullOrEmpty(email))
+            AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            ClaimsPrincipal principal = authState.User;
+
+            if (principal.Identity != null && principal.Identity.IsAuthenticated)
             {
-                isInstructor = await UserService.IsInstructorAsync(email);
-                isAdmin = await UserService.IsAdminAsync(email);
+                string? email = principal.FindFirst(ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(email))
+                {
+                    User? user = await UserService.GetUserByEmailAsync(email);
+                    if (user != null)
+                    {
+                        UserRole role = user.Role;
+                        isInstructor = role == UserRole.Instructor;
+                        isAdmin = role == UserRole.Admin;
+                        return;
+                    }
+                }
             }
-        }
-        else
-        {
+
             isInstructor = false;
             isAdmin = false;
+        }
+        finally
+        {
+            statusLock.Release();
         }
     }
 
     public void Dispose()
     {
         AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        statusLock.Dispose();
     }
 }

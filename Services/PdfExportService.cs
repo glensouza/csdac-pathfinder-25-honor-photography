@@ -58,7 +58,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                         x.Item().Element(ComposeSubmissionSummary);
 
                         // Submissions list
-                        x.Item().Element(container => ComposeSubmissionsList(container, submissions));
+                        x.Item().Element(container => this.ComposeSubmissionsList(container, submissions));
                     });
 
                 page.Footer()
@@ -100,7 +100,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
 
             foreach (PhotoSubmission submission in submissions)
             {
-                column.Item().Element(c => ComposeSubmissionItem(c, submission));
+                column.Item().Element(c => this.ComposeSubmissionItem(c, submission));
             }
         });
     }
@@ -224,7 +224,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                         x.Item().Element(container => ComposeProgressOverview(container, allRules, submissions));
 
                         // Detailed submissions
-                        x.Item().Element(container => ComposeSubmissionsList(container, submissions));
+                        x.Item().Element(container => this.ComposeSubmissionsList(container, submissions));
                     });
 
                 page.Footer()

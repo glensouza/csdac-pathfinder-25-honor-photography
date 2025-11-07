@@ -367,4 +367,4 @@ For issues:
 - Open GitHub issue if needed
 
 ---
-Corona SDA Church Pathfinders2025
+CSDAC Pathfinders 2025

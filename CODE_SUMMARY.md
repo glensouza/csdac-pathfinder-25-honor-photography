@@ -8,7 +8,7 @@ A Blazor Server web application built with .NET9.0 for SDA Pathfinders to submit
 
 ### Core Requirements
 ✅ Blazor Server website
-✅ Corona SDA Pathfinders can submit photos
+✅ CSDAC Pathfinders can submit photos
 ✅10 photos submission (one per composition rule)
 ✅ Pathfinders explain their application of rules
 ✅ Space for sample photos and descriptions of each style
@@ -265,7 +265,7 @@ Possible
 ---
 
 Project: Photography Honor Application
-Organization: Corona SDA Church Pathfinders
+Organization: CSDAC Pathfinders
 Year:2025
 Framework: .NET9.0 with Aspire
 Status: Production Ready ✅

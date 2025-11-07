@@ -47,7 +47,7 @@ public class PhotoSubmissionService(
 
         // Send notification to instructors asynchronously (don't wait)
         #pragma warning disable CS4014
-        Task.Run(() => SendNewSubmissionNotificationAsync(submission))
+        Task.Run(() => this.SendNewSubmissionNotificationAsync(submission))
             .ContinueWith(task =>
             {
                 if (task.Exception != null)
@@ -178,7 +178,7 @@ public class PhotoSubmissionService(
 
         // Send notification to pathfinder asynchronously (don't wait)
         #pragma warning disable CS4014
-        Task.Run(() => SendGradingNotificationAsync(submission, status, gradedBy))
+        Task.Run(() => this.SendGradingNotificationAsync(submission, status, gradedBy))
             .ContinueWith(task =>
             {
                 if (task.Exception != null)

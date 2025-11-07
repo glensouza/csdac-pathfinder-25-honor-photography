@@ -138,7 +138,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         
         int otherSubmissionsCount = await context.PhotoSubmissions
-            .Where(s => !s.PathfinderEmail.Equals(userEmail, StringComparison.CurrentCultureIgnoreCase))
+            .Where(s => s.PathfinderEmail.ToLower() != userEmail.ToLower())
             .CountAsync();
 
         return otherSubmissionsCount >= 2;

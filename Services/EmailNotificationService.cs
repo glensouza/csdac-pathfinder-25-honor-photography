@@ -13,16 +13,16 @@ public class EmailNotificationService
 
     public EmailNotificationService(IConfiguration configuration, ILogger<EmailNotificationService> logger)
     {
-        _configuration = configuration;
-        _logger = logger;
+        this._configuration = configuration;
+        this._logger = logger;
         
         // Check if email is configured
-        string? smtpHost = _configuration["Email:SmtpHost"];
-        _isEnabled = !string.IsNullOrEmpty(smtpHost);
+        string? smtpHost = this._configuration["Email:SmtpHost"];
+        this._isEnabled = !string.IsNullOrEmpty(smtpHost);
         
-        if (!_isEnabled)
+        if (!this._isEnabled)
         {
-            _logger.LogInformation("Email notifications are disabled. Configure Email:SmtpHost to enable.");
+            this._logger.LogInformation("Email notifications are disabled. Configure Email:SmtpHost to enable.");
         }
     }
 
@@ -33,18 +33,16 @@ public class EmailNotificationService
         GradeStatus gradeStatus,
         string gradedBy)
     {
-        if (!_isEnabled)
+        if (!this._isEnabled)
         {
-            _logger.LogDebug("Email notifications disabled, skipping grading notification.");
+            this._logger.LogDebug("Email notifications disabled, skipping grading notification.");
             return;
         }
 
         try
         {
             using MimeMessage message = new();
-            message.From.Add(new MailboxAddress(
-                _configuration["Email:FromName"] ?? "Pathfinder Photography",
-                _configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
+            message.From.Add(new MailboxAddress(this._configuration["Email:FromName"] ?? "Pathfinder Photography", this._configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
             message.To.Add(new MailboxAddress(pathfinderName, pathfinderEmail));
             message.Subject = $"Your {compositionRuleName} photo has been graded";
 
@@ -83,28 +81,28 @@ Pathfinder Photography Team"
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            await SendEmailAsync(message);
-            _logger.LogInformation("Grading notification sent for {Rule}", compositionRuleName);
+            await this.SendEmailAsync(message);
+            this._logger.LogInformation("Grading notification sent for {Rule}", compositionRuleName);
         }
         catch (SmtpCommandException ex)
         {
-            _logger.LogError(ex, "SMTP command error while sending grading notification for {Rule}", compositionRuleName);
+            this._logger.LogError(ex, "SMTP command error while sending grading notification for {Rule}", compositionRuleName);
         }
         catch (SmtpProtocolException ex)
         {
-            _logger.LogError(ex, "SMTP protocol error while sending grading notification for {Rule}", compositionRuleName);
+            this._logger.LogError(ex, "SMTP protocol error while sending grading notification for {Rule}", compositionRuleName);
         }
         catch (FormatException ex)
         {
-            _logger.LogError(ex, "Email format error while sending grading notification for {Rule}", compositionRuleName);
+            this._logger.LogError(ex, "Email format error while sending grading notification for {Rule}", compositionRuleName);
         }
         catch (IOException ex)
         {
-            _logger.LogError(ex, "IO error while sending grading notification for {Rule}", compositionRuleName);
+            this._logger.LogError(ex, "IO error while sending grading notification for {Rule}", compositionRuleName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send grading notification for {Rule}", compositionRuleName);
+            this._logger.LogError(ex, "Failed to send grading notification for {Rule}", compositionRuleName);
         }
     }
 
@@ -114,18 +112,16 @@ Pathfinder Photography Team"
         string compositionRuleName,
         List<string> instructorEmails)
     {
-        if (!_isEnabled || !instructorEmails.Any())
+        if (!this._isEnabled || !instructorEmails.Any())
         {
-            _logger.LogDebug("Email notifications disabled or no instructors to notify, skipping submission notification.");
+            this._logger.LogDebug("Email notifications disabled or no instructors to notify, skipping submission notification.");
             return;
         }
 
         try
         {
             using MimeMessage message = new();
-            message.From.Add(new MailboxAddress(
-                _configuration["Email:FromName"] ?? "Pathfinder Photography",
-                _configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
+            message.From.Add(new MailboxAddress(this._configuration["Email:FromName"] ?? "Pathfinder Photography", this._configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
 
             foreach (string instructorEmail in instructorEmails)
             {
@@ -167,47 +163,47 @@ Pathfinder Photography System"
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            await SendEmailAsync(message);
-            _logger.LogInformation("New submission notification sent to {Count} instructors for {Rule}", 
+            await this.SendEmailAsync(message);
+            this._logger.LogInformation("New submission notification sent to {Count} instructors for {Rule}", 
                 instructorEmails.Count, compositionRuleName);
         }
         catch (SmtpCommandException ex)
         {
-            _logger.LogError(ex, "SMTP command error while sending new submission notification");
+            this._logger.LogError(ex, "SMTP command error while sending new submission notification");
         }
         catch (SmtpProtocolException ex)
         {
-            _logger.LogError(ex, "SMTP protocol error while sending new submission notification");
+            this._logger.LogError(ex, "SMTP protocol error while sending new submission notification");
         }
         catch (FormatException ex)
         {
-            _logger.LogError(ex, "Email format error while sending new submission notification");
+            this._logger.LogError(ex, "Email format error while sending new submission notification");
         }
         catch (IOException ex)
         {
-            _logger.LogError(ex, "IO error while sending new submission notification");
+            this._logger.LogError(ex, "IO error while sending new submission notification");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send new submission notification");
+            this._logger.LogError(ex, "Failed to send new submission notification");
         }
     }
 
     private async Task SendEmailAsync(MimeMessage message)
     {
-        string? smtpHost = _configuration["Email:SmtpHost"];
+        string? smtpHost = this._configuration["Email:SmtpHost"];
         
         int smtpPort;
-        if (!int.TryParse(_configuration["Email:SmtpPort"], out smtpPort))
+        if (!int.TryParse(this._configuration["Email:SmtpPort"], out smtpPort))
         {
             smtpPort = 587;
         }
         
-        string? smtpUsername = _configuration["Email:SmtpUsername"];
-        string? smtpPassword = _configuration["Email:SmtpPassword"];
+        string? smtpUsername = this._configuration["Email:SmtpUsername"];
+        string? smtpPassword = this._configuration["Email:SmtpPassword"];
         
         bool useSsl;
-        if (!bool.TryParse(_configuration["Email:UseSsl"], out useSsl))
+        if (!bool.TryParse(this._configuration["Email:UseSsl"], out useSsl))
         {
             useSsl = true;
         }
@@ -233,7 +229,7 @@ Pathfinder Photography System"
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending email via SMTP");
+            this._logger.LogError(ex, "Error sending email via SMTP");
             throw;
         }
     }
