@@ -83,11 +83,11 @@ Pathfinder Photography Team"
             message.Body = bodyBuilder.ToMessageBody();
 
             await SendEmailAsync(message);
-            _logger.LogInformation("Grading notification sent to {Email} for {Rule}", pathfinderEmail, compositionRuleName);
+            _logger.LogInformation("Grading notification sent for {Rule}", compositionRuleName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send grading notification to {Email}", pathfinderEmail);
+            _logger.LogError(ex, "Failed to send grading notification for {Rule}", compositionRuleName);
         }
     }
 
