@@ -38,7 +38,7 @@ IResourceBuilder<ContainerResource> queryService = builder.AddContainer("signoz-
     .WithEnvironment("GODEBUG", "netdns=go")
     .WithEnvironment("TELEMETRY_ENABLED", "true")
     .WithEnvironment("DEPLOYMENT_TYPE", "docker-standalone-amd")
-    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "api")
+    .WithHttpEndpoint(port: 8081, targetPort: 8080, name: "api")
     .WithHttpEndpoint(port: 6060, targetPort: 6060, name: "query")
     .WaitFor(clickhouse);
 
