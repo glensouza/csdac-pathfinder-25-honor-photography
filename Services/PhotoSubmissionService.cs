@@ -23,7 +23,7 @@ public class PhotoSubmissionService(
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         return await context.PhotoSubmissions
-            .Where(s => s.PathfinderEmail.Equals(pathfinderEmail, StringComparison.CurrentCultureIgnoreCase))
+            .Where(s => s.PathfinderEmail.ToLower() == pathfinderEmail.ToLower())
             .OrderByDescending(s => s.SubmissionDate)
             .ToListAsync();
     }
@@ -32,8 +32,8 @@ public class PhotoSubmissionService(
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         return await context.PhotoSubmissions
-            .Where(s => s.PathfinderEmail.Equals(pathfinderEmail, StringComparison.CurrentCultureIgnoreCase) 
-                     && s.CompositionRuleId == compositionRuleId)
+            .Where(s => s.PathfinderEmail.ToLower() == pathfinderEmail.ToLower()
+                        && s.CompositionRuleId == compositionRuleId)
             .OrderByDescending(s => s.SubmissionVersion)
             .FirstOrDefaultAsync();
     }
