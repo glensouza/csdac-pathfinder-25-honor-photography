@@ -15,12 +15,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         modelBuilder.HasPostgresExtension("citext");
 
-        // Configure PhotoSubmission entity
         modelBuilder.Entity<PhotoSubmission>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.PathfinderName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.PathfinderEmail).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.PathfinderEmail).IsRequired().HasMaxLength(200).HasColumnType("citext");
             entity.Property(e => e.CompositionRuleName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.ImagePath).IsRequired().HasMaxLength(500);
             entity.Property(e => e.ImageData);
@@ -38,7 +37,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(e => e.GradeStatus);
         });
 
-        // Configure User entity
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -48,14 +46,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.CreatedDate).IsRequired();
             
             entity.HasIndex(e => e.Email).IsUnique();
-
         });
 
-        // Configure PhotoVote entity
         modelBuilder.Entity<PhotoVote>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.VoterEmail).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.VoterEmail).IsRequired().HasMaxLength(200).HasColumnType("citext");
             entity.Property(e => e.WinnerPhotoId).IsRequired();
             entity.Property(e => e.LoserPhotoId).IsRequired();
             entity.Property(e => e.VoteDate).IsRequired();

@@ -87,53 +87,55 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
         if (user.Role == UserRole.Admin)
             throw new InvalidOperationException("Cannot delete admin users through API. Use direct database updates.");
 
-        // Get all photo submissions by this user
+        // Get all photo submissions by this user (to be deleted)
         List<PhotoSubmission> submissions = await context.PhotoSubmissions
             .Where(s => s.PathfinderEmail.ToLower() == email.ToLower())
             .ToListAsync();
 
-        // Get all photo IDs to delete votes
-        List<int> photoIds = submissions.Select(s => s.Id).ToList();
+        List<int> photoIdsBeingDeleted = submissions.Select(s => s.Id).ToList();
 
-        // Find all votes involving these photos (will be deleted)
+        // Votes that will be deleted:
+        // 1) votes involving the user's photos
         List<PhotoVote> votesInvolvingUserPhotos = await context.PhotoVotes
-            .Where(v => photoIds.Contains(v.WinnerPhotoId) || photoIds.Contains(v.LoserPhotoId))
+            .Where(v => photoIdsBeingDeleted.Contains(v.WinnerPhotoId) || photoIdsBeingDeleted.Contains(v.LoserPhotoId))
             .ToListAsync();
 
-        // Find all votes made BY this user (will be deleted and need ELO recalculation)
+        // 2) votes made by the user
         List<PhotoVote> votesMadeByUser = await context.PhotoVotes
             .Where(v => v.VoterEmail.ToLower() == email.ToLower())
             .ToListAsync();
 
-        // Collect all photo IDs that need ELO recalculation (photos involved in votes made by this user)
-        // Only recalculate if BOTH photos in the vote still exist (not being deleted)
-        HashSet<int> photosNeedingRecalculation = new HashSet<int>();
-        foreach (PhotoVote vote in votesMadeByUser)
-        {
-            if (!photoIds.Contains(vote.WinnerPhotoId) && !photoIds.Contains(vote.LoserPhotoId))
-            {
-                photosNeedingRecalculation.Add(vote.WinnerPhotoId);
-                photosNeedingRecalculation.Add(vote.LoserPhotoId);
-            }
-        }
-
-        // Recalculate ELO ratings BEFORE deleting votes (so votes still exist for replay)
-        if (photosNeedingRecalculation.Count > 0)
-        {
-            await votingService.RecalculateEloRatingsForPhotosAsync(photosNeedingRecalculation.ToList(), votesMadeByUser.Select(v => v.Id).ToList());
-        }
-
-        // Delete all votes involving user's photos and votes made by the user (avoid duplicates)
+        // Union the votes to delete (avoid duplicates; EF tracks the same instance within the same context)
         List<PhotoVote> allVotesToDelete = votesInvolvingUserPhotos
             .Concat(votesMadeByUser)
             .Distinct()
             .ToList();
+
+        // Any remaining photo that appears in a vote that is about to be removed must be recalculated.
+        HashSet<int> photosNeedingRecalculation = new HashSet<int>();
+        foreach (PhotoVote vote in allVotesToDelete)
+        {
+            if (!photoIdsBeingDeleted.Contains(vote.WinnerPhotoId))
+            {
+                photosNeedingRecalculation.Add(vote.WinnerPhotoId);
+            }
+            if (!photoIdsBeingDeleted.Contains(vote.LoserPhotoId))
+            {
+                photosNeedingRecalculation.Add(vote.LoserPhotoId);
+            }
+        }
+
+        // Recalculate ELO ratings BEFORE deleting votes (so we can replay remaining votes),
+        // explicitly excluding the votes that are about to be removed.
+        if (photosNeedingRecalculation.Count > 0)
+        {
+            List<int> voteIdsToExclude = allVotesToDelete.Select(v => v.Id).ToList();
+            await votingService.RecalculateEloRatingsForPhotosAsync(photosNeedingRecalculation.ToList(), voteIdsToExclude);
+        }
+
+        // Delete all votes and submissions owned by the user, then the user
         context.PhotoVotes.RemoveRange(allVotesToDelete);
-
-        // Delete all photo submissions
         context.PhotoSubmissions.RemoveRange(submissions);
-
-        // Delete the user
         context.Users.Remove(user);
 
         await context.SaveChangesAsync();

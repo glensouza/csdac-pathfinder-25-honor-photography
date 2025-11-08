@@ -10,13 +10,16 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add Aspire service defaults (telemetry, health checks, service discovery)
 builder.AddServiceDefaults();
-
+    
 // Register Npgsql DataSource from Aspire PostgreSQL resource "pathfinder-photography"
 builder.AddNpgsqlDbContext<ApplicationDbContext>(connectionName: "pathfinder-photography");
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddServerSideBlazor()
+    .AddCircuitOptions(o => o.DetailedErrors = true);
 
 // Add authentication services
 builder.Services.AddAuthentication(options =>
