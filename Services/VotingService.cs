@@ -119,6 +119,21 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
     }
 
     /// <summary>
+    /// Get top photos by ELO rating filtered by grade status
+    /// </summary>
+    public async Task<List<PhotoSubmission>> GetTopPhotosByRatingAndGradeStatusAsync(GradeStatus gradeStatus, int count = 20)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        
+        return await context.PhotoSubmissions
+            .Where(s => s.GradeStatus == gradeStatus)
+            .OrderByDescending(s => s.EloRating)
+            .ThenByDescending(s => s.SubmissionDate)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    /// <summary>
     /// Get vote count for a specific photo
     /// </summary>
     public async Task<int> GetVoteCountForPhotoAsync(int photoId)
