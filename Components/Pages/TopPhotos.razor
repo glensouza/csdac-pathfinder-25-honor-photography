@@ -29,54 +29,149 @@
             <p class="mt-2">Loading top photos...</p>
         </div>
     }
-    else if (topPhotos.Any())
-    {
-        <div class="row">
-            @foreach ((PhotoSubmission photo, int index) in topPhotos.Select((p, i) => (p, i)))
-            {
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card h-100 @GetRankClass(index)">
-                        @if (index < 3)
-                        {
-                            <div class="position-absolute top-0 start-0 m-2">
-                                <span class="badge @GetBadgeClass(index) fs-5">@GetRankIcon(index) #@(index + 1)</span>
-                            </div>
-                        }
-                        <img src="/api/images/@photo.Id" 
-                             class="card-img-top" 
-                             alt="@photo.CompositionRuleName by @photo.PathfinderName"
-                             style="height: 300px; object-fit: cover; cursor: pointer;"
-                             @onclick="() => ShowModal(photo)" />
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="card-title mb-0">
-                                    @if (index >= 3)
-                                    {
-                                        <span class="badge bg-secondary me-1">#@(index + 1)</span>
-                                    }
-                                    @photo.CompositionRuleName
-                                </h6>
-                                <span class="badge bg-info">@Math.Round(photo.EloRating, 0)</span>
-                            </div>
-                            <p class="card-text">
-                                <strong>By:</strong> @photo.PathfinderName<br />
-                                <small class="text-muted">@photo.SubmissionDate.ToString("MMM dd, yyyy")</small>
-                            </p>
-                            @if (photo.GradeStatus == GradeStatus.Pass)
-                            {
-                                <span class="badge bg-success">✓ Pass</span>
-                            }
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    }
     else
     {
-        <div class="alert alert-info">
-            <p class="mb-0">No photos have been ranked yet. <a href="/vote">Start voting</a> to build the rankings!</p>
-        </div>
+        @* Top Graded and Passed Photos *@
+        @if (topPassedPhotos.Any())
+        {
+            <div class="mb-5">
+                <h2 class="mb-3">✅ Top Graded and Passed Photos</h2>
+                <div class="row">
+                    @foreach ((PhotoSubmission photo, int index) in topPassedPhotos.Select((p, i) => (p, i)))
+                    {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 @GetRankClass(index)">
+                                @if (index < 3)
+                                {
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge @GetBadgeClass(index) fs-5">@GetRankIcon(index) #@(index + 1)</span>
+                                    </div>
+                                }
+                                <img src="/api/images/@photo.Id" 
+                                     class="card-img-top" 
+                                     alt="@photo.CompositionRuleName by @photo.PathfinderName"
+                                     style="height: 300px; object-fit: cover; cursor: pointer;"
+                                     @onclick="() => ShowModal(photo)" />
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title mb-0">
+                                            @if (index >= 3)
+                                            {
+                                                <span class="badge bg-secondary me-1">#@(index + 1)</span>
+                                            }
+                                            @photo.CompositionRuleName
+                                        </h6>
+                                        <span class="badge bg-info">@Math.Round(photo.EloRating, 0)</span>
+                                    </div>
+                                    <p class="card-text">
+                                        <strong>By:</strong> @photo.PathfinderName<br />
+                                        <small class="text-muted">@photo.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                                    </p>
+                                    <span class="badge bg-success">✓ Pass</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @* Top Ungraded Photos *@
+        @if (topUngradedPhotos.Any())
+        {
+            <div class="mb-5">
+                <h2 class="mb-3">⏳ Top Ungraded Photos</h2>
+                <div class="row">
+                    @foreach ((PhotoSubmission photo, int index) in topUngradedPhotos.Select((p, i) => (p, i)))
+                    {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 @GetRankClass(index)">
+                                @if (index < 3)
+                                {
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge @GetBadgeClass(index) fs-5">@GetRankIcon(index) #@(index + 1)</span>
+                                    </div>
+                                }
+                                <img src="/api/images/@photo.Id" 
+                                     class="card-img-top" 
+                                     alt="@photo.CompositionRuleName by @photo.PathfinderName"
+                                     style="height: 300px; object-fit: cover; cursor: pointer;"
+                                     @onclick="() => ShowModal(photo)" />
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title mb-0">
+                                            @if (index >= 3)
+                                            {
+                                                <span class="badge bg-secondary me-1">#@(index + 1)</span>
+                                            }
+                                            @photo.CompositionRuleName
+                                        </h6>
+                                        <span class="badge bg-info">@Math.Round(photo.EloRating, 0)</span>
+                                    </div>
+                                    <p class="card-text">
+                                        <strong>By:</strong> @photo.PathfinderName<br />
+                                        <small class="text-muted">@photo.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                                    </p>
+                                    <span class="badge bg-secondary">Not Graded</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @* Top Failed Photos *@
+        @if (topFailedPhotos.Any())
+        {
+            <div class="mb-5">
+                <h2 class="mb-3">❌ Top Failed Photos</h2>
+                <div class="row">
+                    @foreach ((PhotoSubmission photo, int index) in topFailedPhotos.Select((p, i) => (p, i)))
+                    {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 @GetRankClass(index)">
+                                @if (index < 3)
+                                {
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge @GetBadgeClass(index) fs-5">@GetRankIcon(index) #@(index + 1)</span>
+                                    </div>
+                                }
+                                <img src="/api/images/@photo.Id" 
+                                     class="card-img-top" 
+                                     alt="@photo.CompositionRuleName by @photo.PathfinderName"
+                                     style="height: 300px; object-fit: cover; cursor: pointer;"
+                                     @onclick="() => ShowModal(photo)" />
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title mb-0">
+                                            @if (index >= 3)
+                                            {
+                                                <span class="badge bg-secondary me-1">#@(index + 1)</span>
+                                            }
+                                            @photo.CompositionRuleName
+                                        </h6>
+                                        <span class="badge bg-info">@Math.Round(photo.EloRating, 0)</span>
+                                    </div>
+                                    <p class="card-text">
+                                        <strong>By:</strong> @photo.PathfinderName<br />
+                                        <small class="text-muted">@photo.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                                    </p>
+                                    <span class="badge bg-danger">✗ Fail</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (!topPassedPhotos.Any() && !topUngradedPhotos.Any() && !topFailedPhotos.Any())
+        {
+            <div class="alert alert-info">
+                <p class="mb-0">No photos have been ranked yet. <a href="/vote">Start voting</a> to build the rankings!</p>
+            </div>
+        }
     }
 
     <div class="mt-4">
@@ -130,13 +225,17 @@
 </style>
 
 @code {
-    private List<PhotoSubmission> topPhotos = [];
+    private List<PhotoSubmission> topPassedPhotos = [];
+    private List<PhotoSubmission> topUngradedPhotos = [];
+    private List<PhotoSubmission> topFailedPhotos = [];
     private PhotoSubmission? selectedSubmission;
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        topPhotos = await VotingService.GetTopPhotosByRatingAsync(20);
+        topPassedPhotos = await VotingService.GetTopPhotosByRatingAndGradeStatusAsync(GradeStatus.Pass, 20);
+        topUngradedPhotos = await VotingService.GetTopPhotosByRatingAndGradeStatusAsync(GradeStatus.NotGraded, 20);
+        topFailedPhotos = await VotingService.GetTopPhotosByRatingAndGradeStatusAsync(GradeStatus.Fail, 20);
         isLoading = false;
     }
 
