@@ -137,12 +137,12 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                 column.Item().PaddingTop(5).Text($"Graded by: {submission.GradedBy} on {submission.GradedDate:MMMM dd, yyyy}").FontSize(9).FontColor(Colors.Grey.Darken1);
             }
 
-            // Image rendering with error handling
+            // Image rendering with error handling - display as thumbnail
             if (submission.ImageData != null && submission.ImageData.Length > 0)
             {
                 try
                 {
-                    column.Item().PaddingTop(5).Image(submission.ImageData).FitWidth();
+                    column.Item().PaddingTop(5).Width(250).Image(submission.ImageData).FitArea();
                 }
                 catch (ArgumentException ex)
                 {
