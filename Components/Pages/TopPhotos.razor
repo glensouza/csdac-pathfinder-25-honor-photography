@@ -32,10 +32,10 @@
     else
     {
         @* Top Graded and Passed Photos *@
-        <div class="mb-5">
-            <h2 class="mb-3">✅ Top Graded and Passed Photos</h2>
-            @if (topPassedPhotos.Any())
-            {
+        @if (topPassedPhotos.Any())
+        {
+            <div class="mb-5">
+                <h2 class="mb-3">✅ Top Graded and Passed Photos</h2>
                 <div class="row">
                     @foreach ((PhotoSubmission photo, int index) in topPassedPhotos.Select((p, i) => (p, i)))
                     {
@@ -73,20 +73,14 @@
                         </div>
                     }
                 </div>
-            }
-            else
-            {
-                <div class="alert alert-info">
-                    <p class="mb-0">No passed photos have been ranked yet.</p>
-                </div>
-            }
-        </div>
+            </div>
+        }
 
         @* Top Ungraded Photos *@
-        <div class="mb-5">
-            <h2 class="mb-3">⏳ Top Ungraded Photos</h2>
-            @if (topUngradedPhotos.Any())
-            {
+        @if (topUngradedPhotos.Any())
+        {
+            <div class="mb-5">
+                <h2 class="mb-3">⏳ Top Ungraded Photos</h2>
                 <div class="row">
                     @foreach ((PhotoSubmission photo, int index) in topUngradedPhotos.Select((p, i) => (p, i)))
                     {
@@ -124,20 +118,14 @@
                         </div>
                     }
                 </div>
-            }
-            else
-            {
-                <div class="alert alert-info">
-                    <p class="mb-0">No ungraded photos have been ranked yet.</p>
-                </div>
-            }
-        </div>
+            </div>
+        }
 
         @* Top Failed Photos *@
-        <div class="mb-5">
-            <h2 class="mb-3">❌ Top Failed Photos</h2>
-            @if (topFailedPhotos.Any())
-            {
+        @if (topFailedPhotos.Any())
+        {
+            <div class="mb-5">
+                <h2 class="mb-3">❌ Top Failed Photos</h2>
                 <div class="row">
                     @foreach ((PhotoSubmission photo, int index) in topFailedPhotos.Select((p, i) => (p, i)))
                     {
@@ -175,14 +163,8 @@
                         </div>
                     }
                 </div>
-            }
-            else
-            {
-                <div class="alert alert-info">
-                    <p class="mb-0">No failed photos have been ranked yet.</p>
-                </div>
-            }
-        </div>
+            </div>
+        }
 
         @if (!topPassedPhotos.Any() && !topUngradedPhotos.Any() && !topFailedPhotos.Any())
         {
