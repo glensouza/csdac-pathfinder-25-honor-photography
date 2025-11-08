@@ -169,6 +169,9 @@ docker exec -i pathfinder-postgres psql -U postgres pathfinder_photography < bac
 ## Admin & PDF Export
 - Admin Dashboard: `/admin/dashboard`
 - User Management: `/admin/users`
+  - Promote/demote users between Pathfinder and Instructor roles
+  - Delete users and all their data (permanently removes user, their photo submissions, votes on their photos, and votes made by the user)
+  - View all registered users
 - PDF Export: `/admin/export`
 
 ## SigNoz (Optional)

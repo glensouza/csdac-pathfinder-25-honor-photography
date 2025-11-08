@@ -143,4 +143,65 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
         return otherSubmissionsCount >= 2;
     }
+
+    /// <summary>
+    /// Recalculate ELO ratings for specific photos by replaying all votes involving those photos
+    /// </summary>
+    /// <param name="photoIds">List of photo IDs that need ELO recalculation</param>
+    /// <param name="voteIdsToExclude">List of vote IDs to exclude from recalculation (votes being deleted)</param>
+    public async Task RecalculateEloRatingsForPhotosAsync(List<int> photoIds, List<int>? voteIdsToExclude = null)
+    {
+        if (photoIds == null || photoIds.Count == 0) return;
+
+        voteIdsToExclude ??= new List<int>();
+
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        
+        // Get all votes involving these photos (excluding votes that will be deleted), ordered by date
+        List<PhotoVote> votes = await context.PhotoVotes
+            .Where(v => (photoIds.Contains(v.WinnerPhotoId) || photoIds.Contains(v.LoserPhotoId))
+                     && !voteIdsToExclude.Contains(v.Id))
+            .OrderBy(v => v.VoteDate)
+            .ToListAsync();
+
+        // Get all photo IDs that participate in these votes (not just the ones we're recalculating)
+        HashSet<int> allPhotoIdsInVotes = new HashSet<int>(photoIds);
+        foreach (PhotoVote vote in votes)
+        {
+            allPhotoIdsInVotes.Add(vote.WinnerPhotoId);
+            allPhotoIdsInVotes.Add(vote.LoserPhotoId);
+        }
+
+        // Load all photos involved in the votes
+        Dictionary<int, PhotoSubmission> photosDict = await context.PhotoSubmissions
+            .Where(p => allPhotoIdsInVotes.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        // Reset ELO ratings to default ONLY for photos that were in the original photoIds list
+        foreach (int photoId in photoIds)
+        {
+            if (photosDict.TryGetValue(photoId, out PhotoSubmission? photo))
+            {
+                photo.EloRating = 1000.0;
+            }
+        }
+
+        // Replay all votes to recalculate ratings
+        foreach (PhotoVote vote in votes)
+        {
+            if (photosDict.TryGetValue(vote.WinnerPhotoId, out PhotoSubmission? winnerPhoto) &&
+                photosDict.TryGetValue(vote.LoserPhotoId, out PhotoSubmission? loserPhoto))
+            {
+                (double newWinnerRating, double newLoserRating) = CalculateEloRatings(
+                    winnerPhoto.EloRating,
+                    loserPhoto.EloRating
+                );
+
+                winnerPhoto.EloRating = newWinnerRating;
+                loserPhoto.EloRating = newLoserRating;
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
 }

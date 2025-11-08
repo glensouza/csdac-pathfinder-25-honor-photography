@@ -90,7 +90,32 @@ Navigate to `/admin/users` while signed in to:
 - View all users in the system
 - Promote users to Instructor role
 - Demote instructors back to Pathfinder role
+- Delete users who shouldn't have access to the system
 - See when users joined
+
+### Deleting Users
+
+Admins can delete users who shouldn't be submitting photos to the system:
+
+1. Navigate to `/admin/users`
+2. Find the user you want to delete
+3. Click the **"Delete"** button next to their name
+4. Confirm the deletion in the popup dialog
+
+**What gets deleted:**
+- The user account
+- All photo submissions by that user
+- All votes involving their photos
+- All votes made by that user
+
+**What gets recalculated:**
+- ELO ratings for photos that were voted on by the deleted user (ratings are recalculated based on the votes that remain after deletion)
+
+**Important Notes:**
+- Admin users cannot be deleted through the UI (must use direct database access)
+- You cannot delete your own account
+- This action is permanent and cannot be undone
+- When a user is deleted, ELO ratings are recalculated for affected photos based on the remaining votes (the deleted user's votes are excluded from the recalculation)
 
 ## Workflow Example
 
