@@ -23,7 +23,7 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 - **Docker Support**: Pre-built images on GitHub Container Registry for easy deployment
 - **Home Lab Ready**: Simple deployment to your home lab infrastructure
 
-##10 Composition Rules
+## 10 Composition Rules
 
 1. Rule of Thirds
 2. Leading Lines
@@ -76,7 +76,7 @@ Add Google OAuth redirect URIs:
 - `http://localhost:8080/signin-google`
 - If using HTTPS/reverse proxy: `https://yourdomain.com/signin-google`
 
-**📖 For detailed home lab deployment, see `HOMELAB_DEPLOYMENT.md`**
+**📖 For detailed home lab deployment, see [Home Lab Deployment Guide](../HOMELAB_DEPLOYMENT.md) **
 
 ## Docker Images
 
