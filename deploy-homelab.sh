@@ -139,10 +139,10 @@ if [[ "$WITH_SIGNOZ" == "true" ]]; then
 events {}
 http {
   server {
-    listen 8082;
+    listen 80;
     server_name _;
     location / {
-      proxy_pass http://signoz-frontend:80;
+      proxy_pass http://signoz-frontend:3301;
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
     }
