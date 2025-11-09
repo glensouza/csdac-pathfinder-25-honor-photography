@@ -20,13 +20,13 @@ processors:
 
 exporters:
   clickhousetraces:
-    datasource: tcp://signoz-clickhouse:9000/?database=signoz
+    datasource: tcp://signoz-clickhouse:9000/signoz
   
   clickhousemetricswrite:
-    endpoint: tcp://signoz-clickhouse:9000/?database=signoz
+    endpoint: tcp://signoz-clickhouse:9000/signoz
   
   clickhouselogsexporter:
-    dsn: tcp://signoz-clickhouse:9000/?database=signoz
+    dsn: tcp://signoz-clickhouse:9000/signoz
 
 service:
   pipelines:
