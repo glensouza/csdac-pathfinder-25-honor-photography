@@ -151,7 +151,7 @@ services:
     ports:
       - "3301:3301" # SigNoz UI
     environment:
-      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080
+      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080/
     depends_on:
       - signoz-query-service
     restart: unless-stopped

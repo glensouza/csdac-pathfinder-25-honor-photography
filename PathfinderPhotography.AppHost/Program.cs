@@ -52,7 +52,7 @@ IResourceBuilder<ContainerResource> queryService = builder.AddContainer("signoz-
 
 // 4. Frontend - web UI for viewing telemetry data
 IResourceBuilder<ContainerResource> signozFrontend = builder.AddContainer("signoz-frontend", "signoz/frontend", "latest")
-    .WithEnvironment("FRONTEND_API_ENDPOINT", "http://signoz-query-service:8080")
+    .WithEnvironment("FRONTEND_API_ENDPOINT", "http://signoz-query-service:8080/")
     .WithHttpEndpoint(port: 3301, targetPort: 3301, name: "ui")
     .WithExternalHttpEndpoints()
     .WaitFor(queryService);
