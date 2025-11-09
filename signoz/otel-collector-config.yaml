@@ -23,7 +23,6 @@ exporters:
     datasource: tcp://signoz-clickhouse:9000/signoz
   
   signozclickhousemetrics:
-    datasource: tcp://signoz-clickhouse:9000/signoz
   
   clickhouselogsexporter:
     dsn: tcp://signoz-clickhouse:9000/signoz
