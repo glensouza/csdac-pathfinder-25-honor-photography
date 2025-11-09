@@ -54,7 +54,14 @@ IResourceBuilder<ContainerResource> queryService = builder.AddContainer("signoz-
 IResourceBuilder<ContainerResource> signozFrontend = builder.AddContainer("signoz-frontend", "signoz/frontend", "latest")
     .WithEnvironment("FRONTEND_API_ENDPOINT", "http://signoz-query-service:8080/")
     .WithHttpEndpoint(port: 3301, targetPort: 3301, name: "ui")
+    .WaitFor(queryService);
+
+// 4a. Nginx Reverse Proxy - proxies /api/* to query service and /* to frontend
+IResourceBuilder<ContainerResource> signozNginx = builder.AddContainer("signoz-nginx", "nginx", "alpine")
+    .WithBindMount("../signoz/nginx.conf", "/etc/nginx/nginx.conf")
+    .WithHttpEndpoint(port: 3302, targetPort: 80, name: "proxy")
     .WithExternalHttpEndpoints()
+    .WaitFor(signozFrontend)
     .WaitFor(queryService);
 
 // 5. Alert Manager - handles alerting rules
