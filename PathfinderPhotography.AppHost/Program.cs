@@ -9,6 +9,13 @@ IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgre
 IResourceBuilder<PostgresDatabaseResource> pathfinderDb = postgres.AddDatabase("pathfinder-photography"); // resource name (kebab-case)
 
 // Add SigNoz observability stack
+// 0. Zookeeper - required for ClickHouse cluster coordination
+IResourceBuilder<ContainerResource> zookeeper = builder.AddContainer("signoz-zookeeper", "bitnami/zookeeper", "3.9.1")
+    .WithVolume("zookeeper-data", "/bitnami/zookeeper")
+    .WithEnvironment("ALLOW_ANONYMOUS_LOGIN", "yes")
+    .WithEndpoint(port: 2181, targetPort: 2181, name: "client")
+    .WithLifetime(ContainerLifetime.Persistent);
+
 // 1. ClickHouse - database for storing traces, metrics, and logs
 IResourceBuilder<ContainerResource> clickhouse = builder.AddContainer("signoz-clickhouse", "clickhouse/clickhouse-server", "24.1.2-alpine")
     .WithBindMount("../signoz/clickhouse-config.xml", "/etc/clickhouse-server/config.d/docker_related_config.xml")
@@ -17,7 +24,8 @@ IResourceBuilder<ContainerResource> clickhouse = builder.AddContainer("signoz-cl
     .WithEnvironment("CLICKHOUSE_DB", "signoz")
     .WithHttpEndpoint(port: 8123, targetPort: 8123, name: "http")
     .WithEndpoint(port: 9000, targetPort: 9000, name: "native")
-    .WithLifetime(ContainerLifetime.Persistent);
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WaitFor(zookeeper);
 
 // 2. OpenTelemetry Collector - receives telemetry data from the application
 IResourceBuilder<ContainerResource> otelCollector = builder.AddContainer("signoz-otel-collector", "signoz/signoz-otel-collector", "0.102.9")
