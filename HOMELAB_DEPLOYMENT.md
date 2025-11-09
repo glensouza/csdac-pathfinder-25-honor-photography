@@ -176,19 +176,27 @@ docker exec -i pathfinder-postgres psql -U postgres pathfinder_photography < bac
 
 ## SigNoz (Optional)
 
+SigNoz provides observability with distributed tracing, metrics, and logs. It uses an nginx reverse proxy to route API requests.
+
 ### With Aspire (Development)
 When running via `dotnet run --project PathfinderPhotography.AppHost`, SigNoz is automatically included:
-- All 5 SigNoz containers start automatically
+- All SigNoz containers start automatically (including nginx proxy)
 - OTLP endpoints and configuration auto-injected
-- UI available at http://localhost:3301
+- **UI available at http://localhost:3302** (through nginx reverse proxy)
 
 ### With Docker Compose (Home Lab)
 Enable via profile:
 ```bash
 docker compose --profile signoz up -d
 ```
-UI: `http://localhost:3301`
-Ports exposed (default): 3301(UI), 4317/4318(OTLP), 9000/8123(ClickHouse), 6060(Query), 8081(API), 9093(Alertmanager)
+**UI: http://localhost:3301** (through nginx reverse proxy)
+
+**Architecture:**
+- The nginx proxy (port 3301) routes `/api/*` to the query service backend
+- All other requests go to the frontend UI
+- This ensures registration and other API calls work correctly
+
+Ports exposed: 3301(Proxy/UI), 4317/4318(OTLP), 9000/8123(ClickHouse), 6060(Query), 8081(API), 9093(Alertmanager)
 
 ## Troubleshooting
 - Check logs: `docker compose logs pathfinder-app`

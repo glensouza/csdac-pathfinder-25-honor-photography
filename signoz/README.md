@@ -46,7 +46,17 @@ The SigNoz setup includes:
 3. **OpenTelemetry Collector**: Receives telemetry data from the application
 4. **Query Service**: Processes queries from the frontend
 5. **Frontend**: Web UI for viewing telemetry data
-6. **Alert Manager**: Handles alerting rules
+6. **Nginx Reverse Proxy**: Routes browser requests - proxies `/api/*` to query service, everything else to frontend
+7. **Alert Manager**: Handles alerting rules
+
+### Request Flow
+```
+Browser → Nginx Proxy (port 3301/3302)
+          ├─ /api/* → Query Service (handles API requests)
+          └─ /*     → Frontend (serves UI)
+```
+
+This architecture ensures that API calls from the browser are properly routed to the backend query service.
 
 ## Quick Start
 
@@ -88,14 +98,27 @@ http://localhost:3301
 | Service | Port | Description |
 |---------|------|-------------|
 | Pathfinder Photography | 8080 | Main application |
-| SigNoz Frontend | 3301 | SigNoz UI dashboard |
-| SigNoz Query Service | 6060 | Query service API |
+| **SigNoz Nginx Proxy** | **3301** (Docker), **3302** (Aspire) | **Reverse proxy for SigNoz UI (use this!)** |
+| SigNoz Frontend | Internal only | SigNoz UI (accessed through nginx proxy) |
+| SigNoz Query Service | 6060, 8081 | Query service API (accessed through nginx proxy) |
 | OpenTelemetry Collector | 4317, 4318 | OTLP receivers (gRPC, HTTP) |
 | ClickHouse | 9000, 8123 | Database |
 | PostgreSQL | 5432 | Application database |
 | Alert Manager | 9093 | Alert management |
 
+**Important:** Access SigNoz UI through the nginx proxy at:
+- Docker Compose: http://localhost:3301
+- Aspire: http://localhost:3302
+
 ## Configuration Files
+
+### nginx.conf (NEW)
+**Reverse proxy configuration** that routes browser requests:
+- Proxies `/api/*` requests to the query service backend
+- Proxies all other requests to the frontend UI
+- Ensures API calls from the browser work correctly
+
+This solves the 405 error when registering the first admin account by properly routing POST requests to `/api/v1/register` to the backend.
 
 ### otel-collector-config.yaml
 Configures the OpenTelemetry Collector to:
@@ -247,27 +270,40 @@ If you encounter a 405 (Method Not Allowed) error when trying to register the fi
 POST http://localhost:3301/api/v1/register 405 (Not Allowed)
 ```
 
-**Cause:** The `FRONTEND_API_ENDPOINT` environment variable needs a trailing slash for proper nginx reverse proxy configuration.
-
-**Solution:** This is already configured correctly in both `docker-compose.yml` and `PathfinderPhotography.AppHost/Program.cs`:
-```yaml
-FRONTEND_API_ENDPOINT=http://signoz-query-service:8080/
-```
+**Solution:** This is fixed by the nginx reverse proxy configuration. The proxy routes `/api/*` requests to the query service backend.
 
 **Verification:**
 ```bash
-# Check the environment variable is set correctly
-docker compose --profile signoz exec signoz-frontend env | grep FRONTEND_API_ENDPOINT
+# Check all SigNoz containers are running
+docker compose --profile signoz ps
 
-# Test connectivity from frontend to query service
-docker compose --profile signoz exec signoz-frontend wget -O- http://signoz-query-service:8080/api/v1/version
+# Verify nginx proxy is running
+docker compose --profile signoz logs signoz-nginx
+
+# Test the proxy routing
+curl -v http://localhost:3301/api/v1/version
+```
+
+The nginx proxy configuration (`signoz/nginx.conf`) handles:
+- Browser → `/api/v1/register` → Query Service (POST succeeds)
+- Browser → `/` → Frontend UI (static files)
+
+**Architecture:**
+```
+Browser makes API call
+    ↓
+Nginx Proxy (localhost:3301)
+    ↓
+Routes /api/* to Query Service
+    ↓
+Registration succeeds!
 ```
 
 If you're still experiencing issues:
-1. Ensure all SigNoz containers are running: `docker compose --profile signoz ps`
-2. Check frontend logs: `docker compose --profile signoz logs signoz-frontend`
-3. Check query service logs: `docker compose --profile signoz logs signoz-query-service`
-4. Restart the frontend container: `docker compose --profile signoz restart signoz-frontend`
+1. Ensure the nginx proxy container is running: `docker compose --profile signoz ps signoz-nginx`
+2. Check nginx logs: `docker compose --profile signoz logs signoz-nginx`
+3. Verify the nginx.conf file exists: `ls -la signoz/nginx.conf`
+4. Restart the nginx container: `docker compose --profile signoz restart signoz-nginx`
 
 ## Disabling SigNoz
 
