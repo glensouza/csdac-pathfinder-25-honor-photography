@@ -11,8 +11,8 @@ IResourceBuilder<PostgresDatabaseResource> pathfinderDb = postgres.AddDatabase("
 // Add SigNoz observability stack
 // 1. ClickHouse - database for storing traces, metrics, and logs
 IResourceBuilder<ContainerResource> clickhouse = builder.AddContainer("signoz-clickhouse", "clickhouse/clickhouse-server", "24.1.2-alpine")
-    .WithBindMount("./signoz/clickhouse-config.xml", "/etc/clickhouse-server/config.d/docker_related_config.xml")
-    .WithBindMount("./signoz/clickhouse-users.xml", "/etc/clickhouse-server/users.d/users.xml")
+    .WithBindMount("../signoz/clickhouse-config.xml", "/etc/clickhouse-server/config.d/docker_related_config.xml")
+    .WithBindMount("../signoz/clickhouse-users.xml", "/etc/clickhouse-server/users.d/users.xml")
     .WithVolume("clickhouse-data", "/var/lib/clickhouse")
     .WithEnvironment("CLICKHOUSE_DB", "signoz")
     .WithHttpEndpoint(port: 8123, targetPort: 8123, name: "http")
@@ -21,7 +21,7 @@ IResourceBuilder<ContainerResource> clickhouse = builder.AddContainer("signoz-cl
 
 // 2. OpenTelemetry Collector - receives telemetry data from the application
 IResourceBuilder<ContainerResource> otelCollector = builder.AddContainer("signoz-otel-collector", "signoz/signoz-otel-collector", "0.102.9")
-    .WithBindMount("./signoz/otel-collector-config.yaml", "/etc/otel-collector-config.yaml")
+    .WithBindMount("../signoz/otel-collector-config.yaml", "/etc/otel-collector-config.yaml")
     .WithArgs("--config=/etc/otel-collector-config.yaml")
     .WithEnvironment("OTEL_RESOURCE_ATTRIBUTES", "host.name=signoz-host")
     .WithHttpEndpoint(port: 4318, targetPort: 4318, name: "otlp-http")
@@ -30,7 +30,7 @@ IResourceBuilder<ContainerResource> otelCollector = builder.AddContainer("signoz
 
 // 3. Query Service - processes queries from the frontend
 IResourceBuilder<ContainerResource> queryService = builder.AddContainer("signoz-query-service", "signoz/query-service", "0.54.1")
-    .WithBindMount("./signoz/prometheus.yml", "/root/config/prometheus.yml")
+    .WithBindMount("../signoz/prometheus.yml", "/root/config/prometheus.yml")
     .WithArgs("-config=/root/config/prometheus.yml")
     .WithVolume("signoz-data", "/var/lib/signoz")
     .WithEnvironment("ClickHouseUrl", "tcp://signoz-clickhouse:9000")
@@ -51,7 +51,7 @@ IResourceBuilder<ContainerResource> signozFrontend = builder.AddContainer("signo
 
 // 5. Alert Manager - handles alerting rules
 IResourceBuilder<ContainerResource> alertManager = builder.AddContainer("signoz-alertmanager", "signoz/alertmanager", "0.23.5")
-    .WithBindMount("./signoz/alertmanager-config.yaml", "/etc/alertmanager/config.yml")
+    .WithBindMount("../signoz/alertmanager-config.yaml", "/etc/alertmanager/config.yml")
     .WithVolume("alertmanager-data", "/data")
     .WithArgs("--queryService.url=http://signoz-query-service:8080", "--storage.path=/data")
     .WithHttpEndpoint(port: 9093, targetPort: 9093, name: "api")
