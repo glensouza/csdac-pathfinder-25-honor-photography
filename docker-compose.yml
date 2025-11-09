@@ -59,13 +59,13 @@ services:
 
   # --- SigNoz Observability Stack (enable with profile 'signoz') ---
   signoz-zookeeper:
-    image: bitnami/zookeeper:3.9.1
+    image: zookeeper:3.9
     container_name: signoz-zookeeper
     profiles: ["signoz"]
     environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_ENABLE_AUTH=no
     volumes:
-      - zookeeper-data:/bitnami/zookeeper
+      - zookeeper-data:/data
     networks:
       - pathfinder-network
     restart: unless-stopped

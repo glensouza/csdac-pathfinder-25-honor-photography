@@ -10,9 +10,9 @@ IResourceBuilder<PostgresDatabaseResource> pathfinderDb = postgres.AddDatabase("
 
 // Add SigNoz observability stack
 // 0. Zookeeper - required for ClickHouse cluster coordination
-IResourceBuilder<ContainerResource> zookeeper = builder.AddContainer("signoz-zookeeper", "bitnami/zookeeper", "3.9.1")
-    .WithVolume("zookeeper-data", "/bitnami/zookeeper")
-    .WithEnvironment("ALLOW_ANONYMOUS_LOGIN", "yes")
+IResourceBuilder<ContainerResource> zookeeper = builder.AddContainer("signoz-zookeeper", "zookeeper", "3.9")
+    .WithVolume("zookeeper-data", "/data")
+    .WithEnvironment("ZOO_ENABLE_AUTH", "no")
     .WithEndpoint(port: 2181, targetPort: 2181, name: "client")
     .WithLifetime(ContainerLifetime.Persistent);
 
