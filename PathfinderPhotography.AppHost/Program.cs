@@ -28,7 +28,7 @@ IResourceBuilder<ContainerResource> clickhouse = builder.AddContainer("signoz-cl
     .WaitFor(zookeeper);
 
 // 2. OpenTelemetry Collector - receives telemetry data from the application
-IResourceBuilder<ContainerResource> otelCollector = builder.AddContainer("signoz-otel-collector", "signoz/signoz-otel-collector", "0.102.9")
+IResourceBuilder<ContainerResource> otelCollector = builder.AddContainer("signoz-otel-collector", "signoz/signoz-otel-collector", "latest")
     .WithBindMount("../signoz/otel-collector-config.yaml", "/etc/otel-collector-config.yaml")
     .WithArgs("--config=/etc/otel-collector-config.yaml")
     .WithEnvironment("OTEL_RESOURCE_ATTRIBUTES", "host.name=signoz-host")
@@ -37,7 +37,7 @@ IResourceBuilder<ContainerResource> otelCollector = builder.AddContainer("signoz
     .WaitFor(clickhouse);
 
 // 3. Query Service - processes queries from the frontend
-IResourceBuilder<ContainerResource> queryService = builder.AddContainer("signoz-query-service", "signoz/query-service", "0.54.1")
+IResourceBuilder<ContainerResource> queryService = builder.AddContainer("signoz-query-service", "signoz/query-service", "latest")
     .WithBindMount("../signoz/prometheus.yml", "/root/config/prometheus.yml")
     .WithArgs("-config=/root/config/prometheus.yml")
     .WithVolume("signoz-data", "/var/lib/signoz")
@@ -51,14 +51,14 @@ IResourceBuilder<ContainerResource> queryService = builder.AddContainer("signoz-
     .WaitFor(clickhouse);
 
 // 4. Frontend - web UI for viewing telemetry data
-IResourceBuilder<ContainerResource> signozFrontend = builder.AddContainer("signoz-frontend", "signoz/frontend", "0.54.1")
+IResourceBuilder<ContainerResource> signozFrontend = builder.AddContainer("signoz-frontend", "signoz/frontend", "latest")
     .WithEnvironment("FRONTEND_API_ENDPOINT", "http://signoz-query-service:8080")
     .WithHttpEndpoint(port: 3301, targetPort: 3301, name: "ui")
     .WithExternalHttpEndpoints()
     .WaitFor(queryService);
 
 // 5. Alert Manager - handles alerting rules
-IResourceBuilder<ContainerResource> alertManager = builder.AddContainer("signoz-alertmanager", "signoz/alertmanager", "0.23.5")
+IResourceBuilder<ContainerResource> alertManager = builder.AddContainer("signoz-alertmanager", "signoz/alertmanager", "latest")
     .WithBindMount("../signoz/alertmanager-config.yaml", "/etc/alertmanager/config.yml")
     .WithVolume("alertmanager-data", "/data")
     .WithArgs("--queryService.url=http://signoz-query-service:8080", "--storage.path=/data")

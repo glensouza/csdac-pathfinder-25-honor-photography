@@ -101,7 +101,7 @@ services:
       retries: 3
 
   signoz-query-service:
-    image: signoz/query-service:0.54.1
+    image: signoz/query-service:latest
     container_name: signoz-query-service
     profiles: ["signoz"]
     command: ["-config=/root/config/prometheus.yml"]
@@ -124,7 +124,7 @@ services:
     restart: unless-stopped
 
   signoz-otel-collector:
-    image: signoz/signoz-otel-collector:0.102.9
+    image: signoz/signoz-otel-collector:latest
     container_name: signoz-otel-collector
     profiles: ["signoz"]
     command: ["--config=/etc/otel-collector-config.yaml"]
@@ -143,7 +143,7 @@ services:
     restart: unless-stopped
 
   signoz-frontend:
-    image: signoz/frontend:0.54.1
+    image: signoz/frontend:latest
     container_name: signoz-frontend
     profiles: ["signoz"]
     networks:
@@ -157,7 +157,7 @@ services:
     restart: unless-stopped
 
   signoz-alertmanager:
-    image: signoz/alertmanager:0.23.5
+    image: signoz/alertmanager:latest
     container_name: signoz-alertmanager
     profiles: ["signoz"]
     volumes:
