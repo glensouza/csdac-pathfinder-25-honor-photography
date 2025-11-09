@@ -9,7 +9,7 @@ This guide walks you through deploying the Pathfinder Photography application in
 - Docker Compose (v2+)
 - At least2GB free disk space
 - Internet connection (to pull images)
-- Open ports: default8080 (app) and5432 (PostgreSQL) or customize
+- Open ports: default 8080 (app) and 5432 (PostgreSQL) or customize
 
 ### Configuration Requirements
 - Google OAuth Client ID & Secret (see Redirect URIs below)
