@@ -80,7 +80,7 @@ EMAIL_SMTP_USERNAME=
 EMAIL_SMTP_PASSWORD=
 EMAIL_USE_SSL=true
 EMAIL_FROM_ADDRESS=
-EMAIL_FROM_NAME=Pathfinder Photography
+EMAIL_FROM_NAME=Pathfinder_Photography
 EOF
   echo -e "${YELLOW}Edit .env and set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET${NC}"
   echo -e "Redirect URIs to add in Google Console (adjust for port ${APP_PORT}):"
@@ -89,8 +89,35 @@ EOF
   read -p "Press Enter after editing .env..."
 fi
 
-# Load env for validation
-set -o allexport; source .env; set +o allexport
+# Normalize and harden .env before sourcing
+# - Fix CRLF endings
+# - Ensure EMAIL_FROM_NAME is quoted if it contains spaces
+sed -i 's/\r$//' .env
+# Quote EMAIL_FROM_NAME only if not already quoted
+sed -i -E 's/^EMAIL_FROM_NAME=([^"\047].* [^"\047])$/EMAIL_FROM_NAME="\1"/' .env
+
+# Load env for validation (robust parser instead of source to avoid shell word splitting issues)
+declare -A DOTENV
+while IFS= read -r line || [ -n "$line" ]; do
+  # Trim leading/trailing whitespace
+  line="${line#"${line%%[![:space:]]*}"}"
+  line="${line%"${line##*[![:space:]]}"}"
+  # Skip comments / blank
+  [[ -z "$line" || "${line:0:1}" == "#" ]] && continue
+  # Split on first =
+  key="${line%%=*}"
+  val="${line#*=}"
+  # Strip surrounding quotes if present
+  if [[ "$val" =~ ^\".*\"$ ]]; then
+    val="${val%\"}"
+    val="${val#\"}"
+  elif [[ "$val" =~ ^\'.*\'$ ]]; then
+    val="${val%\'}"
+    val="${val#\'}"
+  fi
+  export "$key=$val"
+  DOTENV["$key"]="$val"
+done < .env
 
 if [[ -z "${GOOGLE_CLIENT_ID:-}" || -z "${GOOGLE_CLIENT_SECRET:-}" ]]; then
   echo -e "${RED}Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in .env${NC}"; exit 1
