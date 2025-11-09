@@ -16,11 +16,12 @@ dotnet run --project PathfinderPhotography.AppHost
 This single command will start:
 1. PostgreSQL database
 2. Pathfinder Photography web application  
-3. **SigNoz ClickHouse** - Data storage
-4. **SigNoz OpenTelemetry Collector** - Telemetry receiver
-5. **SigNoz Query Service** - Query processor
-6. **SigNoz Frontend** - Web UI (http://localhost:3301)
-7. **SigNoz Alert Manager** - Alert handling
+3. **SigNoz Zookeeper** - Cluster coordination (required for ClickHouse)
+4. **SigNoz ClickHouse** - Data storage
+5. **SigNoz OpenTelemetry Collector** - Telemetry receiver
+6. **SigNoz Query Service** - Query processor
+7. **SigNoz Frontend** - Web UI (http://localhost:3301)
+8. **SigNoz Alert Manager** - Alert handling
 
 All connection strings and environment variables are automatically configured by Aspire - no manual setup needed!
 
@@ -40,11 +41,12 @@ Website: https://signoz.io/
 
 The SigNoz setup includes:
 
-1. **OpenTelemetry Collector**: Receives telemetry data from the application
+1. **Zookeeper**: Provides cluster coordination for ClickHouse (required for distributed DDL)
 2. **ClickHouse**: Stores traces, metrics, and logs
-3. **Query Service**: Processes queries from the frontend
-4. **Frontend**: Web UI for viewing telemetry data
-5. **Alert Manager**: Handles alerting rules
+3. **OpenTelemetry Collector**: Receives telemetry data from the application
+4. **Query Service**: Processes queries from the frontend
+5. **Frontend**: Web UI for viewing telemetry data
+6. **Alert Manager**: Handles alerting rules
 
 ## Quick Start
 

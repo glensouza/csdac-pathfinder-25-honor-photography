@@ -58,6 +58,23 @@ services:
     restart: unless-stopped
 
   # --- SigNoz Observability Stack (enable with profile 'signoz') ---
+  signoz-zookeeper:
+    image: zookeeper:3.9
+    container_name: signoz-zookeeper
+    profiles: ["signoz"]
+    environment:
+      - ZOO_ENABLE_AUTH=no
+    volumes:
+      - zookeeper-data:/data
+    networks:
+      - pathfinder-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   signoz-clickhouse:
     image: clickhouse/clickhouse-server:24.1.2-alpine
     container_name: signoz-clickhouse
@@ -73,6 +90,9 @@ services:
     ports:
       - "9000:9000"
       - "8123:8123"
+    depends_on:
+      signoz-zookeeper:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
@@ -81,7 +101,7 @@ services:
       retries: 3
 
   signoz-query-service:
-    image: signoz/query-service:0.54.1
+    image: signoz/query-service:latest
     container_name: signoz-query-service
     profiles: ["signoz"]
     command: ["-config=/root/config/prometheus.yml"]
@@ -104,7 +124,7 @@ services:
     restart: unless-stopped
 
   signoz-otel-collector:
-    image: signoz/signoz-otel-collector:0.102.9
+    image: signoz/signoz-otel-collector:latest
     container_name: signoz-otel-collector
     profiles: ["signoz"]
     command: ["--config=/etc/otel-collector-config.yaml"]
@@ -118,11 +138,12 @@ services:
       - "4317:4317" # OTLP gRPC
       - "4318:4318" # OTLP HTTP
     depends_on:
-      - signoz-clickhouse
+      signoz-clickhouse:
+        condition: service_healthy
     restart: unless-stopped
 
   signoz-frontend:
-    image: signoz/frontend:0.54.1
+    image: signoz/frontend:latest
     container_name: signoz-frontend
     profiles: ["signoz"]
     networks:
@@ -136,7 +157,7 @@ services:
     restart: unless-stopped
 
   signoz-alertmanager:
-    image: signoz/alertmanager:0.23.5
+    image: signoz/alertmanager:latest
     container_name: signoz-alertmanager
     profiles: ["signoz"]
     volumes:
@@ -159,6 +180,8 @@ volumes:
     name: signoz-data
   clickhouse-data:
     name: clickhouse-data
+  zookeeper-data:
+    name: zookeeper-data
 
 networks:
   pathfinder-network:
