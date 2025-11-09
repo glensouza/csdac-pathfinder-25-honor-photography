@@ -38,7 +38,7 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 
 ## Documentation
 
-- Update the README.md if you change functionality
+- Update the all markdown files if you change functionality
 - Document new features with clear examples
 - Keep documentation up to date with code changes
 - Use clear and concise language
