@@ -239,6 +239,36 @@ docker-compose -f docker-compose.signoz.yml logs pathfinder-photography | grep -
 docker-compose -f docker-compose.signoz.yml exec signoz-clickhouse wget -qO- localhost:8123/ping
 ```
 
+### 405 Error when registering first admin account
+
+If you encounter a 405 (Method Not Allowed) error when trying to register the first admin account:
+
+```
+POST http://localhost:3301/api/v1/register 405 (Not Allowed)
+```
+
+**Cause:** The `FRONTEND_API_ENDPOINT` environment variable needs a trailing slash for proper nginx reverse proxy configuration.
+
+**Solution:** This is already configured correctly in both `docker-compose.yml` and `PathfinderPhotography.AppHost/Program.cs`:
+```yaml
+FRONTEND_API_ENDPOINT=http://signoz-query-service:8080/
+```
+
+**Verification:**
+```bash
+# Check the environment variable is set correctly
+docker compose --profile signoz exec signoz-frontend env | grep FRONTEND_API_ENDPOINT
+
+# Test connectivity from frontend to query service
+docker compose --profile signoz exec signoz-frontend wget -O- http://signoz-query-service:8080/api/v1/version
+```
+
+If you're still experiencing issues:
+1. Ensure all SigNoz containers are running: `docker compose --profile signoz ps`
+2. Check frontend logs: `docker compose --profile signoz logs signoz-frontend`
+3. Check query service logs: `docker compose --profile signoz logs signoz-query-service`
+4. Restart the frontend container: `docker compose --profile signoz restart signoz-frontend`
+
 ## Disabling SigNoz
 
 ### With Aspire
