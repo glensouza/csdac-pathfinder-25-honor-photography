@@ -22,7 +22,7 @@ exporters:
   clickhousetraces:
     datasource: tcp://signoz-clickhouse:9000/signoz
   
-  clickhousemetricswrite:
+  signozclickhousemetrics:
     endpoint: tcp://signoz-clickhouse:9000/signoz
   
   clickhouselogsexporter:
@@ -38,7 +38,7 @@ service:
     metrics:
       receivers: [otlp]
       processors: [batch, memory_limiter]
-      exporters: [clickhousemetricswrite]
+      exporters: [signozclickhousemetrics]
     
     logs:
       receivers: [otlp]
