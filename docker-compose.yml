@@ -3,9 +3,12 @@
 # Includes optional SigNoz observability stack (enable with: docker compose --profile signoz up -d)
 
 services:
+  # --- PostgreSQL Database (enable with profile 'postgres') ---
+  # If using external PostgreSQL (e.g., separate LXC), skip this profile and configure connection in .env
   postgres:
     image: postgres:16-alpine
     container_name: pathfinder-postgres
+    profiles: ["postgres"]
     environment:
       POSTGRES_DB: pathfinder_photography
       POSTGRES_USER: postgres
@@ -37,7 +40,8 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=pathfinder_photography;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
+      # Database connection - uses local postgres service if available, otherwise external DB from .env
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING:-Host=postgres;Database=pathfinder_photography;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}}
       - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
       - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
       # Optional Email settings (leave blank to disable)
@@ -48,12 +52,12 @@ services:
       - Email__UseSsl=${EMAIL_USE_SSL:-true}
       - Email__FromAddress=${EMAIL_FROM_ADDRESS:-noreply@pathfinderphotography.local}
       - Email__FromName=${EMAIL_FROM_NAME:-Pathfinder Photography}
-      # Optional OpenTelemetry export to SigNoz collector (will retry if collector not running)
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4317
+      # Optional OpenTelemetry export to SigNoz collector
+      # If using external SigNoz (separate LXC), set OTEL_EXPORTER_OTLP_ENDPOINT in .env
+      # If using local SigNoz (--profile signoz), it will use the default below
+      # If not using SigNoz at all, leave OTEL_EXPORTER_OTLP_ENDPOINT empty in .env
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://signoz-otel-collector:4317}
       - OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - pathfinder-network
     restart: unless-stopped

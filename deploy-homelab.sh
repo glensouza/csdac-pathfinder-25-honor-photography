@@ -21,16 +21,30 @@ ENV_TEMPLATE_URL="https://raw.githubusercontent.com/glensouza/csdac-pathfinder-2
 SIGNOZ_BASE_URL="https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/signoz"
 
 APP_PORT="8080"
+WITH_POSTGRES="false"
 WITH_SIGNOZ="false"
+EXTERNAL_DB="false"
+EXTERNAL_SIGNOZ="false"
 UPDATE_MODE="false"
 
 usage() {
-  echo "Usage: $0 [-d deploy_dir] [-p port] [--update] [--signoz]"
-  echo " -d Deployment directory (default: $DEPLOY_DIR)"
-  echo " -p Host port for application (default: 8080)"
-  echo " --update Pull latest image & recreate containers"
-  echo " --signoz Enable SigNoz observability stack (profile)"
-  echo "Example: $0 -p 9090 --signoz"
+  echo "Usage: $0 [-d deploy_dir] [-p port] [OPTIONS]"
+  echo ""
+  echo "Options:"
+  echo " -d <dir>         Deployment directory (default: $DEPLOY_DIR)"
+  echo " -p <port>        Host port for application (default: 8080)"
+  echo " --update         Pull latest image & recreate containers"
+  echo " --postgres       Enable local PostgreSQL container (use profile)"
+  echo " --signoz         Enable local SigNoz observability stack (use profile)"
+  echo " --external-db    Use external PostgreSQL (requires DB_CONNECTION_STRING in .env)"
+  echo " --external-signoz Use external SigNoz (requires OTEL_EXPORTER_OTLP_ENDPOINT in .env)"
+  echo " -h, --help       Show this help message"
+  echo ""
+  echo "Examples:"
+  echo " $0 --postgres --signoz              # Deploy with local PostgreSQL and SigNoz"
+  echo " $0 --external-db                    # Deploy with external PostgreSQL"
+  echo " $0 --external-db --external-signoz  # Deploy with both external services"
+  echo " $0                                  # Deploy app only"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -38,7 +52,10 @@ while [[ $# -gt 0 ]]; do
     -d) DEPLOY_DIR="$2"; shift 2 ;;
     -p) APP_PORT="$2"; shift 2 ;;
     --update) UPDATE_MODE="true"; shift ;;
+    --postgres) WITH_POSTGRES="true"; shift ;;
     --signoz) WITH_SIGNOZ="true"; shift ;;
+    --external-db) EXTERNAL_DB="true"; shift ;;
+    --external-signoz) EXTERNAL_SIGNOZ="true"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo -e "${RED}Unknown option: $1${NC}"; usage; exit 1 ;;
   esac
@@ -110,6 +127,27 @@ done < .env
 
 if [[ -z "${GOOGLE_CLIENT_ID:-}" || -z "${GOOGLE_CLIENT_SECRET:-}" ]]; then
   echo -e "${RED}Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in .env${NC}"; exit 1
+fi
+
+# Validate configuration based on deployment flags
+if [[ "$EXTERNAL_DB" == "true" && -z "${DB_CONNECTION_STRING:-}" ]]; then
+  echo -e "${RED}--external-db specified but DB_CONNECTION_STRING not set in .env${NC}"
+  echo -e "${YELLOW}Example: DB_CONNECTION_STRING=Host=192.168.1.100;Port=5432;Database=pathfinder_photography;Username=postgres;Password=yourpassword${NC}"
+  exit 1
+fi
+
+if [[ "$EXTERNAL_SIGNOZ" == "true" && -z "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]]; then
+  echo -e "${RED}--external-signoz specified but OTEL_EXPORTER_OTLP_ENDPOINT not set in .env${NC}"
+  echo -e "${YELLOW}Example: OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.1.101:4317${NC}"
+  exit 1
+fi
+
+if [[ "$WITH_POSTGRES" == "true" && "$EXTERNAL_DB" == "true" ]]; then
+  echo -e "${RED}Cannot use both --postgres and --external-db. Choose one.${NC}"; exit 1
+fi
+
+if [[ "$WITH_SIGNOZ" == "true" && "$EXTERNAL_SIGNOZ" == "true" ]]; then
+  echo -e "${RED}Cannot use both --signoz and --external-signoz. Choose one.${NC}"; exit 1
 fi
 
 # --- SigNoz Config Bootstrap (only if --signoz specified) ---
@@ -241,9 +279,19 @@ EOF
 fi
 
 COMPOSE_ARGS=()
+if [[ "$WITH_POSTGRES" == "true" ]]; then
+  COMPOSE_ARGS+=( --profile postgres )
+fi
 if [[ "$WITH_SIGNOZ" == "true" ]]; then
   COMPOSE_ARGS+=( --profile signoz )
 fi
+
+# Display deployment configuration
+echo -e "${BLUE}Deployment Configuration:${NC}"
+echo "  App Port: ${APP_PORT}"
+echo "  PostgreSQL: $(if [[ "$WITH_POSTGRES" == "true" ]]; then echo "Local (container)"; elif [[ "$EXTERNAL_DB" == "true" ]]; then echo "External"; else echo "Not configured"; fi)"
+echo "  SigNoz: $(if [[ "$WITH_SIGNOZ" == "true" ]]; then echo "Local (container)"; elif [[ "$EXTERNAL_SIGNOZ" == "true" ]]; then echo "External"; else echo "Disabled"; fi)"
+echo ""
 
 if [[ "$UPDATE_MODE" == "true" ]]; then
   echo "Pulling latest image & recreating containers..."
@@ -256,15 +304,17 @@ else
   docker compose "${COMPOSE_ARGS[@]}" up -d
 fi
 
-# Wait for PostgreSQL health
-echo "Waiting for PostgreSQL to become healthy..."
-for i in {1..30}; do
-  STATUS=$(docker inspect -f '{{json .State.Health.Status}}' pathfinder-postgres 2>/dev/null || echo "null")
-  if [[ "$STATUS" == '"healthy"' ]]; then
-    echo -e "${GREEN}PostgreSQL healthy.${NC}"; break
-  fi
-  sleep 2
-done
+# Wait for PostgreSQL health (only if using local PostgreSQL)
+if [[ "$WITH_POSTGRES" == "true" ]]; then
+  echo "Waiting for PostgreSQL to become healthy..."
+  for i in {1..30}; do
+    STATUS=$(docker inspect -f '{{json .State.Health.Status}}' pathfinder-postgres 2>/dev/null || echo "null")
+    if [[ "$STATUS" == '"healthy"' ]]; then
+      echo -e "${GREEN}PostgreSQL healthy.${NC}"; break
+    fi
+    sleep 2
+  done
+fi
 
 APP_URL="http://localhost:${APP_PORT}"
 APP_IP_URL="http://$(hostname -I | awk '{print $1}'):${APP_PORT}"
@@ -293,10 +343,26 @@ echo "  ${APP_URL}/metrics"
 echo ""
 
 if [[ "$WITH_SIGNOZ" == "true" ]]; then
-  echo "SigNoz:"
+  echo "SigNoz (Local):"
   echo "  UI: http://localhost:3301"
   echo "  Collector gRPC: 4317"
   echo "  Query API: 8081"
+  echo ""
+elif [[ "$EXTERNAL_SIGNOZ" == "true" ]]; then
+  echo "SigNoz (External):"
+  echo "  Endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}"
+  echo ""
+fi
+
+if [[ "$WITH_POSTGRES" == "true" ]]; then
+  echo "PostgreSQL (Local):"
+  echo "  Host: localhost:5432"
+  echo "  Database: pathfinder_photography"
+  echo "  Backup: docker exec -t pathfinder-postgres pg_dump -U postgres pathfinder_photography > backup.sql"
+  echo ""
+elif [[ "$EXTERNAL_DB" == "true" ]]; then
+  echo "PostgreSQL (External):"
+  echo "  Using connection string from .env"
   echo ""
 fi
 

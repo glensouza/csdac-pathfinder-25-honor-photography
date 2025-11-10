@@ -7,17 +7,21 @@ This guide walks you through deploying the Pathfinder Photography application in
 ### On Your Home Lab Server
 - Docker (20.10+)
 - Docker Compose (v2+)
-- At least2GB free disk space
+- At least 2GB free disk space
 - Internet connection (to pull images)
-- Open ports: default 8080 (app) and 5432 (PostgreSQL) or customize
+- Open ports: default 8080 (app) or customize
+
+### External Services (Optional)
+If you're hosting PostgreSQL or SigNoz on separate LXC containers in Proxmox:
+- **PostgreSQL**: A running PostgreSQL 16+ instance accessible from the application container
+- **SigNoz**: A running SigNoz instance with OTLP collector accessible on port 4317
 
 ### Configuration Requirements
 - Google OAuth Client ID & Secret (see Redirect URIs below)
-- Secure PostgreSQL password
+- (If using local PostgreSQL) Secure PostgreSQL password
+- (If using external PostgreSQL) Full database connection details
 - (Optional) Email SMTP credentials for notifications
-- (Optional) SigNoz observability stack
-  - With Aspire: Automatically started and configured
-  - With Docker Compose: Enable via `--profile signoz`
+- (Optional) External SigNoz OTLP endpoint URL
 
 ## Quick Start (Recommended)
 
@@ -25,14 +29,32 @@ Use the provided script to automate setup:
 
 ```bash
 curl -sSL -o deploy-homelab.sh https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh
-bash deploy-homelab.sh --signoz # add --signoz to enable observability stack
+bash deploy-homelab.sh [OPTIONS]
 ```
 
 Options:
 - `-d <dir>` custom deploy directory (default: `~/pathfinder-photography`)
 - `-p <port>` custom host port for app (default: `8080`)
 - `--update` pull latest images and recreate containers
-- `--signoz` enable SigNoz profile services
+- `--postgres` enable local PostgreSQL container (use profile)
+- `--signoz` enable local SigNoz observability stack (use profile)
+- `--external-db` use external PostgreSQL (requires DB_CONNECTION_STRING in .env)
+- `--external-signoz` use external SigNoz (requires OTEL_EXPORTER_OTLP_ENDPOINT in .env)
+
+Examples:
+```bash
+# Deploy with local PostgreSQL and SigNoz
+bash deploy-homelab.sh --postgres --signoz
+
+# Deploy with external PostgreSQL on separate LXC
+bash deploy-homelab.sh --external-db
+
+# Deploy with both external services
+bash deploy-homelab.sh --external-db --external-signoz
+
+# Deploy app only (no database, no observability)
+bash deploy-homelab.sh
+```
 
 ## Manual Steps
 
@@ -45,7 +67,9 @@ curl -o .env https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-hon
 ```
 
 ###2. Configure Environment Variables
-Edit `.env` and set at least:
+Edit `.env` and configure based on your deployment scenario:
+
+#### Scenario 1: Local PostgreSQL and Local SigNoz (All-in-One)
 ```env
 GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
@@ -60,13 +84,69 @@ EMAIL_FROM_ADDRESS=your-email@gmail.com
 EMAIL_FROM_NAME=Pathfinder Photography
 ```
 
-###3. Start
+#### Scenario 2: External PostgreSQL (Separate LXC in Proxmox)
+```env
+GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+# Full connection string for external PostgreSQL
+DB_CONNECTION_STRING=Host=192.168.1.100;Port=5432;Database=pathfinder_photography;Username=postgres;Password=your_password
+# Optional Email config...
+```
+
+#### Scenario 3: External SigNoz (Separate LXC in Proxmox)
+```env
+GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+POSTGRES_PASSWORD=your_secure_password_here
+# External SigNoz OTLP endpoint
+OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.1.101:4317
+# Optional Email config...
+```
+
+#### Scenario 4: Both External (PostgreSQL and SigNoz on Separate LXCs)
+```env
+GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+# External PostgreSQL
+DB_CONNECTION_STRING=Host=192.168.1.100;Port=5432;Database=pathfinder_photography;Username=postgres;Password=your_password
+# External SigNoz
+OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.1.101:4317
+# Optional Email config...
+```
+
+#### Scenario 5: No Observability
+```env
+GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+POSTGRES_PASSWORD=your_secure_password_here
+# Disable SigNoz
+OTEL_EXPORTER_OTLP_ENDPOINT=
+# Optional Email config...
+```
+
+###3. Start Services
+Choose the appropriate command based on your deployment scenario:
+
 ```bash
-# Basic
+# Scenario 1: Local PostgreSQL and Local SigNoz
+docker compose pull
+docker compose --profile postgres --profile signoz up -d
+
+# Scenario 2: External PostgreSQL, Local SigNoz
+docker compose --profile signoz up -d
+
+# Scenario 3: Local PostgreSQL, External SigNoz
+docker compose --profile postgres up -d
+
+# Scenario 4: Both External (PostgreSQL and SigNoz)
+docker compose up -d
+
+# Scenario 5: Local PostgreSQL, No Observability
+docker compose --profile postgres up -d
+
+# Basic (app only, both external)
 docker compose pull
 docker compose up -d
-# With SigNoz observability stack
-docker compose --profile signoz up -d
 ```
 
 ###4. Access
@@ -84,6 +164,69 @@ docker compose --profile signoz up -d
 The first authenticated user becomes Admin automatically. Promote additional admins via SQL:
 ```sql
 UPDATE "Users" SET "Role" =2 WHERE "Email" = 'email@example.com';
+```
+
+## External PostgreSQL Setup (Proxmox LXC)
+
+If you're running PostgreSQL on a separate LXC container in Proxmox:
+
+### 1. Set up PostgreSQL LXC
+```bash
+# On the PostgreSQL LXC
+apt update && apt install -y postgresql postgresql-contrib
+
+# Create database and user
+sudo -u postgres psql
+CREATE DATABASE pathfinder_photography;
+CREATE USER pathfinder WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE pathfinder_photography TO pathfinder;
+\q
+
+# Configure PostgreSQL to accept remote connections
+# Edit /etc/postgresql/16/main/postgresql.conf
+listen_addresses = '*'
+
+# Edit /etc/postgresql/16/main/pg_hba.conf (add this line)
+host    pathfinder_photography    pathfinder    0.0.0.0/0    scram-sha-256
+
+# Restart PostgreSQL
+systemctl restart postgresql
+```
+
+### 2. Configure Application .env
+```env
+DB_CONNECTION_STRING=Host=<postgresql-lxc-ip>;Port=5432;Database=pathfinder_photography;Username=pathfinder;Password=your_secure_password
+```
+
+### 3. Deploy without --profile postgres
+```bash
+docker compose up -d
+```
+
+## External SigNoz Setup (Proxmox LXC)
+
+If you're running SigNoz on a separate LXC container in Proxmox:
+
+### 1. Set up SigNoz LXC
+```bash
+# On the SigNoz LXC, follow SigNoz installation guide
+# https://signoz.io/docs/install/docker/
+git clone https://github.com/SigNoz/signoz.git
+cd signoz/deploy
+./install.sh
+```
+
+### 2. Ensure OTLP endpoint is accessible
+Make sure port 4317 (gRPC) is accessible from the application container.
+
+### 3. Configure Application .env
+```env
+OTEL_EXPORTER_OTLP_ENDPOINT=http://<signoz-lxc-ip>:4317
+```
+
+### 4. Deploy without --profile signoz
+```bash
+docker compose up -d
 ```
 
 ## Reverse Proxy (Optional)
