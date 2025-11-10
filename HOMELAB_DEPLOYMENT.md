@@ -149,7 +149,7 @@ docker compose pull
 docker compose up -d
 ```
 
-###4. Access
+### 4. Access
 - App: `http://your-server-ip:8080`
 - Health: `/health`, `/alive`, `/ready`
 - Metrics: `/metrics`
