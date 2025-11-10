@@ -106,10 +106,10 @@ jobs:
             echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
 
             # Create backup as pathfinder user to ensure read access to all files
-            sudo -u pathfinder tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            sudo  tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
             
             # Keep only last 5 backups
-            sudo -u pathfinder bash -c "ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm"
+            sudo bash -c "ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm"
             
             echo "Backup created successfully"
           else
@@ -150,9 +150,9 @@ jobs:
           cd ${{ env.DEPLOY_DIR }}
           
           # Check if EF migrations exist
-          if sudo -u pathfinder dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
+          if sudo dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
             echo "Applying database migrations..."
-            sudo -u pathfinder bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
+            sudo bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
             echo "Database migrations applied successfully"
           else
             echo "No migrations found or migrations will be applied on startup"
