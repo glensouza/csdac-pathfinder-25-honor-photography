@@ -2,7 +2,28 @@
 
 ## Project Overview
 
-This repository contains materials for the Photography honor for Pathfinders 2025, presented by Daniels. The project is designed to help Pathfinders learn about photography through educational content and practical exercises.
+This repository contains the Pathfinder Photography Honor application for Pathfinders 2025. It's a .NET 9.0 Blazor Server application for managing photography submissions, voting, and grading with ELO ratings.
+
+**Key Technologies:**
+- .NET 9.0 / Blazor Server / C#
+- PostgreSQL 16
+- Google OAuth 2.0 authentication
+- OpenTelemetry & SigNoz observability
+- .NET Aspire for local development orchestration
+
+## Deployment Architecture
+
+**Development (Local):**
+- Docker Compose (easiest - no .NET SDK required)
+- .NET Aspire (recommended - integrated observability)
+- Local .NET (direct development)
+- See [SETUP.md](../SETUP.md)
+
+**Production:**
+- Ubuntu 22.04 LTS (VM, bare metal, or cloud instance)
+- No Docker - native installation
+- Automated deployments via GitHub Actions (optional)
+- See [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md)
 
 ## Code of Conduct
 
@@ -29,28 +50,69 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 
 ## Code Style
 
-- Always use explicit types; never use `var` in C# code
+**C# Specific:**
+- **Always use explicit types; never use `var`** - This is a hard requirement
+- Follow .NET naming conventions (PascalCase for public members, camelCase for private)
+- Use async/await properly - don't block on async code
+- Dispose IDisposable objects properly (using statements)
+- Keep methods focused and single-purpose
+
+**General:**
 - Write clear, readable code with meaningful variable and function names
-- Comment your code when necessary, especially for complex logic
+- Comment complex logic, not obvious code
 - Follow existing code patterns and conventions in the project
 - Keep functions small and focused on a single task
 - Write self-documenting code where possible
+- Use LINQ for collections where appropriate
 
 ## Documentation
 
-- Update the all markdown files if you change functionality
+**Important Files:**
+- `SETUP.md` - Local development setup (Docker Compose, Aspire, local .NET)
+- `BARE_METAL_DEPLOYMENT.md` - Production deployment guide (comprehensive, 2,158 lines)
+- `DEPLOYMENT_CHECKLIST.md` - Deployment verification checklist
+- `.github/workflows/deploy-bare-metal.yml` - Automated deployment workflow
+
+**Documentation Requirements:**
+- Update markdown files when changing functionality
 - Document new features with clear examples
-- Keep documentation up to date with code changes
-- Use clear and concise language
-- Ensure documentation is accessible and easy to understand for Pathfinders and leaders
+- Keep documentation in sync with code changes
+- Use clear, concise language
+- Ensure documentation is accessible for Pathfinders (10-15 years old) and leaders
 
 ## Security
 
+**Critical Requirements:**
 - Never commit sensitive information (API keys, passwords, personal data)
-- Follow security best practices as outlined in [SECURITY.md](../SECURITY.md)
-- Report security vulnerabilities privately, not through public issues
+- Use `openssl rand -base64 32` for generating secure passwords
+- Follow principle of least privilege (e.g., github-runner user NOT in sudo group)
+- Use restrictive file patterns in sudoers (e.g., `[0-9a-f]*` for SHA hashes, not `*`)
+- Set proper file permissions (600 for config files with secrets)
+- Report security vulnerabilities privately via [SECURITY.md](../SECURITY.md)
+
+**Production Security:**
+- All services run as non-root users
+- PostgreSQL listens only on localhost
+- Nginx security headers configured
+- Firewall with default-deny policy
+- SSL/TLS with Let's Encrypt
+- Automated deployments use restricted sudo via sudoers file
 
 ## Project-Specific Guidelines
+
+### Application Architecture
+
+**User Roles:**
+- 0 = Pathfinder (default)
+- 1 = Instructor
+- 2 = Admin (first user auto-promoted)
+
+**Key Features:**
+- Photo submission with 10 composition rules
+- ELO rating system for photo comparison voting
+- Admin user management (promote, demote, delete with ELO recalculation)
+- PDF export functionality
+- Email notifications (optional)
 
 ### Photography Content
 
@@ -61,12 +123,73 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 
 ### Educational Focus
 
-- Content should be appropriate for the Pathfinder age group (typically 10-15 years old)
+- Content should be appropriate for Pathfinder age group (typically 10-15 years old)
 - Use clear, age-appropriate language
 - Include visual examples where helpful
 - Provide step-by-step instructions for practical activities
 
-### Licensing
+### Database Considerations
+
+- Always use Entity Framework migrations for schema changes
+- Test migrations both up and down
+- Consider data migration needs when changing models
+- ELO ratings are recalculated when users are deleted (important for integrity)
+
+### Performance
+
+- Use async/await for I/O operations
+- Consider query performance with Entity Framework (use `.AsNoTracking()` for read-only)
+- Photo uploads limited to 10MB
+- Database queries should use proper indexes
+
+## Testing & Validation
+
+**Before Committing:**
+- Test locally with Docker Compose or Aspire
+- Run Entity Framework migrations if model changes
+- Verify Google OAuth still works
+- Check for obvious errors in browser console
+- Test photo upload functionality if related to changes
+
+**Documentation Changes:**
+- Verify all internal links work
+- Check markdown formatting
+- Ensure consistency with related docs
+
+## Deployment Paths
+
+**Local Development:**
+1. Docker Compose: `docker-compose up -d` (uses .env file)
+2. Aspire: `dotnet run --project PathfinderPhotography.AppHost` (automatic SigNoz)
+3. Local .NET: `dotnet run` (manual PostgreSQL setup)
+
+**Production Deployment:**
+1. Manual: Follow [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md) step-by-step
+2. Automated: Set up GitHub Actions runner on server (section 7 of deployment guide)
+   - Every push to `main` triggers automated deployment
+   - Includes backup, health checks, and automatic rollback
+
+## Common Tasks
+
+**Add a new EF migration:**
+```bash
+dotnet ef migrations add MeaningfulName
+dotnet ef database update
+```
+
+**Test production build locally:**
+```bash
+dotnet publish -c Release -o ./publish
+cd ./publish
+ASPNETCORE_ENVIRONMENT=Production dotnet PathfinderPhotography.dll
+```
+
+**View logs in production:**
+```bash
+sudo journalctl -u pathfinder-photography -f
+```
+
+## Licensing
 
 - All contributions will be licensed under the MIT License
 - Ensure any third-party content or images used have appropriate permissions
@@ -76,6 +199,8 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 
 If you have questions or need help:
 - Check existing issues and discussions
+- Review [SETUP.md](../SETUP.md) for development setup
+- Review [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md) for production
 - Open an issue with your question
 - Reach out to the project maintainers
 

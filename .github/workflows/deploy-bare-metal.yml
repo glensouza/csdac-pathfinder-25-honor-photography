@@ -86,12 +86,13 @@ jobs:
       
       - name: Verify artifact checksum
         run: |
-          echo "Current directory: $(pwd)"
-          echo "Files in current directory:"
-          ls -la
-          echo "Looking for checksum file:"
-          find . -name "*.sha256" -type f
-          sha256sum -c pathfinder-photography-${{ github.sha }}.tar.gz.sha256
+          echo "Verifying deployment artifact integrity..."
+          if sha256sum -c pathfinder-photography-${{ github.sha }}.tar.gz.sha256; then
+            echo "✅ Checksum verified - artifact integrity confirmed"
+          else
+            echo "❌ Checksum verification failed - artifact may be corrupted"
+            exit 1
+          fi
       
       - name: Create backup of current deployment
         run: |
@@ -136,13 +137,17 @@ jobs:
           # Extract new version
           sudo tar -xzf pathfinder-photography-${{ github.sha }}.tar.gz -C ${{ env.DEPLOY_DIR }}
           
+          # Set correct ownership for deployed files
+          sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
+          
           # Preserve uploads directory if it exists
           if [ -d "/opt/backups/pathfinder-photography/uploads" ]; then
             sudo rsync -av /opt/backups/pathfinder-photography/uploads/ ${{ env.DEPLOY_DIR }}/wwwroot/uploads/
           fi
           
-          # Ensure uploads directory exists
-          mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
+          # Ensure uploads directory exists with correct permissions
+          sudo mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
+          sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
                     
           echo "Deployment completed successfully"
       
@@ -164,17 +169,17 @@ jobs:
       - name: Start application service
         run: |
           echo "Starting ${{ env.SERVICE_NAME }} service..."
-          systemctl start ${{ env.SERVICE_NAME }}
+          sudo systemctl start ${{ env.SERVICE_NAME }}
           
           # Wait for service to start
           sleep 5
           
           # Check if service is running
-          if systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
             echo "Service started successfully"
           else
             echo "Service failed to start. Checking logs..."
-            journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
             exit 1
           fi
       
@@ -206,7 +211,7 @@ jobs:
       - name: Reload Nginx
         run: |
           echo "Reloading Nginx configuration..."
-          nginx -t && systemctl reload nginx || echo "Nginx reload failed, but continuing..."
+          sudo nginx -t && sudo systemctl reload nginx || echo "Nginx reload failed, but continuing..."
       
       - name: Create deployment summary
         run: |
@@ -221,7 +226,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service Status" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          systemctl status ${{ env.SERVICE_NAME }} --no-pager || true >> $GITHUB_STEP_SUMMARY
+          sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager || true >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
       
       - name: Cleanup old artifacts
@@ -258,24 +263,28 @@ jobs:
           echo "Rolling back to backup: ${{ steps.find_backup.outputs.backup_file }}"
           
           # Stop service
-          systemctl stop ${{ env.SERVICE_NAME }}
+          sudo systemctl stop ${{ env.SERVICE_NAME }}
           
           # Restore backup
-          tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
+          sudo tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
+          
+          # Set correct ownership after restore
+          sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
+          sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
           
           # Start service
-          systemctl start ${{ env.SERVICE_NAME }}
+          sudo systemctl start ${{ env.SERVICE_NAME }}
           
           echo "Rollback completed"
       
       - name: Verify rollback
         run: |
           sleep 5
-          if systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
             echo "✅ Rollback successful - service is running"
           else
             echo "❌ Rollback failed - service is not running"
-            journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
             exit 1
           fi
 
