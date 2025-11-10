@@ -1,6 +1,6 @@
-# Bare Metal Deployment Guide
+# Bare Metal / VM Deployment Guide
 
-This guide provides instructions for deploying the Pathfinder Photography application on a single server without Docker. All components (PostgreSQL, .NET application, and optionally SigNoz) will be installed directly on the host system.
+This guide provides instructions for deploying the Pathfinder Photography application on a single server or virtual machine without Docker. All components (PostgreSQL, .NET application, and optionally SigNoz) will be installed directly on the host system.
 
 > 💡 **Want Automated Deployments?** After completing the initial setup below, see [section 7](#7-setup-automated-deployments-optional) to configure automatic deployments via GitHub Actions. Every push to the `main` branch will automatically deploy to your server.
 
@@ -22,6 +22,7 @@ This guide provides instructions for deploying the Pathfinder Photography applic
 ## Prerequisites
 
 - Ubuntu 22.04 LTS or later (or equivalent Debian-based distribution)
+- Physical server, virtual machine (VM), or cloud instance
 - Root or sudo access
 - Public IP address or domain name (for Google OAuth)
 - Google OAuth credentials (see [SETUP.md](SETUP.md#google-oauth20-setup))
@@ -1763,6 +1764,361 @@ open_file_cache_min_uses 2;
 - Nginx Documentation: https://nginx.org/en/docs/
 - SigNoz Documentation: https://signoz.io/docs/
 
+## Deployment Checklist
+
+Use this checklist when deploying the Pathfinder Photography application on bare metal or virtual machine.
+
+### Pre-Deployment
+
+#### Required Information
+- [ ] Server/VM IP address or domain name
+- [ ] Google OAuth Client ID
+- [ ] Google OAuth Client Secret
+- [ ] PostgreSQL password (secure, random - generated with `openssl rand -base64 32`)
+- [ ] (Optional) Email SMTP settings for notifications
+- [ ] SSL certificate domain (if using Let's Encrypt)
+
+#### Prerequisites Verified
+- [ ] Ubuntu 22.04 LTS or later installed (physical server, VM, or cloud instance)
+- [ ] Root or sudo access available
+- [ ] At least 20GB free disk space (50GB+ recommended)
+- [ ] Server/VM has network connectivity
+- [ ] Public IP or domain name configured
+- [ ] Firewall rules planned (ports 22, 80, 443)
+- [ ] Internet connection available
+
+### Google OAuth Configuration
+
+- [ ] Created Google Cloud project
+- [ ] Enabled Google+ API
+- [ ] Created OAuth 2.0 credentials
+- [ ] Configured OAuth consent screen
+- [ ] Added authorized redirect URIs:
+  - [ ] `https://your-domain.com/signin-google`
+  - [ ] `https://www.your-domain.com/signin-google` (if using www)
+- [ ] Saved Client ID and Client Secret securely
+
+### Step 1: PostgreSQL Installation
+
+- [ ] Installed PostgreSQL 16: `sudo apt install postgresql-16`
+- [ ] PostgreSQL service started and enabled
+- [ ] Created database: `pathfinder_photography`
+- [ ] Created user: `pathfinder` with strong password
+- [ ] Granted all privileges to pathfinder user
+- [ ] Configured `postgresql.conf` to listen on localhost only
+- [ ] Updated `pg_hba.conf` with scram-sha-256 authentication
+- [ ] Restarted PostgreSQL service
+- [ ] Verified connection: `psql -h localhost -U pathfinder -d pathfinder_photography`
+
+### Step 2: .NET Runtime Installation
+
+- [ ] Added Microsoft package repository
+- [ ] Installed ASP.NET Core Runtime 9.0
+- [ ] Verified installation: `dotnet --list-runtimes`
+- [ ] Confirmed Microsoft.AspNetCore.App 9.0.x is listed
+
+### Step 3: Application Installation
+
+- [ ] Created pathfinder system user
+- [ ] Added pathfinder to www-data group
+- [ ] Created application directory: `/opt/pathfinder-photography`
+- [ ] Downloaded/built application files
+- [ ] Created uploads directory: `/opt/pathfinder-photography/wwwroot/uploads`
+- [ ] Set ownership: `chown -R pathfinder:pathfinder /opt/pathfinder-photography`
+- [ ] Created `appsettings.Production.json` with:
+  - [ ] PostgreSQL connection string
+  - [ ] Google OAuth credentials
+  - [ ] (Optional) Email SMTP settings
+- [ ] Set file permissions: `chmod 600 appsettings.Production.json`
+- [ ] Applied database migrations (if SDK installed) or verified they run on startup
+
+### Step 4: Systemd Service Configuration
+
+- [ ] Created service file: `/etc/systemd/system/pathfinder-photography.service`
+- [ ] Set User=pathfinder, Group=pathfinder
+- [ ] Set WorkingDirectory=/opt/pathfinder-photography
+- [ ] Configured environment variables (ASPNETCORE_ENVIRONMENT=Production)
+- [ ] Set security settings (NoNewPrivileges, PrivateTmp, etc.)
+- [ ] Added ReadWritePaths for uploads directory
+- [ ] (Optional) Added SigNoz environment variables if using observability
+- [ ] Reloaded systemd: `systemctl daemon-reload`
+- [ ] Enabled service: `systemctl enable pathfinder-photography`
+- [ ] Started service: `systemctl start pathfinder-photography`
+- [ ] Verified service is running: `systemctl status pathfinder-photography`
+- [ ] Checked logs for errors: `journalctl -u pathfinder-photography -n 50`
+
+### Step 5: Nginx Configuration
+
+- [ ] Installed Nginx
+- [ ] Created site configuration: `/etc/nginx/sites-available/pathfinder-photography`
+- [ ] Configured HTTP server (port 80)
+- [ ] Configured HTTPS server (port 443)
+- [ ] Set proxy headers (X-Forwarded-For, X-Forwarded-Proto, etc.)
+- [ ] Set client_max_body_size to 10M (for photo uploads)
+- [ ] Added security headers (X-Frame-Options, X-Content-Type-Options, etc.)
+- [ ] Enabled site: `ln -s sites-available/pathfinder-photography sites-enabled/`
+- [ ] Tested configuration: `nginx -t`
+- [ ] Reloaded Nginx: `systemctl reload nginx`
+- [ ] Installed Certbot: `apt install certbot python3-certbot-nginx`
+- [ ] Obtained SSL certificate: `certbot --nginx -d your-domain.com`
+- [ ] Verified auto-renewal: `certbot renew --dry-run`
+
+### Step 6: Firewall Configuration
+
+- [ ] Allowed SSH (CRITICAL - before enabling firewall): `ufw allow 22/tcp`
+- [ ] Allowed HTTP: `ufw allow 80/tcp`
+- [ ] Allowed HTTPS: `ufw allow 443/tcp`
+- [ ] Set default policies: `ufw default deny incoming`
+- [ ] Set default policies: `ufw default allow outgoing`
+- [ ] Enabled firewall: `ufw enable`
+- [ ] Verified firewall status: `ufw status verbose`
+
+### Step 7: Automated Deployments (Optional)
+
+#### GitHub Runner Setup
+- [ ] Created github-runner user (NOT in sudo group)
+- [ ] Added github-runner to pathfinder and www-data groups
+- [ ] Created sudoers file: `/etc/sudoers.d/github-runner`
+- [ ] Configured passwordless sudo with restricted commands
+- [ ] Validated sudoers syntax: `visudo -c`
+- [ ] Set sudoers file permissions: `chmod 0440`
+- [ ] Downloaded GitHub Actions runner
+- [ ] Extracted runner to `/home/github-runner/actions-runner`
+- [ ] Obtained registration token from GitHub
+- [ ] Configured runner with repository URL and token
+- [ ] Set runner labels: `self-hosted,linux,bare-metal,production`
+- [ ] Created systemd service: `/etc/systemd/system/github-runner.service`
+- [ ] Enabled and started runner service
+- [ ] Verified runner shows as "Idle" on GitHub
+- [ ] Created backup directories: `/opt/backups/pathfinder-photography/deployments`
+- [ ] Set ownership of backup directories to github-runner
+- [ ] Configured GitHub repository secrets (if needed)
+- [ ] Configured GitHub environment variables
+
+#### Workflow Verification
+- [ ] Verified workflow file exists: `.github/workflows/deploy-bare-metal.yml`
+- [ ] Made test commit to trigger deployment
+- [ ] Verified workflow runs successfully
+- [ ] Checked deployment creates backups
+- [ ] Verified file ownership set correctly
+- [ ] Confirmed health checks pass
+- [ ] Tested rollback on failure (optional)
+
+### Post-Deployment Verification
+
+#### Services Running
+- [ ] PostgreSQL service active: `systemctl is-active postgresql`
+- [ ] Application service active: `systemctl is-active pathfinder-photography`
+- [ ] Nginx service active: `systemctl is-active nginx`
+- [ ] (Optional) GitHub runner active: `systemctl is-active github-runner`
+- [ ] No errors in application logs: `journalctl -u pathfinder-photography -n 100`
+
+#### Application Access
+- [ ] Can access http://localhost:5000 from server
+- [ ] Can access https://your-domain.com from browser
+- [ ] Home page loads correctly
+- [ ] Can see all 10 composition rules
+- [ ] SSL certificate is valid (no browser warnings)
+
+#### Google Authentication
+- [ ] "Sign in with Google" button appears
+- [ ] Clicking redirects to Google OAuth
+- [ ] After authentication, redirected back to app
+- [ ] Signed in with correct user name
+- [ ] User session persists across requests
+
+#### User Roles
+- [ ] First signed-in user automatically has Admin role
+- [ ] Admin can access `/admin/users` page
+- [ ] Admin can promote users to Instructor
+- [ ] Admin can delete unauthorized users
+- [ ] Verified ELO ratings recalculate when users are deleted
+- [ ] (Optional) Promoted additional admin via SQL if needed
+
+#### Photo Upload
+- [ ] Navigated to Submit page
+- [ ] Selected a composition rule
+- [ ] Uploaded a test photo (<10MB)
+- [ ] Added description
+- [ ] Submitted successfully
+- [ ] Photo appears in gallery
+- [ ] Photo file exists in `/opt/pathfinder-photography/wwwroot/uploads/`
+- [ ] Uploads persist after service restart
+
+#### Database
+- [ ] Database is accessible:
+  ```bash
+  sudo -u pathfinder psql -h localhost -U pathfinder -d pathfinder_photography -c "SELECT COUNT(*) FROM \"PhotoSubmissions\";"
+  ```
+- [ ] Data persists after service restart
+- [ ] Migrations applied successfully
+
+#### Health Endpoints
+- [ ] `/health` endpoint responds
+- [ ] `/alive` endpoint responds
+- [ ] `/ready` endpoint responds
+- [ ] `/metrics` endpoint responds (if enabled)
+
+### Optional Configuration
+
+#### SigNoz Observability (Optional)
+- [ ] Installed Docker for SigNoz components
+- [ ] Cloned SigNoz repository to `/opt/signoz`
+- [ ] Ran SigNoz installation script
+- [ ] SigNoz containers running: `docker compose ps`
+- [ ] Updated application systemd service with OTEL variables
+- [ ] Restarted application service
+- [ ] SigNoz UI accessible: `http://your-server-ip:3301`
+- [ ] Created Nginx reverse proxy for SigNoz UI
+- [ ] Obtained SSL certificate for SigNoz domain
+- [ ] Application sending telemetry to SigNoz
+
+#### Email Notifications
+- [ ] Configured SMTP settings in `appsettings.Production.json`
+- [ ] Tested email by submitting and grading a photo
+- [ ] Verified email delivery
+
+### Security Hardening
+
+- [ ] Changed default PostgreSQL password to strong random password
+- [ ] Firewall configured with default-deny policy
+- [ ] Using strong passwords for all services
+- [ ] Secrets not in version control
+- [ ] SSL/TLS enabled and working
+- [ ] `appsettings.Production.json` has 600 permissions
+- [ ] Application runs as non-root user (pathfinder)
+- [ ] Systemd security settings enabled (NoNewPrivileges, PrivateTmp)
+- [ ] PostgreSQL only listens on localhost
+- [ ] Nginx security headers configured
+- [ ] SSH key-based authentication enabled (optional)
+- [ ] Root login disabled (optional)
+
+### Backup Strategy
+
+- [ ] Created backup script: `/opt/backups/backup-pathfinder-db.sh`
+- [ ] Script backs up database
+- [ ] Script backs up uploaded photos
+- [ ] Script keeps last 7 days of backups
+- [ ] Made script executable: `chmod +x`
+- [ ] Scheduled backup script in crontab (daily at 2 AM)
+- [ ] Test backup created successfully
+- [ ] Test restore successful
+- [ ] Backup location has sufficient space
+- [ ] (Optional) Backups copied to remote location
+
+### Monitoring Setup
+
+- [ ] Configured log rotation in journald
+- [ ] Set SystemMaxUse and MaxRetentionSec
+- [ ] (Optional) Set up external monitoring/alerting
+- [ ] (Optional) Configured health check script
+- [ ] (Optional) Scheduled health check in crontab
+- [ ] Know where to find logs: `journalctl -u pathfinder-photography`
+
+### Troubleshooting Completed
+
+If issues occurred, verify resolved:
+
+- [ ] Service logs checked: `journalctl -u pathfinder-photography`
+- [ ] Database connection working
+- [ ] Google OAuth redirect URI matches exactly
+- [ ] File permissions correct for uploads
+- [ ] Nginx configuration valid: `nginx -t`
+- [ ] SSL certificate valid and not expired
+- [ ] Firewall not blocking required ports
+- [ ] Disk space available: `df -h`
+
+### Performance Tuning
+
+- [ ] PostgreSQL tuned for available RAM
+- [ ] Nginx gzip compression enabled
+- [ ] Nginx file caching configured
+- [ ] Application resource limits set in systemd
+- [ ] Performance acceptable under expected load
+- [ ] Response times measured and documented
+
+### Documentation
+
+- [ ] Read complete BARE_METAL_DEPLOYMENT.md
+- [ ] Read SETUP.md (for development setup if needed)
+- [ ] Bookmarked useful commands
+- [ ] Know where to find logs
+- [ ] Documented server-specific configuration
+- [ ] Documented custom modifications (if any)
+
+### Maintenance Plan
+
+- [ ] Update schedule determined (monthly recommended)
+- [ ] Backup schedule set (daily recommended)
+- [ ] Monitoring in place
+- [ ] Disaster recovery plan created
+- [ ] Contact information for support documented
+- [ ] Security update policy established
+
+### Final Verification
+
+- [ ] Application accessible from all intended devices
+- [ ] Multiple users can sign in
+- [ ] Photos upload and display correctly
+- [ ] Gallery filtering works
+- [ ] Performance acceptable
+- [ ] No errors in logs
+- [ ] SSL certificate valid
+- [ ] Automated deployments working (if configured)
+- [ ] Backups working
+- [ ] Ready for users
+
+### Production Readiness
+
+#### For Church/Organization Use
+- [ ] Announced to pathfinders
+- [ ] Instructions provided to users
+- [ ] Support contact available
+- [ ] Deadline for submissions set
+- [ ] Storage capacity verified for expected photos
+
+#### Performance Baseline
+- [ ] Noted current resource usage (CPU, RAM, disk)
+- [ ] Response time acceptable (<2s for page loads)
+- [ ] Can handle expected concurrent users
+- [ ] Database queries performing well
+
+## Sign-Off
+
+- **Deployed by**: ________________
+- **Date**: ________________
+- **Server/VM**: ________________
+- **Domain**: ________________
+- **Application Version**: ________________
+- **Deployment Type**: ☐ Physical Server ☐ Virtual Machine ☐ Cloud Instance
+- **Status**: ☐ Development ☐ Staging ☐ Production
+
+## Deployment Notes
+
+```
+Add any deployment-specific notes, customizations, or issues encountered:
+
+
+
+
+```
+
+---
+
+**Next Steps After Deployment:**
+1. Monitor logs for first 24-48 hours: `journalctl -u pathfinder-photography -f`
+2. Test with small group before full rollout
+3. Ensure backup is working: check `/opt/backups/pathfinder-photography/`
+4. Share access information with pathfinders
+5. Set submission deadline
+6. Plan for photo review and grading
+
+**Support Resources:**
+- This deployment guide (BARE_METAL_DEPLOYMENT.md)
+- Application repository: https://github.com/glensouza/csdac-pathfinder-25-honor-photography
+- GitHub Issues: Report problems
+- Server logs: `journalctl -u pathfinder-photography -f`
+
 ## Quick Command Reference
 
 ```bash
@@ -1799,5 +2155,4 @@ docker compose logs -f
 
 ---
 
-For Docker-based deployment, see [HOMELAB_DEPLOYMENT.md](HOMELAB_DEPLOYMENT.md).  
-For development setup, see [SETUP.md](SETUP.md).
+**Note**: This deployment guide is for installing directly on a server or VM. For development setup, see [SETUP.md](SETUP.md).
