@@ -1,4 +1,6 @@
 name: Deploy to Bare Metal Server
+permissions:
+  contents: read
 
 on:
   push:
