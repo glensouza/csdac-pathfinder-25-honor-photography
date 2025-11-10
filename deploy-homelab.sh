@@ -142,7 +142,7 @@ http {
     listen 80;
     server_name _;
     location / {
-      proxy_pass http://signoz-frontend:3301;
+      proxy_pass http://signoz-frontend:3000;
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
     }
