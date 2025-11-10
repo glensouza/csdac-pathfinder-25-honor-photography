@@ -98,14 +98,25 @@ jobs:
           if [ -d "${{ env.DEPLOY_DIR }}" ]; then
             BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-                        
-            echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
-
-            # Create backup as pathfinder user to ensure read access to all files
-            tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
             
-            # Keep only last 5 backups
-            bash -c "ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm"
+            # Create backup directory
+            sudo mkdir -p $BACKUP_DIR
+            
+            echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
+            
+            # Create backup with sudo (root can read all files)
+            sudo tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            
+            # Set ownership of the backup file to pathfinder for consistency
+            sudo chown pathfinder:pathfinder $BACKUP_DIR/backup_$TIMESTAMP.tar.gz
+            
+            # Keep only last 5 backups using find for safer sudo access
+            OLD_BACKUPS=$(sudo find $BACKUP_DIR -name 'backup_*.tar.gz' -type f -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2-)
+            if [ -n "$OLD_BACKUPS" ]; then
+              echo "$OLD_BACKUPS" | while read backup_file; do
+                sudo rm -f "$backup_file"
+              done
+            fi
             
             echo "Backup created successfully"
           else

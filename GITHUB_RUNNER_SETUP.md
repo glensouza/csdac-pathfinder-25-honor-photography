@@ -43,17 +43,69 @@ sudo useradd -r -m -s /bin/bash github-runner
 sudo usermod -aG sudo github-runner
 sudo usermod -aG pathfinder github-runner
 sudo usermod -aG www-data github-runner
-
-# Allow passwordless sudo for deployment tasks
-sudo visudo
 ```
 
-Add this line to sudoers file:
-```
-github-runner ALL=(ALL) NOPASSWD: /bin/systemctl start pathfinder-photography, /bin/systemctl stop pathfinder-photography, /bin/systemctl restart pathfinder-photography, /bin/systemctl status pathfinder-photography, /bin/systemctl is-active pathfinder-photography, /usr/bin/journalctl, /bin/tar, /bin/mkdir, /bin/chown, /bin/chmod, /usr/bin/rsync, /usr/sbin/nginx, /bin/ls, /bin/rm
+### 2. Configure Passwordless Sudo
+
+Create a dedicated sudoers configuration file for the runner user:
+
+```bash
+# As root, create the sudoers file
+sudo visudo -f /etc/sudoers.d/github-runner
 ```
 
-### 2. Download and Configure GitHub Runner
+Add the following content to `/etc/sudoers.d/github-runner`:
+
+```sudoers
+# GitHub Actions Runner - Passwordless sudo configuration
+# Replace 'github-runner' with your actual runner username
+
+# System service management
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl start pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nginx
+
+# File system operations for deployment
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_*.tar.gz -C /opt/pathfinder-photography *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -xzf * -C /opt/pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown -R pathfinder\:pathfinder /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder /opt/backups/pathfinder-photography/deployments/backup_*.tar.gz
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod -R * /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/rsync -av /opt/backups/pathfinder-photography/uploads/ /opt/pathfinder-photography/wwwroot/uploads/
+
+# Log viewing - restricted to pathfinder-photography service only
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u pathfinder-photography *
+
+# Nginx testing
+github-runner ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+
+# Find command for backup cleanup
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/find /opt/backups/pathfinder-photography/deployments -name backup_*.tar.gz *
+
+# Remove old backups
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photography/deployments/backup_*.tar.gz
+```
+
+**Security Note**: This configuration grants specific sudo privileges needed for deployment while maintaining security through limited command access. The runner cannot get a root shell or execute arbitrary commands - only the specific operations needed for deployment.
+
+Validate the sudoers configuration:
+
+```bash
+# Check syntax
+sudo visudo -c -f /etc/sudoers.d/github-runner
+
+# Set proper permissions
+sudo chmod 0440 /etc/sudoers.d/github-runner
+```
+
+### 3. Download and Configure GitHub Runner
 
 Switch to the runner user:
 ```bash
@@ -79,7 +131,7 @@ echo "29fc8cf2dab4c195bb147384e7e2c94cfd4d4022c793b346a6175435265aa278  actions-
 tar xzf ./actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
 ```
 
-### 3. Get Repository Token
+### 4. Get Repository Token
 
 You need to get a registration token from GitHub:
 
@@ -104,7 +156,7 @@ gh auth login
 gh api -X POST repos/{owner}/{repo}/actions/runners/registration-token | jq -r .token
 ```
 
-### 4. Configure the Runner
+### 5. Configure the Runner
 
 Run the configuration script with the token from step 3:
 
@@ -125,7 +177,7 @@ When prompted:
 - Runner labels: Press Enter (or add custom labels)
 - Work folder: Press Enter (default: `_work`)
 
-### 5. Create Systemd Service
+### 6. Create Systemd Service
 
 Exit back to your regular user:
 ```bash
@@ -174,7 +226,7 @@ TasksMax=4096
 WantedBy=multi-user.target
 ```
 
-### 6. Start the Runner Service
+### 7. Start the Runner Service
 
 ```bash
 # Reload systemd
@@ -195,7 +247,7 @@ Verify the runner is online:
 - Navigate to **Settings** → **Actions** → **Runners**
 - You should see your runner listed with a green "Idle" status
 
-### 7. Create Backup Directory Structure
+### 8. Create Backup Directory Structure
 
 ```bash
 # Create backup directories
