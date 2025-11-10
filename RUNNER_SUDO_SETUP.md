@@ -7,7 +7,7 @@ This guide explains how to configure passwordless sudo for the GitHub Actions se
 ## Prerequisites
 
 - Root access to the server
-- GitHub Actions runner installed and running as a specific user (typically `runner` or `github-runner`)
+- GitHub Actions runner installed and running as a specific user (typically `github-runner`)
 
 ## Setup Instructions
 
@@ -20,12 +20,12 @@ First, identify which user is running the GitHub Actions runner:
 ps aux | grep "Runner.Listener"
 
 # Common runner usernames:
-# - runner
 # - github-runner
+# - runner
 # - actions-runner
 ```
 
-For this guide, we'll assume the runner user is `runner`. Replace with your actual username.
+For this guide, we'll assume the runner user is `github-runner`. Replace with your actual username.
 
 ### 2. Create Sudoers Configuration File
 
@@ -42,38 +42,38 @@ Add the following content to `/etc/sudoers.d/github-runner`:
 
 ```sudoers
 # GitHub Actions Runner - Passwordless sudo configuration
-# Replace 'runner' with your actual runner username
+# Replace 'github-runner' with your actual runner username
 
 # System service management
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl start pathfinder-photography
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop pathfinder-photography
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart pathfinder-photography
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload pathfinder-photography
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status pathfinder-photography
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active pathfinder-photography
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nginx
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl start pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nginx
 
 # File system operations for deployment
-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography*
-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography*
-runner ALL=(ALL) NOPASSWD: /usr/bin/tar *
-runner ALL=(ALL) NOPASSWD: /usr/bin/chown -R pathfinder\:pathfinder /opt/pathfinder-photography*
-runner ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder *
-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod -R * /opt/pathfinder-photography*
-runner ALL=(ALL) NOPASSWD: /usr/bin/rsync *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown -R pathfinder\:pathfinder /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod -R * /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/rsync *
 
 # Log viewing
-runner ALL=(ALL) NOPASSWD: /usr/bin/journalctl *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/journalctl *
 
 # Nginx testing
-runner ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+github-runner ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 
 # Bash for running complex commands
-runner ALL=(ALL) NOPASSWD: /usr/bin/bash -c *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/bash -c *
 
 # Remove old backups
-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photography/deployments/backup_*.tar.gz
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photography/deployments/backup_*.tar.gz
 ```
 
 ### 4. Set Proper Permissions
@@ -104,19 +104,19 @@ sudo mkdir -p /opt/pathfinder-photography
 sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography
 sudo chmod -R 755 /opt/pathfinder-photography
 
-# Create backup directory owned by runner user (so runner can write backups)
+# Create backup directory owned by github-runner user (so runner can write backups)
 sudo mkdir -p /opt/backups/pathfinder-photography/deployments
-sudo chown -R runner:runner /opt/backups/pathfinder-photography
+sudo chown -R github-runner:github-runner /opt/backups/pathfinder-photography
 sudo chmod -R 755 /opt/backups/pathfinder-photography
 ```
 
 ### 7. Test Passwordless Sudo
 
-Switch to the runner user and test:
+Switch to the github-runner user and test:
 
 ```bash
-# Switch to runner user
-sudo su - runner
+# Switch to github-runner user
+sudo su - github-runner
 
 # Test systemctl commands
 sudo systemctl status pathfinder-photography
@@ -189,11 +189,11 @@ Defaults!/usr/bin/journalctl !log_output
 
 ### Issue: Backup directory permission denied
 
-**Cause**: The runner user doesn't have write access to the backup directory.
+**Cause**: The github-runner user doesn't have write access to the backup directory.
 
 **Solution**:
 ```bash
-sudo chown -R runner:runner /opt/backups/pathfinder-photography
+sudo chown -R github-runner:github-runner /opt/backups/pathfinder-photography
 sudo chmod -R 755 /opt/backups/pathfinder-photography
 ```
 
@@ -206,20 +206,20 @@ The backup should be run with `sudo tar` which allows root to read all files. Th
 
 ## Alternative Approach: ACL Permissions
 
-If you prefer not to use sudo, you can use ACL (Access Control Lists) to grant the runner user specific permissions:
+If you prefer not to use sudo, you can use ACL (Access Control Lists) to grant the github-runner user specific permissions:
 
 ```bash
 # Install ACL tools if not already installed
 sudo apt-get install acl
 
-# Grant runner read access to deployment directory
-sudo setfacl -R -m u:runner:rx /opt/pathfinder-photography
+# Grant github-runner read access to deployment directory
+sudo setfacl -R -m u:github-runner:rx /opt/pathfinder-photography
 
-# Grant runner write access to backup directory
-sudo setfacl -R -m u:runner:rwx /opt/backups/pathfinder-photography
+# Grant github-runner write access to backup directory
+sudo setfacl -R -m u:github-runner:rwx /opt/backups/pathfinder-photography
 
 # Set default ACL for new files
-sudo setfacl -R -d -m u:runner:rx /opt/pathfinder-photography
+sudo setfacl -R -d -m u:github-runner:rx /opt/pathfinder-photography
 ```
 
 However, this approach still requires sudo for systemctl commands, so the sudoers configuration is still recommended.
