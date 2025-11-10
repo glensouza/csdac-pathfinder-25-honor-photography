@@ -139,7 +139,7 @@ if [[ "$WITH_SIGNOZ" == "true" ]]; then
 events {}
 http {
   server {
-    listen 80;
+    listen 8080;
     server_name _;
     location / {
       proxy_pass http://signoz-frontend:3000;
