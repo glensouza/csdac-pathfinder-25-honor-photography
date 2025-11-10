@@ -2,6 +2,47 @@
 
 This guide will walk you through setting up and running the Pathfinder Photography Honor application for local development.
 
+## Quick Start Options
+
+Choose your preferred local development setup:
+- **Option 1: Docker Compose** - Easiest, no local .NET SDK required
+- **Option 2: .NET Aspire** - Best for development with integrated observability
+- **Option 3: Local .NET** - Direct .NET development without containers
+
+## Quick Start (Docker Compose)
+
+### Prerequisites
+- Docker Desktop installed
+- Google OAuth credentials (see below)
+
+### Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/glensouza/csdac-pathfinder-25-honor-photography.git
+   cd csdac-pathfinder-25-honor-photography
+   ```
+2. **Configure Google OAuth** (see detailed instructions below)
+3. **Create environment file**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your Google OAuth credentials
+   ```
+4. **Start the application**
+   ```bash
+   docker-compose up -d
+   ```
+5. **Access the application**
+   - Open your browser to http://localhost:8080
+6. **View logs** (optional)
+   ```bash
+   docker-compose logs -f pathfinder-photography
+   ```
+7. **Stop the application**
+   ```bash
+   docker-compose down
+   ```
+
 ## Quick Start (Aspire - Recommended for Local Development)
 
 .NET Aspire provides service orchestration, automatic service discovery, and integrated OpenTelemetry with SigNoz.
@@ -52,13 +93,20 @@ This guide will walk you through setting up and running the Pathfinder Photograp
 3. Authorized redirect URIs:
    - Local dev HTTPS: `https://localhost:5001/signin-google`
    - Local dev HTTP: `http://localhost:5000/signin-google`
+   - Docker local: `http://localhost:8080/signin-google`
    - Aspire (check port): e.g. `https://localhost:7152/signin-google`
    - Production: `https://your-domain.com/signin-google`
 4. Create and copy Client ID & Secret
 
 ### Step 5: Configure Application
 
-For local development, edit `appsettings.Development.json`:
+**For Docker Compose** (`.env` file):
+```env
+GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+```
+
+**For local development** (`appsettings.Development.json`):
 ```json
 {
   "Authentication": {
@@ -70,7 +118,7 @@ For local development, edit `appsettings.Development.json`:
 }
 ```
 
-For production deployment, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for configuration instructions.
+**For production deployment**, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for configuration instructions.
 
 ## Email Notifications (Optional)
 
@@ -81,8 +129,21 @@ Used to notify instructors/admins of new submissions and pathfinders of grading 
 2. Create an App Password (select Mail, custom name e.g. "Pathfinder Photography").
 3. Copy the 16-character password.
 
-### Configure (appsettings.Development.json)
-Add to your `appsettings.Development.json`:
+### Configure
+
+**For Docker Compose** (add to `.env`):
+```env
+EMAIL_SMTP_HOST=smtp.gmail.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USERNAME=your-email@gmail.com
+EMAIL_SMTP_PASSWORD=your-16-char-app-password
+EMAIL_USE_SSL=true
+EMAIL_FROM_ADDRESS=your-email@gmail.com
+EMAIL_FROM_NAME=Pathfinder Photography
+```
+Restart containers: `docker-compose restart`
+
+**For local development** (`appsettings.Development.json`):
 ```json
 {
   "Email": {
@@ -97,7 +158,7 @@ Add to your `appsettings.Development.json`:
 }
 ```
 
-For production deployment, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for secure configuration.
+**For production deployment**, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for secure configuration.
 
 ### Disable Email
 Leave `SmtpHost` blank or omit the Email section entirely.
@@ -228,8 +289,17 @@ This automatically starts:
 
 Access SigNoz UI at http://localhost:3301 (check Aspire Dashboard for exact URL).
 
-### Running SigNoz Separately (Alternative - Not Recommended)
-If you prefer to run SigNoz separately without Aspire, you can use the standalone installation. However, Aspire integration is recommended for easier development experience.
+### Running SigNoz Separately (Alternative)
+If you prefer to run SigNoz separately without Aspire:
+```bash
+docker-compose --profile signoz up -d
+```
+SigNoz UI will be available at `http://localhost:3301`.
+
+This is useful if you:
+- Want to run SigNoz independently of the main application
+- Are debugging the application without Aspire
+- Need more control over individual SigNoz components
 
 ### Benefits of Aspire Integration
 - **Zero manual configuration**: All connection strings and secrets are automatically configured
@@ -261,14 +331,20 @@ SELECT "Name","Email","Role" FROM "Users";
 ```
 
 ## Environment Variables Summary
-Core:
+
+**For Docker Compose** (`.env` file):
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `POSTGRES_PASSWORD`
+- `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USERNAME`, `EMAIL_SMTP_PASSWORD`, `EMAIL_USE_SSL`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME` (optional)
+
+**For local .NET development** (`appsettings.Development.json`):
 - `ConnectionStrings__DefaultConnection`
 - `Authentication__Google__ClientId`
 - `Authentication__Google__ClientSecret`
 - `ASPNETCORE_URLS`
 - `ASPNETCORE_ENVIRONMENT`
-Optional Email:
-- `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USERNAME`, `EMAIL_SMTP_PASSWORD`, `EMAIL_USE_SSL`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`
+- `Email` section (optional)
 
 ## Troubleshooting
 
@@ -276,10 +352,10 @@ Optional Email:
 Match protocol, port, and path exactly in Google Console.
 
 ### Database Connection Issues
-Check PostgreSQL service status, credentials, and network connectivity.
+Check PostgreSQL service status, credentials, network connectivity, and for Docker setups, container network linkage.
 
 ### Photos Not Uploading
-Validate `wwwroot/uploads` exists & writable; check file size (<10MB) & disk space.
+Validate `wwwroot/uploads` exists & writable; check file size (<10MB) & disk space. For Docker, ensure volume mounts are correct.
 
 ### Email Failures
 Confirm App Password usage; inspect logs for SMTP errors; verify port 587 is accessible.
@@ -290,16 +366,39 @@ Confirm App Password usage; inspect logs for SMTP errors; verify port 587 is acc
 See User Roles above. Only first user auto-admin; others manual SQL updates.
 
 ### Backup Database
+
+**For Docker Compose:**
+```bash
+docker exec -t pathfinder-postgres pg_dump -U postgres pathfinder_photography > backup.sql
+```
+
+**For local PostgreSQL:**
 ```bash
 pg_dump -U postgres pathfinder_photography > backup.sql
 ```
 
 ### Restore Database
+
+**For Docker Compose:**
+```bash
+cat backup.sql | docker exec -i pathfinder-postgres psql -U postgres pathfinder_photography
+```
+
+**For local PostgreSQL:**
 ```bash
 psql -U postgres pathfinder_photography < backup.sql
 ```
 
 ### Inspect Tables
+
+**For Docker Compose:**
+```bash
+docker exec -it pathfinder-postgres psql -U postgres pathfinder_photography
+\dt
+SELECT * FROM "PhotoSubmissions" LIMIT 5;
+```
+
+**For local PostgreSQL:**
 ```bash
 psql -U postgres pathfinder_photography
 \dt
