@@ -161,7 +161,9 @@ Environment="RUNNER_ALLOW_RUNASROOT=0"
 Environment="DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1"
 
 # Security settings
-NoNewPrivileges=true
+# Note: NoNewPrivileges is not set here because the runner needs to use sudo
+# for deployment operations (systemctl, chown, chmod, etc.). The sudoers file
+# restricts which commands can be run with sudo (see step 1).
 PrivateTmp=true
 
 # Resource limits
@@ -200,12 +202,14 @@ Verify the runner is online:
 sudo mkdir -p /opt/backups/pathfinder-photography/deployments
 sudo mkdir -p /opt/backups/pathfinder-photography/uploads
 
-# Set ownership
+# Set ownership to github-runner so backups can be created without sudo
 sudo chown -R github-runner:github-runner /opt/backups/pathfinder-photography
 
 # Set permissions
 sudo chmod -R 755 /opt/backups/pathfinder-photography
 ```
+
+**Important**: The backup directories must be owned by the `github-runner` user so that the deployment workflow can create backups without requiring sudo privileges.
 
 ## Configuration
 
