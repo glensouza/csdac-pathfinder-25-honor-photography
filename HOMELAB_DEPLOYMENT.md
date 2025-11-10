@@ -124,7 +124,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=
 # Optional Email config...
 ```
 
-###3. Start Services
+### 3. Start Services
 Choose the appropriate command based on your deployment scenario:
 
 ```bash
