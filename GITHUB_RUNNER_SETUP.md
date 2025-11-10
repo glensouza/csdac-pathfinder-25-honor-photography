@@ -92,7 +92,7 @@ github-runner ALL=(ALL) NOPASSWD: /usr/bin/bash -c *
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photography/deployments/backup_*.tar.gz
 ```
 
-**Security Note**: This configuration grants specific sudo privileges needed for deployment while maintaining security through limited command access. The runner cannot get a root shell or execute arbitrary commands - only the specific operations needed for deployment.
+**Security Note**: ⚠️ This configuration allows the runner to execute arbitrary commands as root via `sudo bash -c *`. This means the runner can obtain a root shell and perform any operation on the system. Review this configuration carefully and consider the security implications before use.
 
 Validate the sudoers configuration:
 
