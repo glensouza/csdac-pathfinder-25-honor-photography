@@ -41,6 +41,8 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Production
       # Database connection - uses local postgres service if available, otherwise external DB from .env
+      # Both connection string names are set to support Aspire (pathfinder-photography) and direct config (DefaultConnection)
+      - ConnectionStrings__pathfinder-photography=${DB_CONNECTION_STRING:-Host=postgres;Database=pathfinder_photography;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}}
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING:-Host=postgres;Database=pathfinder_photography;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}}
       - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
       - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
