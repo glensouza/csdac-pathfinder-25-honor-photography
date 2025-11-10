@@ -287,10 +287,24 @@ if [[ "$WITH_SIGNOZ" == "true" ]]; then
 fi
 
 # Display deployment configuration
+POSTGRES_STATUS="Not configured"
+if [[ "$WITH_POSTGRES" == "true" ]]; then
+  POSTGRES_STATUS="Local (container)"
+elif [[ "$EXTERNAL_DB" == "true" ]]; then
+  POSTGRES_STATUS="External"
+fi
+
+SIGNOZ_STATUS="Disabled"
+if [[ "$WITH_SIGNOZ" == "true" ]]; then
+  SIGNOZ_STATUS="Local (container)"
+elif [[ "$EXTERNAL_SIGNOZ" == "true" ]]; then
+  SIGNOZ_STATUS="External"
+fi
+
 echo -e "${BLUE}Deployment Configuration:${NC}"
 echo "  App Port: ${APP_PORT}"
-echo "  PostgreSQL: $(if [[ "$WITH_POSTGRES" == "true" ]]; then echo "Local (container)"; elif [[ "$EXTERNAL_DB" == "true" ]]; then echo "External"; else echo "Not configured"; fi)"
-echo "  SigNoz: $(if [[ "$WITH_SIGNOZ" == "true" ]]; then echo "Local (container)"; elif [[ "$EXTERNAL_SIGNOZ" == "true" ]]; then echo "External"; else echo "Disabled"; fi)"
+echo "  PostgreSQL: ${POSTGRES_STATUS}"
+echo "  SigNoz: ${SIGNOZ_STATUS}"
 echo ""
 
 if [[ "$UPDATE_MODE" == "true" ]]; then

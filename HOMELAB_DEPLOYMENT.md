@@ -66,7 +66,7 @@ curl -o docker-compose.yml https://raw.githubusercontent.com/glensouza/csdac-pat
 curl -o .env https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/.env.example
 ```
 
-###2. Configure Environment Variables
+### 2. Configure Environment Variables
 Edit `.env` and configure based on your deployment scenario:
 
 #### Scenario 1: Local PostgreSQL and Local SigNoz (All-in-One)
