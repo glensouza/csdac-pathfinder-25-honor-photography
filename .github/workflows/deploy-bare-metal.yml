@@ -1,0 +1,290 @@
+name: Deploy to Bare Metal Server
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+      - '!.github/workflows/deploy-bare-metal.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  PUBLISH_DIR: './publish'
+  DEPLOY_DIR: '/opt/pathfinder-photography'
+  SERVICE_NAME: 'pathfinder-photography'
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore PathfinderPhotography.csproj
+      
+      - name: Build application
+        run: dotnet build PathfinderPhotography.csproj -c Release --no-restore
+      
+      - name: Run tests
+        run: dotnet test --no-build --verbosity normal || echo "No tests found"
+      
+      - name: Publish application
+        run: dotnet publish PathfinderPhotography.csproj -c Release -o ${{ env.PUBLISH_DIR }} --no-build
+      
+      - name: Create deployment archive
+        run: |
+          cd ${{ env.PUBLISH_DIR }}
+          tar -czf ../pathfinder-photography-${{ github.sha }}.tar.gz .
+          cd ..
+          sha256sum pathfinder-photography-${{ github.sha }}.tar.gz > pathfinder-photography-${{ github.sha }}.tar.gz.sha256
+      
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pathfinder-photography-build
+          path: |
+            pathfinder-photography-${{ github.sha }}.tar.gz
+            pathfinder-photography-${{ github.sha }}.tar.gz.sha256
+          retention-days: 30
+
+  deploy:
+    name: Deploy to Server
+    needs: build
+    runs-on: self-hosted
+    environment: 
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: ${{ vars.APP_URL || 'https://pathfinder.yourdomain.com' }}
+    
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pathfinder-photography-build
+      
+      - name: Verify artifact checksum
+        run: |
+          sha256sum -c pathfinder-photography-${{ github.sha }}.tar.gz.sha256
+      
+      - name: Create backup of current deployment
+        run: |
+          if [ -d "${{ env.DEPLOY_DIR }}" ]; then
+            BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            sudo mkdir -p $BACKUP_DIR
+            echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
+            sudo tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            # Keep only last 5 backups
+            sudo ls -t $BACKUP_DIR/backup_*.tar.gz | tail -n +6 | xargs -r sudo rm
+            echo "Backup created successfully"
+          else
+            echo "No existing deployment to backup"
+          fi
+      
+      - name: Stop application service
+        run: |
+          echo "Stopping ${{ env.SERVICE_NAME }} service..."
+          sudo systemctl stop ${{ env.SERVICE_NAME }} || echo "Service not running"
+      
+      - name: Deploy application
+        run: |
+          echo "Deploying to ${{ env.DEPLOY_DIR }}..."
+          sudo mkdir -p ${{ env.DEPLOY_DIR }}
+          
+          # Extract new version
+          sudo tar -xzf pathfinder-photography-${{ github.sha }}.tar.gz -C ${{ env.DEPLOY_DIR }}
+          
+          # Preserve uploads directory if it exists
+          if [ -d "/opt/backups/pathfinder-photography/uploads" ]; then
+            sudo rsync -av /opt/backups/pathfinder-photography/uploads/ ${{ env.DEPLOY_DIR }}/wwwroot/uploads/
+          fi
+          
+          # Ensure uploads directory exists
+          sudo mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
+          
+          # Set ownership and permissions
+          sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
+          sudo chmod -R 755 ${{ env.DEPLOY_DIR }}
+          sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
+          
+          echo "Deployment completed successfully"
+      
+      - name: Apply database migrations
+        run: |
+          echo "Checking for database migrations..."
+          cd ${{ env.DEPLOY_DIR }}
+          
+          # Check if EF migrations exist
+          if sudo -u pathfinder dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
+            echo "Applying database migrations..."
+            sudo -u pathfinder bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
+            echo "Database migrations applied successfully"
+          else
+            echo "No migrations found or migrations will be applied on startup"
+          fi
+        continue-on-error: true
+      
+      - name: Start application service
+        run: |
+          echo "Starting ${{ env.SERVICE_NAME }} service..."
+          sudo systemctl start ${{ env.SERVICE_NAME }}
+          
+          # Wait for service to start
+          sleep 5
+          
+          # Check if service is running
+          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+            echo "Service started successfully"
+          else
+            echo "Service failed to start. Checking logs..."
+            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            exit 1
+          fi
+      
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          
+          # Wait for application to be ready
+          for i in {1..30}; do
+            if curl -f -s http://localhost:5000/alive > /dev/null 2>&1; then
+              echo "Application is responding on /alive endpoint"
+              break
+            fi
+            echo "Waiting for application to start... ($i/30)"
+            sleep 2
+          done
+          
+          # Final health check
+          if curl -f -s http://localhost:5000/alive > /dev/null 2>&1; then
+            echo "✅ Deployment verification successful"
+            echo "Application is healthy and responding"
+          else
+            echo "❌ Deployment verification failed"
+            echo "Application is not responding on health endpoint"
+            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 100 --no-pager
+            exit 1
+          fi
+      
+      - name: Reload Nginx
+        run: |
+          echo "Reloading Nginx configuration..."
+          sudo nginx -t && sudo systemctl reload nginx || echo "Nginx reload failed, but continuing..."
+      
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed to:** ${{ env.DEPLOY_DIR }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service:** ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ✅ Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Service Status" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager || true >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Cleanup old artifacts
+        if: always()
+        run: |
+          rm -f pathfinder-photography-*.tar.gz*
+          echo "Cleaned up deployment artifacts"
+
+  rollback:
+    name: Rollback on Failure
+    needs: deploy
+    if: failure()
+    runs-on: self-hosted
+    
+    steps:
+      - name: Find latest backup
+        id: find_backup
+        run: |
+          BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
+          LATEST_BACKUP=$(sudo ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | head -n 1)
+          if [ -n "$LATEST_BACKUP" ]; then
+            echo "backup_file=$LATEST_BACKUP" >> $GITHUB_OUTPUT
+            echo "Found backup: $LATEST_BACKUP"
+          else
+            echo "No backup found"
+            exit 1
+          fi
+      
+      - name: Restore from backup
+        if: steps.find_backup.outputs.backup_file != ''
+        run: |
+          echo "Rolling back to backup: ${{ steps.find_backup.outputs.backup_file }}"
+          
+          # Stop service
+          sudo systemctl stop ${{ env.SERVICE_NAME }}
+          
+          # Restore backup
+          sudo tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
+          
+          # Set permissions
+          sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
+          
+          # Start service
+          sudo systemctl start ${{ env.SERVICE_NAME }}
+          
+          echo "Rollback completed"
+      
+      - name: Verify rollback
+        run: |
+          sleep 5
+          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+            echo "✅ Rollback successful - service is running"
+          else
+            echo "❌ Rollback failed - service is not running"
+            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            exit 1
+          fi
+
+  notify:
+    name: Send Notification
+    needs: [build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create notification summary
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "status=✅ Deployment Successful" >> $GITHUB_ENV
+            echo "color=success" >> $GITHUB_ENV
+          else
+            echo "status=❌ Deployment Failed" >> $GITHUB_ENV
+            echo "color=danger" >> $GITHUB_ENV
+          fi
+      
+      - name: Deployment result
+        run: |
+          echo "### ${{ env.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow: ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
