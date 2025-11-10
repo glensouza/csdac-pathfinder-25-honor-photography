@@ -2,7 +2,7 @@
 
 This guide provides instructions for deploying the Pathfinder Photography application on a single server without Docker. All components (PostgreSQL, .NET application, and optionally SigNoz) will be installed directly on the host system.
 
-> 💡 **Want Automated Deployments?** After completing the initial setup below, see [GITHUB_RUNNER_SETUP.md](GITHUB_RUNNER_SETUP.md) to configure automatic deployments via GitHub Actions. Every push to the `main` branch will automatically deploy to your server.
+> 💡 **Want Automated Deployments?** After completing the initial setup below, see [section 7](#7-setup-automated-deployments-optional) to configure automatic deployments via GitHub Actions. Every push to the `main` branch will automatically deploy to your server.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
@@ -63,13 +63,22 @@ sudo systemctl status postgresql
 
 #### Configure PostgreSQL
 
+**Security Note**: Generate a strong random password instead of using a weak one:
+
 ```bash
+# Generate a secure random password (save this - you'll need it later)
+openssl rand -base64 32
+
 # Switch to postgres user
 sudo -u postgres psql
+```
 
+Create the database and user with your generated password:
+
+```sql
 # Create database and user
 CREATE DATABASE pathfinder_photography;
-CREATE USER pathfinder WITH PASSWORD 'your_secure_password_here';
+CREATE USER pathfinder WITH PASSWORD 'paste_your_generated_password_here';
 GRANT ALL PRIVILEGES ON DATABASE pathfinder_photography TO pathfinder;
 
 # Grant schema permissions
@@ -81,6 +90,8 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO pathfinder;
 # Exit PostgreSQL
 \q
 ```
+
+**Important**: Save the generated password securely - you'll need it for the application configuration.
 
 #### Secure PostgreSQL (Production)
 
@@ -432,20 +443,28 @@ Certbot will automatically:
 
 #### Configure Firewall
 
+**Important**: Configure SSH access first to avoid being locked out:
+
 ```bash
-# Allow SSH (if not already allowed)
-sudo ufw allow 22/tcp
+# CRITICAL: Allow SSH first to prevent lockout
+sudo ufw allow 22/tcp comment 'SSH access'
 
 # Allow HTTP and HTTPS
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+sudo ufw allow 80/tcp comment 'HTTP'
+sudo ufw allow 443/tcp comment 'HTTPS'
 
-# Enable firewall
+# Set default policies
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Enable firewall (confirm when prompted)
 sudo ufw enable
 
 # Check status
-sudo ufw status
+sudo ufw status verbose
 ```
+
+**Security Note**: The firewall is configured with a default-deny policy for incoming connections, allowing only SSH, HTTP, and HTTPS. This follows the principle of least privilege.
 
 ### 6. Install SigNoz (Optional)
 
@@ -586,6 +605,8 @@ The self-hosted GitHub runner will:
 - Manage service restarts and health checks
 - Perform automatic rollbacks on deployment failures
 
+**Deployment Workflow**: The automation is defined in `.github/workflows/deploy-bare-metal.yml` in the repository. This workflow handles building, testing, deploying, and verifying the application with built-in security features.
+
 #### Prerequisites for Runner Setup
 
 - Application already installed following steps 1-5 above
@@ -700,12 +721,21 @@ mkdir actions-runner && cd actions-runner
 
 Download the latest runner package:
 ```bash
-# Download latest runner (check https://github.com/actions/runner/releases for latest version)
-RUNNER_VERSION="2.311.0"
+# Get the latest runner version automatically (requires jq)
+sudo apt install -y jq
+RUNNER_VERSION=$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+
+# Or manually set version (check https://github.com/actions/runner/releases for latest)
+# RUNNER_VERSION="2.311.0"
+
+echo "Installing GitHub Actions Runner version: $RUNNER_VERSION"
+
+# Download runner
 curl -o actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz -L https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
 
-# Verify the download (optional but recommended)
-echo "29fc8cf2dab4c195bb147384e7e2c94cfd4d4022c793b346a6175435265aa278  actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" | shasum -a 256 -c
+# Optional: Verify the download with checksum
+# Get the expected checksum from: https://github.com/actions/runner/releases/latest
+# echo "EXPECTED_SHA256  actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" | shasum -a 256 -c
 
 # Extract
 tar xzf ./actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
@@ -1295,12 +1325,23 @@ Reference in workflow:
 After setting up the runner, every push to the `main` branch will automatically:
 1. Build the application
 2. Run tests
-3. Create a backup of the current deployment
-4. Deploy the new version
-5. Apply database migrations
-6. Restart the service
-7. Verify the deployment
-8. Rollback automatically if anything fails
+3. **Verify artifact integrity** with SHA-256 checksum
+4. Create a backup of the current deployment
+5. Deploy the new version
+6. **Set proper file ownership and permissions** for security
+7. Apply database migrations
+8. Restart the service
+9. Verify the deployment with health checks
+10. Rollback automatically if anything fails
+
+**Security Features in Automated Deployment:**
+- ✅ Artifact integrity verification prevents corrupted deployments
+- ✅ Automatic backup before deployment enables safe rollback
+- ✅ File ownership set to `pathfinder:pathfinder` after extraction
+- ✅ Upload directory permissions set to 755 for proper access control
+- ✅ Health check verification ensures application is responding
+- ✅ Automatic rollback restores from backup on any failure
+- ✅ All operations use sudo with restricted privileges from sudoers file
 
 **Manual Deployment Trigger:**
 You can also trigger deployments manually from GitHub:
