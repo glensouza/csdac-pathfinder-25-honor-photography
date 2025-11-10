@@ -22,6 +22,9 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    # Fix for sysctl permission errors in restricted environments
+    sysctls:
+      - net.ipv4.ip_unprivileged_port_start=0
 
   pathfinder-photography:
     image: ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:latest
@@ -97,6 +100,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    # Fix for sysctl permission errors in restricted environments
+    sysctls:
+      - net.ipv4.ip_unprivileged_port_start=0
 
   signoz-query-service:
     image: signoz/query-service:latest
@@ -166,6 +172,9 @@ services:
       - signoz-frontend
       - signoz-query-service
     restart: unless-stopped
+    # Fix for sysctl permission errors in restricted environments
+    sysctls:
+      - net.ipv4.ip_unprivileged_port_start=0
 
   signoz-alertmanager:
     image: signoz/alertmanager:latest
