@@ -99,17 +99,13 @@ jobs:
             BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
                         
-            # Create backup directory with proper ownership for pathfinder user
-            sudo mkdir -p $BACKUP_DIR
-            sudo chown pathfinder:pathfinder $BACKUP_DIR
-
             echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
 
             # Create backup as pathfinder user to ensure read access to all files
-            sudo  tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
             
             # Keep only last 5 backups
-            sudo bash -c "ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm"
+            bash -c "ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm"
             
             echo "Backup created successfully"
           else
@@ -135,12 +131,12 @@ jobs:
           fi
           
           # Ensure uploads directory exists
-          sudo mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
+          mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
           
           # Set ownership and permissions
-          sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
-          sudo chmod -R 755 ${{ env.DEPLOY_DIR }}
-          sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
+          chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
+          chmod -R 755 ${{ env.DEPLOY_DIR }}
+          chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
           
           echo "Deployment completed successfully"
       
@@ -150,9 +146,9 @@ jobs:
           cd ${{ env.DEPLOY_DIR }}
           
           # Check if EF migrations exist
-          if sudo dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
+          if dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
             echo "Applying database migrations..."
-            sudo bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
+            bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
             echo "Database migrations applied successfully"
           else
             echo "No migrations found or migrations will be applied on startup"
@@ -162,17 +158,17 @@ jobs:
       - name: Start application service
         run: |
           echo "Starting ${{ env.SERVICE_NAME }} service..."
-          sudo systemctl start ${{ env.SERVICE_NAME }}
+          systemctl start ${{ env.SERVICE_NAME }}
           
           # Wait for service to start
           sleep 5
           
           # Check if service is running
-          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
             echo "Service started successfully"
           else
             echo "Service failed to start. Checking logs..."
-            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
             exit 1
           fi
       
@@ -197,14 +193,14 @@ jobs:
           else
             echo "❌ Deployment verification failed"
             echo "Application is not responding on health endpoint"
-            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 100 --no-pager
+            journalctl -u ${{ env.SERVICE_NAME }} -n 100 --no-pager
             exit 1
           fi
       
       - name: Reload Nginx
         run: |
           echo "Reloading Nginx configuration..."
-          sudo nginx -t && sudo systemctl reload nginx || echo "Nginx reload failed, but continuing..."
+          nginx -t && systemctl reload nginx || echo "Nginx reload failed, but continuing..."
       
       - name: Create deployment summary
         run: |
@@ -219,7 +215,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service Status" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager || true >> $GITHUB_STEP_SUMMARY
+          systemctl status ${{ env.SERVICE_NAME }} --no-pager || true >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
       
       - name: Cleanup old artifacts
@@ -256,27 +252,27 @@ jobs:
           echo "Rolling back to backup: ${{ steps.find_backup.outputs.backup_file }}"
           
           # Stop service
-          sudo systemctl stop ${{ env.SERVICE_NAME }}
+          systemctl stop ${{ env.SERVICE_NAME }}
           
           # Restore backup
-          sudo tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
+          tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
           
           # Set permissions
-          sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
+          chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
           
           # Start service
-          sudo systemctl start ${{ env.SERVICE_NAME }}
+          systemctl start ${{ env.SERVICE_NAME }}
           
           echo "Rollback completed"
       
       - name: Verify rollback
         run: |
           sleep 5
-          if sudo systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
             echo "✅ Rollback successful - service is running"
           else
             echo "❌ Rollback failed - service is not running"
-            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
             exit 1
           fi
 
