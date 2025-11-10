@@ -93,11 +93,11 @@ jobs:
           if [ -d "${{ env.DEPLOY_DIR }}" ]; then
             BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            mkdir -p $BACKUP_DIR
+            sudo mkdir -p $BACKUP_DIR
             echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
-            tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            sudo tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
             # Keep only last 5 backups
-            ls -t $BACKUP_DIR/backup_*.tar.gz | tail -n +6 | xargs -r rm
+            ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r sudo rm
             echo "Backup created successfully"
           else
             echo "No existing deployment to backup"
