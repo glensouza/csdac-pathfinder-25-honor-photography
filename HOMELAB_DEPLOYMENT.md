@@ -199,6 +199,32 @@ docker compose --profile signoz up -d
 Ports exposed: 3301(Proxy/UI), 4317/4318(OTLP), 9000/8123(ClickHouse), 6060(Query), 8081(API), 9093(Alertmanager)
 
 ## Troubleshooting
+
+### Sysctl Permission Errors
+
+If you encounter an error like:
+```
+OCI runtime create failed: runc create failed: unable to start container process: 
+error during container init: open sysctl net.ipv4.ip_unprivileged_port_start file: 
+reopen fd 8: permission denied
+```
+
+**This has been fixed in the docker-compose.yml** with explicit `sysctls` configuration. However, if you still encounter issues in highly restricted environments:
+
+**Option 1: Remove sysctls (if still present in an older version)**
+Remove or comment out the `sysctls:` sections from the `postgres` and `signoz-nginx` services in docker-compose.yml.
+
+**Option 2: Use host network mode (NOT RECOMMENDED)**
+Only as a last resort for testing, you can try host network mode, but this is not secure for production:
+```yaml
+# NOT RECOMMENDED - only for troubleshooting
+network_mode: host
+```
+
+**Option 3: Run Docker with appropriate privileges**
+Ensure Docker daemon has permission to modify sysctls. On some VPS providers, you may need to contact support or use a different container runtime.
+
+### General Troubleshooting
 - Check logs: `docker compose logs pathfinder-app`
 - Validate config: `docker compose config`
 - Check ports & firewall
