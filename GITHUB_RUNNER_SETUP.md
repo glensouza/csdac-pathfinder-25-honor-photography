@@ -43,14 +43,65 @@ sudo useradd -r -m -s /bin/bash github-runner
 sudo usermod -aG sudo github-runner
 sudo usermod -aG pathfinder github-runner
 sudo usermod -aG www-data github-runner
-
-# Allow passwordless sudo for deployment tasks
-sudo visudo
 ```
 
-Add this line to sudoers file:
+### 2. Configure Passwordless Sudo
+
+Create a dedicated sudoers configuration file for the runner user:
+
+```bash
+# As root, create the sudoers file
+sudo visudo -f /etc/sudoers.d/github-runner
 ```
-github-runner ALL=(ALL) NOPASSWD: /bin/systemctl start pathfinder-photography, /bin/systemctl stop pathfinder-photography, /bin/systemctl restart pathfinder-photography, /bin/systemctl status pathfinder-photography, /bin/systemctl is-active pathfinder-photography, /usr/bin/journalctl, /bin/tar, /bin/mkdir, /bin/chown, /bin/chmod, /usr/bin/rsync, /usr/sbin/nginx, /bin/ls, /bin/rm
+
+Add the following content to `/etc/sudoers.d/github-runner`:
+
+```sudoers
+# GitHub Actions Runner - Passwordless sudo configuration
+# Replace 'github-runner' with your actual runner username
+
+# System service management
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl start pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nginx
+
+# File system operations for deployment
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown -R pathfinder\:pathfinder /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder *
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod -R * /opt/pathfinder-photography*
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/rsync *
+
+# Log viewing
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/journalctl *
+
+# Nginx testing
+github-runner ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+
+# Bash for running complex commands
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/bash -c *
+
+# Remove old backups
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photography/deployments/backup_*.tar.gz
+```
+
+**Security Note**: This configuration grants specific sudo privileges needed for deployment while maintaining security through limited command access. The runner cannot get a root shell or execute arbitrary commands - only the specific operations needed for deployment.
+
+Validate the sudoers configuration:
+
+```bash
+# Check syntax
+sudo visudo -c -f /etc/sudoers.d/github-runner
+
+# Set proper permissions
+sudo chmod 0440 /etc/sudoers.d/github-runner
 ```
 
 ### 2. Download and Configure GitHub Runner
