@@ -132,12 +132,7 @@ jobs:
           
           # Ensure uploads directory exists
           mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
-          
-          # Set ownership and permissions
-          chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
-          chmod -R 755 ${{ env.DEPLOY_DIR }}
-          chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
-          
+                    
           echo "Deployment completed successfully"
       
       - name: Apply database migrations
@@ -256,9 +251,6 @@ jobs:
           
           # Restore backup
           tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
-          
-          # Set permissions
-          chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
           
           # Start service
           systemctl start ${{ env.SERVICE_NAME }}
