@@ -1,8 +1,6 @@
 # Photography Honor - Corona SDA Pathfinders
 
-A Blazor Server web application for SDA Pathfinders from Corona SDA church to submit photos demonstrating10 photography composition rules. Built with .NET Aspire for improved observability and service orchestration.
-
-[![Docker Build](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml)
+A Blazor Server web application for SDA Pathfinders from Corona SDA church to submit photos demonstrating 10 photography composition rules. Built with .NET 9.0 and .NET Aspire for improved observability and service orchestration.
 
 ## Features
 
@@ -13,15 +11,13 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 - **Admin Dashboard**: Comprehensive dashboard with statistics, analytics, and quick actions for admins
 - **PDF Export**: Generate detailed PDF reports of submissions and pathfinder progress
 - **Email Notifications**: Automatic email notifications for grading and new submissions (optional)
-- **Educational Content**: Learn about10 essential photography composition rules with descriptions and explanations
+- **Educational Content**: Learn about 10 essential photography composition rules with descriptions and explanations
 - **Photo Submission**: Upload photos for each composition rule with personal descriptions
 - **Automatic Name Tracking**: User names are automatically pulled from Google account
 - **Gallery View**: Browse all submitted photos with filtering by rule or pathfinder name
 - **PostgreSQL Database**: Robust data persistence for submissions
 - **Observability**: Built-in telemetry, metrics, and distributed tracing with OpenTelemetry
 - **SigNoz Integration**: Advanced telemetry dashboards with SigNoz (optional)
-- **Docker Support**: Pre-built images on GitHub Container Registry for easy deployment
-- **Home Lab Ready**: Simple deployment to your home lab infrastructure
 
 ## 10 Composition Rules
 
@@ -36,154 +32,134 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 9. Center Dominant Eye
 10. Picture to Ground
 
-## Quick Start - Home Lab Deployment 🏠
+## Quick Start
 
-The easiest way to deploy is using the pre-built Docker image from GitHub Container Registry.
+### Local Development (Recommended)
 
-### Option A: One-line Script
-
-```bash
-curl -sSL -o deploy-homelab.sh https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh && bash deploy-homelab.sh
-```
-
-Script options:
-- `-d <dir>` deployment directory (default: `~/pathfinder-photography`)
-- `-p <port>` host port (default: `8080`)
-- `--update` pull latest image and recreate containers
-
-### Option B: Manual Compose
+For local development, use **.NET Aspire** which provides complete application orchestration with integrated observability:
 
 ```bash
-# Create deployment directory
-mkdir -p ~/pathfinder-photography
-cd ~/pathfinder-photography
-
-# Download compose and env template
-curl -o docker-compose.yml https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/.env.example
-
-# Edit .env (set GOOGLE_CLIENT_ID/SECRET, POSTGRES_PASSWORD, optional EMAIL_* settings)
-
-# Start the application
-docker compose pull
-docker compose up -d
+dotnet run --project PathfinderPhotography.AppHost
 ```
 
-Access at: http://your-server:8080
+The Aspire Dashboard will auto-open showing all services including PostgreSQL, the web application, and SigNoz observability stack. See **[SETUP.md](../SETUP.md)** for detailed local development instructions.
 
-Add Google OAuth redirect URIs:
-- `http://your-server:8080/signin-google`
-- `http://localhost:8080/signin-google`
-- If using HTTPS/reverse proxy: `https://yourdomain.com/signin-google`
+### Production Deployment
 
-**📖 For detailed home lab deployment, see [Home Lab Deployment Guide](../HOMELAB_DEPLOYMENT.md) **
-
-## Docker Images
-
-Pre-built multi-arch images are available on GitHub Container Registry:
-
-```bash
-# Pull latest image
-docker pull ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:latest
-
-# Pull specific version
-docker pull ghcr.io/glensouza/csdac-pathfinder-25-honor-photography:v1.0.0
-```
-
-**Supported Platforms**: `linux/amd64`, `linux/arm64`
+For production, deploy to **bare metal Ubuntu server or VM**. All components (PostgreSQL, .NET application, Nginx) are installed directly on the host system. See **[BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md)** for comprehensive production deployment instructions.
 
 ## Prerequisites
 
-- **For Home Lab**: Docker and Docker Compose
-- **For Development**: .NET9.0 SDK, Docker Desktop
-- **For All**: Google OAuth2.0 credentials
-
-## Google OAuth Setup
-
-1. Go to https://console.cloud.google.com/
-2. Create a project
-3. Enable Google+ API
-4. Create OAuth2.0 Client ID (Web)
-5. Configure consent screen
-6. Authorized redirect URIs (pick the ones you use):
- - Local dev: `https://localhost:5001/signin-google`, `http://localhost:5000/signin-google`
- - Aspire (check port): e.g. `https://localhost:7152/signin-google`
- - Home lab: `http://your-server:8080/signin-google` or your HTTPS domain
-7. Add Client ID/Secret to `.env` or `appsettings.Development.json`
-
-## Running with .NET Aspire (Recommended)
-
-.NET Aspire provides complete application orchestration with integrated SigNoz observability.
-
-1. Configure Google OAuth in `appsettings.Development.json`
-2. Run the AppHost:
- ```bash
- dotnet run --project PathfinderPhotography.AppHost
- ```
-3. The Aspire Dashboard will auto-open showing all services including:
-   - PostgreSQL database with PgAdmin
-   - Pathfinder Photography web application
-   - **SigNoz observability stack** (ClickHouse, OpenTelemetry Collector, Query Service, Frontend UI, Alert Manager)
-4. Click the `webapp` endpoint to open the Blazor app
-5. Access SigNoz UI at http://localhost:3301 (check Aspire Dashboard for exact URL)
-
-**Benefits**: All services start automatically, connection strings auto-configured, persistent data, built-in observability
-
-## Running with Docker Compose
-
-1. Copy `.env.example` to `.env` and add Google OAuth credentials
-2. Start:
- ```bash
- docker compose up -d
- ```
-3. App: `http://localhost:8080`
-
-## Email Configuration (Using Gmail)
-
-Use Gmail App Passwords (2FA must be enabled):
-
-```env
-EMAIL_SMTP_HOST=smtp.gmail.com
-EMAIL_SMTP_PORT=587
-EMAIL_SMTP_USERNAME=your-email@gmail.com
-EMAIL_SMTP_PASSWORD=your-16-char-app-password
-EMAIL_USE_SSL=true
-EMAIL_FROM_ADDRESS=your-email@gmail.com
-EMAIL_FROM_NAME=Pathfinder Photography
-```
-
-Leave `EMAIL_SMTP_HOST` empty to disable email.
-
-## Observability
-
-### Development with Aspire
-- **Aspire Dashboard**: Built-in telemetry viewer for logs, traces, and metrics
-- **SigNoz Integration**: Full observability stack automatically started with Aspire
-  - SigNoz UI: http://localhost:3301
-  - Distributed tracing, metrics, and log aggregation
-  - No manual configuration required
-
-### Production/Home Lab
-- Health: `/health`, `/alive`, `/ready`
-- Metrics: `/metrics`
-- Optional SigNoz: Enable with `docker compose --profile signoz up -d`
-  - SigNoz UI: `http://localhost:3301`
+- **For Development**: .NET 9.0 SDK
+- **For Production**: Ubuntu 22.04 LTS server/VM
+- **For All**: Google OAuth 2.0 credentials (see [SETUP.md](../SETUP.md#google-oauth20-setup))
 
 ## User Roles
 
-- Pathfinder (0): submit, vote
-- Instructor (1): grade + Pathfinder abilities
-- Admin (2): dashboard, user management, export, grade
+- **Pathfinder (0)**: Submit photos, vote on submissions
+- **Instructor (1)**: Grade submissions + all Pathfinder abilities
+- **Admin (2)**: Dashboard, user management, PDF export, grading + all other abilities
 
-First user to sign in becomes Admin automatically.
+First user to sign in automatically becomes Admin.
 
-## Troubleshooting
+## Documentation
 
-- Validate OAuth redirect URIs
-- Check logs: `docker compose logs -f`
-- Verify ports and firewall
-- Ensure uploads volume exists and is writable
+### Setup & Deployment
+- **[SETUP.md](../SETUP.md)** - Complete local development setup guide
+  - .NET Aspire orchestration (recommended for local development)
+  - Local .NET option
+  - Google OAuth configuration
+  - Email notifications setup
+  - Database migrations
+  - Observability with SigNoz
+
+- **[BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md)** - Production deployment on Ubuntu server/VM
+  - PostgreSQL installation and security
+  - .NET runtime installation
+  - Application deployment
+  - Nginx reverse proxy with SSL
+  - Automated deployments via GitHub Actions
+  - Security hardening
+  - Backup strategies
+  - Monitoring and maintenance
+
+- **[DEPLOYMENT_CHECKLIST.md](../DEPLOYMENT_CHECKLIST.md)** - Deployment verification checklist
+  - Pre-deployment requirements
+  - Step-by-step installation verification
+  - Post-deployment testing
+  - Security hardening checklist
+  - Backup verification
+
+### Application Guides
+- **[GRADING_SYSTEM.md](../GRADING_SYSTEM.md)** - Role-based grading system
+  - User roles and permissions
+  - Grading workflow for instructors
+  - Photo resubmission for pathfinders
+  - Admin user management
+
+- **[CODE_SUMMARY.md](../CODE_SUMMARY.md)** - Technical implementation overview
+  - Architecture and project structure
+  - ELO rating system for photo comparison
+  - Database schema
+  - Key features and technologies
+  - API endpoints
+
+### Contributing
+- **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
+  - How to contribute
+  - Development workflow
+  - Pull request process
+  - Code style guidelines
+
+- **[CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)** - Community standards
+  - Expected behavior
+  - Enforcement policies
+  - Reporting guidelines
+
+### Security
+- **[SECURITY.md](SECURITY.md)** - Security policy
+  - Reporting vulnerabilities
+  - Security update process
+  - Supported versions
+
+## Quick Commands
+
+### Development with Aspire
+```bash
+# Start all services with Aspire
+dotnet run --project PathfinderPhotography.AppHost
+
+# The Aspire Dashboard will open automatically
+# Click the 'webapp' endpoint to access the application
+```
+
+### Production (Ubuntu Server)
+```bash
+# Application management
+sudo systemctl start pathfinder-photography
+sudo systemctl stop pathfinder-photography
+sudo systemctl restart pathfinder-photography
+sudo systemctl status pathfinder-photography
+
+# View logs
+sudo journalctl -u pathfinder-photography -f
+
+# Database backup
+sudo -u postgres pg_dump pathfinder_photography > backup.sql
+```
+
+See [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md) for complete production deployment commands.
+
+## Support
+
+- **Documentation**: See links above for comprehensive guides
+- **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/issues)
+- **Security**: Report vulnerabilities privately via [SECURITY.md](SECURITY.md)
 
 ## License
 
-See LICENSE file for details.
+See [LICENSE](../LICENSE) file for details.
+
+---
+
+**CSDAC Pathfinders 2025** 🎉

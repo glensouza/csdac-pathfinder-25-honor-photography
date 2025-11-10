@@ -3,7 +3,7 @@
 This checklist helps ensure successful deployment of the Pathfinder Photography application.
 
 **Choose your deployment type:**
-- **Local Development**: Docker Compose or Aspire (see SETUP.md)
+- **Local Development**: .NET Aspire (recommended) or Docker Compose (see SETUP.md)
 - **Production Deployment**: Ubuntu VM/Bare Metal (use this checklist with BARE_METAL_DEPLOYMENT.md)
 
 ---
@@ -86,30 +86,9 @@ Follow [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for detailed instruc
 - [ ] Created OAuth2.0 credentials
 - [ ] Configured OAuth consent screen
 - [ ] Added authorized redirect URIs:
- - [ ] `http://localhost:8080/signin-google`
- - [ ] `http://your-server:8080/signin-google`
- - [ ] `https://your-domain.com/signin-google` (if using reverse proxy/HTTPS)
+ - [ ] `https://your-domain.com/signin-google` (production with HTTPS)
+ - [ ] `http://your-server-ip/signin-google` (if testing without HTTPS)
 - [ ] Saved Client ID and Client Secret
-
-## Deployment Steps
-
-### Quick Deployment
-- [ ] Ran one-command deployment script:
- ```bash
- curl -sSL https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh | bash
- ```
-- [ ] (Optional) Ran with SigNoz enabled:
- ```bash
- curl -sSL https://raw.githubusercontent.com/glensouza/csdac-pathfinder-25-honor-photography/main/deploy-homelab.sh | bash -s -- --signoz
- ```
-
-### OR Manual Deployment
-- [ ] Created deployment directory: `mkdir -p ~/pathfinder-photography`
-- [ ] Downloaded `docker-compose.yml`
-- [ ] Created `.env` file with credentials (GOOGLE_CLIENT_ID/SECRET, POSTGRES_PASSWORD, optional EMAIL_* settings)
-- [ ] Pulled images: `docker compose pull`
-- [ ] Started services: `docker compose up -d`
-- [ ] (Optional) Started with observability: `docker compose --profile signoz up -d`
 
 ### Post-Deployment Verification
 
@@ -301,15 +280,16 @@ sudo tail -f /var/log/nginx/pathfinder-photography-access.log
 
 ---
 
-## Local Development Checklist (Docker Compose)
+## Local Development Checklist
 
-For local development with Docker Compose, see [SETUP.md](SETUP.md).
+For local development with .NET Aspire or local .NET, see [SETUP.md](SETUP.md).
 
-### Quick Start
+### Quick Start with Aspire
 - [ ] Cloned repository
-- [ ] Created `.env` file with Google OAuth credentials
-- [ ] Started services: `docker-compose up -d`
-- [ ] Accessed application at http://localhost:8080
-- [ ] Verified all services running: `docker-compose ps`
+- [ ] Configured Google OAuth in `appsettings.Development.json`
+- [ ] Started Aspire: `dotnet run --project PathfinderPhotography.AppHost`
+- [ ] Accessed Aspire Dashboard (auto-opens)
+- [ ] Clicked 'webapp' endpoint to access application
+- [ ] Verified all services running in Aspire Dashboard
 
-See [SETUP.md](SETUP.md) for complete local development instructions with Docker Compose, Aspire, or local .NET.
+See [SETUP.md](SETUP.md) for complete local development instructions with .NET Aspire or local .NET.

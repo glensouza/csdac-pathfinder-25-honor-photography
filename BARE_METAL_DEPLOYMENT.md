@@ -2155,4 +2155,4 @@ docker compose logs -f
 
 ---
 
-**Note**: This deployment guide is for installing directly on a server or VM. For development setup, see [SETUP.md](SETUP.md).
+**Note**: This deployment guide is for installing directly on a server or VM. For local development setup, see [SETUP.md](SETUP.md).
