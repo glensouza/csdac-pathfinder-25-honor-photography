@@ -99,17 +99,19 @@ jobs:
             BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
             
-            # Create backup directory with proper ownership for pathfinder user
+            # Create backup directory
             sudo mkdir -p $BACKUP_DIR
-            sudo chown pathfinder:pathfinder $BACKUP_DIR
             
             echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
             
-            # Create backup as pathfinder user to ensure read access to all files
-            sudo -u pathfinder tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            # Create backup with sudo (root can read all files)
+            sudo tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            
+            # Set ownership of the backup file to pathfinder for consistency
+            sudo chown pathfinder:pathfinder $BACKUP_DIR/backup_$TIMESTAMP.tar.gz
             
             # Keep only last 5 backups
-            sudo -u pathfinder bash -c "ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm"
+            sudo bash -c "ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm"
             
             echo "Backup created successfully"
           else
