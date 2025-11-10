@@ -86,6 +86,11 @@ jobs:
       
       - name: Verify artifact checksum
         run: |
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo "Looking for checksum file:"
+          find . -name "*.sha256" -type f
           sha256sum -c pathfinder-photography-${{ github.sha }}.tar.gz.sha256
       
       - name: Create backup of current deployment
