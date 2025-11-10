@@ -668,7 +668,7 @@ github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-phot
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz -C /opt/pathfinder-photography *
 
 # Deployment extraction - only from current directory to deployment dir
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -xzf pathfinder-photography-*.tar.gz -C /opt/pathfinder-photography
+github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -xzf pathfinder-photography-[0-9a-f]*.tar.gz -C /opt/pathfinder-photography
 
 # File ownership - restricted to deployment paths only
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown -R pathfinder\:pathfinder /opt/pathfinder-photography
@@ -692,7 +692,7 @@ github-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photogr
 **Security Note**: This configuration follows the principle of least privilege:
 - ✅ Only specific commands are allowed - no wildcard command execution
 - ✅ Paths are restricted to deployment directories only
-- ✅ File patterns use `[0-9]*` instead of `*` to prevent path traversal
+- ✅ File patterns use `[0-9]*` for timestamps and `[0-9a-f]*` for SHA hashes to prevent path traversal
 - ✅ No ability to obtain a root shell or execute arbitrary commands
 - ✅ Nginx can only be reloaded (not stopped), preventing service disruption
 - ✅ All operations are scoped to the pathfinder-photography application only

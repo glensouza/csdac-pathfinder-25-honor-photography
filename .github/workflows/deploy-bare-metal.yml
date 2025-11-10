@@ -147,7 +147,6 @@ jobs:
           
           # Ensure uploads directory exists with correct permissions
           sudo mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
-          sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}/wwwroot/uploads
           sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
                     
           echo "Deployment completed successfully"

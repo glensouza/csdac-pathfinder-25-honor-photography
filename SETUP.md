@@ -1,51 +1,21 @@
 # Setup Guide - Pathfinder Photography Honor Application
 
-This guide will walk you through setting up and running the Pathfinder Photography Honor application.
+This guide will walk you through setting up and running the Pathfinder Photography Honor application for local development.
 
-## Quick Start (Docker - Recommended)
-
-### Prerequisites
-- Docker Desktop installed
-- Google OAuth credentials (see below)
-
-### Steps
-
-1. **Clone the repository**
- ```bash
- git clone https://github.com/glensouza/csdac-pathfinder-25-honor-photography.git
- cd csdac-pathfinder-25-honor-photography
- ```
-2. **Configure Google OAuth** (see detailed instructions below)
-3. **Create environment file**
- ```bash
- cp .env.example .env
- # Edit .env and add your Google OAuth credentials
- ```
-4. **Start the application**
- ```bash
- docker-compose up -d
- ```
-5. **Access the application**
- - Open your browser to http://localhost:8080
-6. **View logs** (optional)
- ```bash
- docker-compose logs -f pathfinder-photography
- ```
-7. **Stop the application**
- ```bash
- docker-compose down
- ```
-
-## Running with .NET Aspire (Recommended for Local Dev + Observability)
+## Quick Start (Aspire - Recommended for Local Development)
 
 .NET Aspire provides service orchestration, automatic service discovery, and integrated OpenTelemetry with SigNoz.
+
+### Prerequisites
+- .NET 9.0 SDK
+- Google OAuth credentials (see below)
 
 ### Steps
 1. Configure Google OAuth (below) and ensure PostgreSQL is not already bound to required ports.
 2. Run the AppHost:
- ```bash
- dotnet run --project PathfinderPhotography.AppHost
- ```
+   ```bash
+   dotnet run --project PathfinderPhotography.AppHost
+   ```
 3. The Aspire Dashboard will auto-open (or check console output for its URL).
 4. Click the `webapp` endpoint in the dashboard to open the Blazor Server application.
 5. Access SigNoz UI at the URL shown in the Aspire Dashboard (typically http://localhost:3301).
@@ -76,104 +46,104 @@ This guide will walk you through setting up and running the Pathfinder Photograp
 4. Save & Continue through scopes/test users unless needed
 5. Finish
 
-### Step4: Create OAuth2.0 Credentials
+### Step 4: Create OAuth 2.0 Credentials
 1. "APIs & Services" > "Credentials" > "CREATE CREDENTIALS" > "OAuth client ID"
 2. Application type: Web application
 3. Authorized redirect URIs:
- - Local dev HTTPS: `https://localhost:5001/signin-google`
- - Local dev HTTP: `http://localhost:5000/signin-google`
- - Docker local: `http://localhost:8080/signin-google`
- - Aspire (check port): e.g. `https://localhost:7152/signin-google`
- - Production: `https://your-domain.com/signin-google`
+   - Local dev HTTPS: `https://localhost:5001/signin-google`
+   - Local dev HTTP: `http://localhost:5000/signin-google`
+   - Aspire (check port): e.g. `https://localhost:7152/signin-google`
+   - Production: `https://your-domain.com/signin-google`
 4. Create and copy Client ID & Secret
 
-### Step5: Configure Application
+### Step 5: Configure Application
 
-`.env` file:
-```env
-GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_client_secret_here
-```
-
-For non?Docker local development edit `appsettings.Development.json`:
+For local development, edit `appsettings.Development.json`:
 ```json
 {
- "Authentication": {
- "Google": {
- "ClientId": "your_client_id_here.apps.googleusercontent.com",
- "ClientSecret": "your_client_secret_here"
- }
- }
+  "Authentication": {
+    "Google": {
+      "ClientId": "your_client_id_here.apps.googleusercontent.com",
+      "ClientSecret": "your_client_secret_here"
+    }
+  }
 }
 ```
+
+For production deployment, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for configuration instructions.
 
 ## Email Notifications (Optional)
 
 Used to notify instructors/admins of new submissions and pathfinders of grading results.
 
 ### Gmail App Password
-1. Enable2?Step Verification on your Google Account.
+1. Enable 2-Step Verification on your Google Account.
 2. Create an App Password (select Mail, custom name e.g. "Pathfinder Photography").
-3. Copy the16?character password.
+3. Copy the 16-character password.
 
-### Configure (Environment Variables recommended)
-Add to `.env`:
-```env
-EMAIL_SMTP_HOST=smtp.gmail.com
-EMAIL_SMTP_PORT=587
-EMAIL_SMTP_USERNAME=your-email@gmail.com
-EMAIL_SMTP_PASSWORD=your-16-char-app-password
-EMAIL_USE_SSL=true
-EMAIL_FROM_ADDRESS=your-email@gmail.com
-EMAIL_FROM_NAME=Pathfinder Photography
+### Configure (appsettings.Development.json)
+Add to your `appsettings.Development.json`:
+```json
+{
+  "Email": {
+    "SmtpHost": "smtp.gmail.com",
+    "SmtpPort": "587",
+    "SmtpUsername": "your-email@gmail.com",
+    "SmtpPassword": "your-16-char-app-password",
+    "UseSsl": "true",
+    "FromAddress": "your-email@gmail.com",
+    "FromName": "Pathfinder Photography"
+  }
+}
 ```
-Restart the application/container.
+
+For production deployment, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for secure configuration.
 
 ### Disable Email
-Leave `EMAIL_SMTP_HOST` blank or omit all email variables.
+Leave `SmtpHost` blank or omit the Email section entirely.
 
 ### Test
 1. Submit a photo (instructor/admin should receive notification).
 2. Grade a photo (pathfinder should receive email).
-3. Check logs and your Gmail Sent folder if issues arise.
+3. Check logs if issues arise.
 
-## Local Development Setup (Without Docker)
+## Local Development Setup (Without Aspire)
 
 ### Prerequisites
-- .NET9.0 SDK
-- PostgreSQL16 or later
+- .NET 9.0 SDK
+- PostgreSQL 16 or later
 - Google OAuth credentials
 
 ### Steps
 1. Install PostgreSQL (remember password).
 2. Create Database:
- ```bash
- psql -U postgres
- CREATE DATABASE pathfinder_photography;
- \q
- ```
+   ```bash
+   psql -U postgres
+   CREATE DATABASE pathfinder_photography;
+   \q
+   ```
 3. Configure Connection String in `appsettings.Development.json`:
- ```json
- {
- "ConnectionStrings": {
- "DefaultConnection": "Host=localhost;Database=pathfinder_photography;Username=postgres;Password=your_password"
- },
- "Authentication": {
- "Google": {
- "ClientId": "your_client_id_here",
- "ClientSecret": "your_client_secret_here"
- }
- }
- }
- ```
+   ```json
+   {
+     "ConnectionStrings": {
+       "DefaultConnection": "Host=localhost;Database=pathfinder_photography;Username=postgres;Password=your_password"
+     },
+     "Authentication": {
+       "Google": {
+         "ClientId": "your_client_id_here",
+         "ClientSecret": "your_client_secret_here"
+       }
+     }
+   }
+   ```
 4. Apply Migrations:
- ```bash
- dotnet ef database update
- ```
+   ```bash
+   dotnet ef database update
+   ```
 5. Run Application:
- ```bash
- dotnet run
- ```
+   ```bash
+   dotnet run
+   ```
 6. Access: https://localhost:5001 or http://localhost:5000
 
 ## Creating New Migrations
@@ -192,42 +162,21 @@ dotnet ef migrations add MeaningfulName --project PathfinderPhotography.csproj
 
 ## Production Deployment
 
-### Docker Deployment
-1. Build image (optional if not using GHCR prebuilt):
- ```bash
- docker build -t pathfinder-photography:latest .
- ```
-2. Set environment variables (or use `.env`).
-3. Start services:
- ```bash
- docker-compose up -d
- ```
-4. Reverse proxy (Nginx example):
- ```nginx
- server {
- listen80;
- server_name your-domain.com;
- location / {
- proxy_pass http://localhost:8080;
- proxy_http_version1.1;
- proxy_set_header Upgrade $http_upgrade;
- proxy_set_header Connection keep-alive;
- proxy_set_header Host $host;
- proxy_cache_bypass $http_upgrade;
- proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
- proxy_set_header X-Forwarded-Proto $scheme;
- }
- }
- ```
-5. Enable HTTPS (Let's Encrypt):
- ```bash
- sudo certbot --nginx -d your-domain.com
- ```
+For production deployment on Ubuntu servers or VMs, see the comprehensive [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) guide which includes:
+- PostgreSQL installation and security
+- .NET runtime installation
+- Application deployment
+- Nginx reverse proxy with SSL
+- Automated deployments via GitHub Actions
+- Security hardening
+- Backup strategies
+- Monitoring and maintenance
 
 ### Important Notes
-- Use HTTPS for Google OAuth.
-- Keep PostgreSQL credentials secure.
-- Back up database + uploads regularly.
+- Use HTTPS for Google OAuth in production
+- Keep PostgreSQL credentials secure
+- Back up database and uploads regularly
+- Follow the deployment checklist in BARE_METAL_DEPLOYMENT.md
 
 ## Observability & Health
 
@@ -248,7 +197,7 @@ Use the SigNoz UI to inspect:
 
 You can also use the built-in Aspire Dashboard for basic telemetry viewing.
 
-### Health & Metrics Endpoints (Production / Docker)
+### Health & Metrics Endpoints
 - Liveness: `/alive`
 - Readiness: `/ready`
 - Health: `/health`
@@ -279,12 +228,8 @@ This automatically starts:
 
 Access SigNoz UI at http://localhost:3301 (check Aspire Dashboard for exact URL).
 
-### Running SigNoz Separately with Docker Compose (Alternative)
-If you prefer to run SigNoz separately without Aspire:
-```bash
-docker-compose --profile signoz up -d
-```
-SigNoz UI will be available at `http://localhost:3301`.
+### Running SigNoz Separately (Alternative - Not Recommended)
+If you prefer to run SigNoz separately without Aspire, you can use the standalone installation. However, Aspire integration is recommended for easier development experience.
 
 ### Benefits of Aspire Integration
 - **Zero manual configuration**: All connection strings and secrets are automatically configured
@@ -331,13 +276,13 @@ Optional Email:
 Match protocol, port, and path exactly in Google Console.
 
 ### Database Connection Issues
-Check PostgreSQL service status, credentials, container network linkage (Docker).
+Check PostgreSQL service status, credentials, and network connectivity.
 
 ### Photos Not Uploading
 Validate `wwwroot/uploads` exists & writable; check file size (<10MB) & disk space.
 
 ### Email Failures
-Confirm App Password usage; inspect logs for SMTP errors; verify port587 open.
+Confirm App Password usage; inspect logs for SMTP errors; verify port 587 is accessible.
 
 ## Database Management
 
@@ -348,7 +293,6 @@ See User Roles above. Only first user auto-admin; others manual SQL updates.
 ```bash
 pg_dump -U postgres pathfinder_photography > backup.sql
 ```
-(Docker variant use `docker exec`.)
 
 ### Restore Database
 ```bash
@@ -359,13 +303,12 @@ psql -U postgres pathfinder_photography < backup.sql
 ```bash
 psql -U postgres pathfinder_photography
 \dt
-SELECT * FROM "PhotoSubmissions" LIMIT5;
+SELECT * FROM "PhotoSubmissions" LIMIT 5;
 ```
 
 ## Quick Links
 - README overview: `./.github/README.md`
-- Home Lab guide: `HOMELAB_DEPLOYMENT.md`
-- Deployment checklist: `DEPLOYMENT_CHECKLIST.md`
+- Production deployment: [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md)
 - SigNoz details: `signoz/README.md`
 
 ## Support
