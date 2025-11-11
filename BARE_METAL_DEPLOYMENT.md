@@ -9,7 +9,8 @@ This guide provides instructions for deploying the Pathfinder Photography applic
 - [System Requirements](#system-requirements)
 - [Installation Steps](#installation-steps)
   - [1. Install PostgreSQL](#1-install-postgresql)
-  - [2. Install .NET Runtime](#2-install-net-runtime)
+  - [2. Install .NET Runtime and SDK](#2-install-net-runtime-and-sdk)
+  - [2.1. Install Git (Required for Building from Source)](#21-install-git-required-for-building-from-source)
   - [3. Install Application](#3-install-application)
   - [4. Configure Systemd Service](#4-configure-systemd-service)
   - [5. Install Nginx Reverse Proxy](#5-install-nginx-reverse-proxy)
@@ -24,7 +25,9 @@ This guide provides instructions for deploying the Pathfinder Photography applic
 - Ubuntu 22.04 LTS or later (or equivalent Debian-based distribution)
 - Physical server, virtual machine (VM), or cloud instance
 - Root or sudo access
-- Public IP address or domain name (for Google OAuth)
+- Domain name configured (example: `photohonor.coronasda.church`)
+- Cloudflare account (if using Cloudflare for DNS and SSL/CDN)
+- (Optional) Cloudflare Tunnel (cloudflared) if already running - see Cloudflare configuration section
 - Google OAuth credentials (see [SETUP.md](SETUP.md#google-oauth20-setup))
 
 ## System Requirements
@@ -61,6 +64,168 @@ sudo systemctl enable postgresql
 # Verify installation
 sudo systemctl status postgresql
 ```
+
+#### Install Cockpit (System Management Interface)
+
+Cockpit provides a web-based management interface for your server, making it easier to monitor system resources, manage services, and perform administrative tasks.
+
+```bash
+# Install Cockpit
+sudo apt install -y cockpit
+
+# Start and enable Cockpit
+sudo systemctl start cockpit
+sudo systemctl enable cockpit
+
+# Enable root login (comment out root from disallowed users)
+sudo sed -i 's/^root$/#root/' /etc/cockpit/disallowed-users
+
+# Verify installation
+sudo systemctl status cockpit
+```
+
+**Note**: By default, Cockpit disables root login for security. The configuration above enables root access by commenting out the root user from `/etc/cockpit/disallowed-users`. If you prefer to keep root disabled, skip the `sed` command and create a separate admin user instead.
+
+Cockpit will be accessible at `https://your-server-ip:9090`. To access it securely, you can configure Nginx as a reverse proxy or use SSH tunneling:
+
+```bash
+# SSH tunnel to access Cockpit securely
+ssh -L 9090:localhost:9090 user@your-server-ip
+# Then access http://localhost:9090 from your local browser
+```
+
+**Troubleshooting: Cockpit Updates Page Error**
+
+If you encounter "Cannot refresh cache whilst offline" error on the Cockpit updates page, this is a known PackageKit issue on some systems where it requires a network interface with a gateway. Workaround:
+
+```bash
+# Create a dummy network interface with gateway
+sudo nmcli con add type dummy con-name fake ifname fake0 ip4 1.2.3.4/24 gw4 1.2.3.1
+```
+
+Alternatively, you can manage updates via command line instead:
+```bash
+sudo apt update && sudo apt upgrade
+```
+
+#### Install PGAdmin 4 (PostgreSQL Management Tool)
+
+PGAdmin 4 provides a web-based interface for managing PostgreSQL databases.
+
+```bash
+# Add PGAdmin repository GPG key
+curl -fsSL https://www.pgadmin.org/static/packages_pgadmin_org.pub | sudo gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
+
+# Add PGAdmin repository
+sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list'
+
+# Update package list
+sudo apt update
+
+# Install PGAdmin 4 (web mode only)
+sudo apt install -y pgadmin4-web
+
+# Configure PGAdmin 4
+sudo /usr/pgadmin4/bin/setup-web.sh
+```
+
+During setup, you'll be prompted to:
+1. Create an initial PGAdmin user email and password
+2. Configure the web server (select option to use Apache or standalone mode)
+
+PGAdmin 4 will be accessible at `http://your-server-ip/pgadmin4`. To access it securely:
+
+**Option A: Configure Nginx reverse proxy (recommended for production)**
+
+Add to your Nginx configuration:
+
+```bash
+sudo nano /etc/nginx/sites-available/pgadmin4
+```
+
+Add the following content:
+
+```nginx
+server {
+    listen 80;
+    server_name pgadmin.photohonor.coronasda.church;
+
+    location / {
+        proxy_pass http://localhost:80/pgadmin4/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+Enable the site and secure with SSL:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/pgadmin4 /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d pgadmin.photohonor.coronasda.church
+```
+
+**Option B: SSH tunnel (for temporary access)**
+
+```bash
+# SSH tunnel to access PGAdmin 4 securely
+ssh -L 8080:localhost:80 user@your-server-ip
+# Then access http://localhost:8080/pgadmin4 from your local browser
+```
+
+**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators. Consider restricting access via firewall rules or VPN.
+
+#### Update Login Message (Optional)
+
+To display service URLs in the login message, update the `/etc/profile.d/00_lxc-details.sh` file (or create it if it doesn't exist):
+
+```bash
+sudo nano /etc/profile.d/00_lxc-details.sh
+```
+
+Add the following content to display service information on login:
+
+```bash
+echo -e ""
+echo -e "Pathfinder Photography Server"
+echo -e "    🏠   Hostname: $(hostname)"
+echo -e "    💡   IP Address: $(hostname -I | awk '{print $1}')"
+echo -e ""
+echo -e "Available Services:"
+echo -e "    🖥️   Cockpit (System Management):"
+echo -e "        - Local: https://10.10.10.200:9090"
+echo -e "        - Public: https://photohonor.coronasda.church (via Cloudflare Tunnel)"
+echo -e "    🗄️   PGAdmin 4 (Database Management):"
+echo -e "        - Local: http://10.10.10.200/pgadmin4"
+echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
+echo -e "    📊   SigNoz (Observability):"
+echo -e "        - Local: http://10.10.10.200:3301"
+echo -e "        - Public: https://signoz.photohonor.coronasda.church"
+echo -e "    🌐   Pathfinder Photography App:"
+echo -e "        - Local: http://10.10.10.200:5000"
+echo -e "        - Public: https://photohonor.coronasda.church"
+echo -e ""
+```
+
+**Note**: 
+- Replace `10.10.10.200` with your actual local network IP address
+- Comment out or remove the SigNoz section if you don't install SigNoz (Section 6)
+- Local URLs use HTTP and specific ports; public URLs use HTTPS via Cloudflare Tunnel
+
+Make the script executable:
+
+```bash
+sudo chmod +x /etc/profile.d/00_lxc-details.sh
+```
+
+The login message will display on your next SSH login, showing quick access URLs for all services.
 
 #### Configure PostgreSQL
 
@@ -122,9 +287,9 @@ Restart PostgreSQL:
 sudo systemctl restart postgresql
 ```
 
-### 2. Install .NET Runtime
+### 2. Install .NET Runtime and SDK
 
-Install .NET 9.0 Runtime (required for the application):
+Install .NET 9.0 Runtime (required for running the application) and .NET SDK (required for building and database migrations):
 
 ```bash
 # Add Microsoft package repository
@@ -135,18 +300,62 @@ rm packages-microsoft-prod.deb
 # Update package list
 sudo apt update
 
-# Install .NET 9.0 Runtime and ASP.NET Core Runtime
-sudo apt install -y aspnetcore-runtime-9.0
+# Install .NET 9.0 SDK (includes runtime and ASP.NET Core)
+sudo apt install -y dotnet-sdk-9.0
 
 # Verify installation
+dotnet --version
 dotnet --list-runtimes
+dotnet --list-sdks
 ```
 
-Expected output should include:
+Expected output from `dotnet --list-runtimes` should include:
 ```
 Microsoft.AspNetCore.App 9.0.x
 Microsoft.NETCore.App 9.0.x
 ```
+
+Expected output from `dotnet --list-sdks` should include:
+```
+9.0.xxx [/usr/share/dotnet/sdk]
+```
+
+**Note**: The .NET SDK is required for:
+- Building the application from source (`dotnet publish`)
+- Running Entity Framework migrations (`dotnet ef database update`)
+- Development and debugging on the server
+
+If you're only deploying pre-built releases and don't need to run migrations manually, you can install just the runtime:
+
+```bash
+# Alternative: Runtime only (minimal installation)
+sudo apt install -y aspnetcore-runtime-9.0
+```
+
+However, installing the SDK is **recommended** for production servers to enable:
+- Quick hotfixes and patches
+- Database schema updates
+- Troubleshooting and diagnostics
+
+### 2.1. Install Git (Required for Building from Source)
+
+If you plan to build the application from source (recommended), install Git:
+
+```bash
+# Install Git
+sudo apt update
+sudo apt install -y git
+
+# Verify installation
+git --version
+```
+
+**Expected output:**
+```
+git version 2.x.x
+```
+
+**Note**: Git is only required if you're building from source (Option A in Section 3). If you're deploying pre-built binaries (Option B), you can skip this step.
 
 ### 3. Install Application
 
@@ -160,7 +369,7 @@ sudo usermod -aG www-data pathfinder
 
 #### Download and Deploy Application
 
-Option A: Build from source (if you have .NET SDK):
+Option A: Build from source (recommended with .NET SDK installed):
 ```bash
 # Clone repository
 cd /tmp
@@ -174,7 +383,7 @@ dotnet publish -c Release -o /opt/pathfinder-photography
 sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography
 ```
 
-Option B: Use pre-built release (recommended):
+Option B: Use pre-built release:
 ```bash
 # Create application directory
 sudo mkdir -p /opt/pathfinder-photography
@@ -257,12 +466,14 @@ cd /opt/pathfinder-photography
 # Set environment
 export ASPNETCORE_ENVIRONMENT=Production
 
-# Apply migrations (if dotnet SDK is installed)
+# Apply migrations
 dotnet ef database update
 
-# If SDK is not installed, migrations will run automatically on first startup
+# Exit pathfinder user
 exit
 ```
+
+**Note**: Database migrations will also run automatically on first application startup if not applied manually.
 
 ### 4. Configure Systemd Service
 
@@ -353,7 +564,7 @@ Add the following configuration:
 server {
     listen 80;
     listen [::]:80;
-    server_name your-domain.com www.your-domain.com;
+    server_name photohonor.coronasda.church www.photohonor.coronasda.church;
 
     # Redirect all HTTP to HTTPS
     return 301 https://$server_name$request_uri;
@@ -363,11 +574,13 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name your-domain.com www.your-domain.com;
+    server_name photohonor.coronasda.church www.photohonor.coronasda.church;
 
-    # SSL configuration (will be managed by Certbot)
-    # ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    # SSL configuration (will be managed by Certbot or Cloudflare)
+    # If using Cloudflare, SSL certificates are managed by Cloudflare
+    # If using Let's Encrypt directly:
+    # ssl_certificate /etc/letsencrypt/live/photohonor.coronasda.church/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/photohonor.coronasda.church/privkey.pem;
     # include /etc/letsencrypt/options-ssl-nginx.conf;
     # ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -426,12 +639,16 @@ sudo systemctl reload nginx
 
 #### Install SSL Certificate with Let's Encrypt
 
+**Note**: If you're using Cloudflare for DNS and SSL management (recommended for `photohonor.coronasda.church`), Cloudflare can handle SSL certificates automatically. In that case, you can skip this section and configure Cloudflare SSL settings in your Cloudflare dashboard.
+
+**If NOT using Cloudflare SSL** (using Let's Encrypt directly):
+
 ```bash
 # Install Certbot
 sudo apt install -y certbot python3-certbot-nginx
 
 # Obtain and install certificate
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+sudo certbot --nginx -d photohonor.coronasda.church -d www.photohonor.coronasda.church
 
 # Test automatic renewal
 sudo certbot renew --dry-run
@@ -441,6 +658,101 @@ Certbot will automatically:
 - Obtain SSL certificate
 - Update Nginx configuration
 - Set up automatic renewal
+
+#### Configure Cloudflare (Optional)
+
+If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`):
+
+**Option A: Using Cloudflare Tunnel (cloudflared) - If Already Running**
+
+If you already have a cloudflared container running (Cloudflare Tunnel), you only need to add this service to your existing tunnel configuration:
+
+1. **Add the service to your cloudflared configuration:**
+   - Edit your cloudflared config file (typically in your container or `/etc/cloudflared/config.yml`)
+   - Add the following ingress rule:
+   ```yaml
+   ingress:
+     - hostname: photohonor.coronasda.church
+       service: http://localhost:5000
+     - hostname: pgadmin.photohonor.coronasda.church
+       service: http://localhost:80/pgadmin4
+     - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
+       service: http://localhost:3301
+     # ... your other services ...
+     - service: http_status:404  # catch-all rule
+   ```
+
+2. **Restart your cloudflared container** to apply the changes
+
+3. **Configure DNS in Cloudflare Dashboard:**
+   - The DNS records should already be created automatically by cloudflared
+   - If not, add CNAME records pointing to your tunnel subdomain
+   - Proxy status should be "DNS only" (gray cloud) when using Cloudflare Tunnel
+
+**Benefits of Cloudflare Tunnel:**
+- ✅ No need to expose ports publicly
+- ✅ Automatic SSL/TLS certificates
+- ✅ DDoS protection
+- ✅ No need for port forwarding or firewall configuration
+- ✅ Access from anywhere without VPN
+
+**Option B: Direct Connection (Standard Cloudflare Proxy)**
+
+If you're NOT using Cloudflare Tunnel, use the standard DNS proxy configuration:
+
+**1. Add DNS Records in Cloudflare Dashboard:**
+
+```
+Type: A
+Name: photohonor (or @)
+Content: Your-Server-IP
+Proxy status: Proxied (orange cloud)
+
+Type: A
+Name: www
+Content: Your-Server-IP
+Proxy status: Proxied (orange cloud)
+
+Type: CNAME
+Name: pgadmin
+Content: photohonor.coronasda.church
+Proxy status: Proxied (orange cloud)
+
+Type: CNAME
+Name: signoz (if using SigNoz)
+Content: photohonor.coronasda.church
+Proxy status: Proxied (orange cloud)
+```
+
+**2. Configure SSL/TLS Settings:**
+- Go to SSL/TLS → Overview
+- Set encryption mode to **Full (strict)** or **Full**
+- This ensures end-to-end encryption between Cloudflare and your server
+
+**3. Configure Cloudflare SSL Certificate (Optional):**
+- Go to SSL/TLS → Origin Server
+- Create Origin Certificate
+- Copy the certificate and private key
+- Save to your server:
+  ```bash
+  sudo mkdir -p /etc/ssl/cloudflare
+  sudo nano /etc/ssl/cloudflare/cert.pem    # Paste certificate
+  sudo nano /etc/ssl/cloudflare/key.pem     # Paste private key
+  sudo chmod 600 /etc/ssl/cloudflare/*.pem
+  ```
+- Update Nginx configuration to use these certificates instead of Let's Encrypt
+
+**4. Enable Cloudflare Features (Optional):**
+- Under Speed → Optimization: Enable Auto Minify (JS, CSS, HTML)
+- Under Security → Settings: Set Security Level to Medium
+- Under Firewall: Configure rules as needed
+
+**Benefits of Using Cloudflare:**
+- ✅ Free SSL/TLS certificates
+- ✅ DDoS protection
+- ✅ CDN for faster content delivery
+- ✅ Automatic HTTPS rewrites
+- ✅ Web Application Firewall (WAF)
 
 #### Configure Firewall
 
@@ -471,40 +783,61 @@ sudo ufw status verbose
 
 SigNoz provides observability (traces, metrics, logs). Install it only if you need application monitoring.
 
-#### Prerequisites for SigNoz
+**Native Linux Installation** (no Docker required):
+
+**Prerequisites:**
+- Ubuntu 22.04 LTS or later
+- 4GB RAM minimum (8GB recommended)
+- 20GB disk space
+
+**Install SigNoz:**
 
 ```bash
-# Install Docker (SigNoz components run in containers)
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-
-# Install Docker Compose
-sudo apt install -y docker-compose-plugin
-
-# Log out and back in for group changes to take effect
-```
-
-#### Install SigNoz
-
-```bash
-# Create directory for SigNoz
+# Create installation directory
 sudo mkdir -p /opt/signoz
 cd /opt/signoz
 
-# Clone SigNoz repository
-git clone -b main https://github.com/SigNoz/signoz.git
-cd signoz/deploy/
+# Download the installation script
+curl -sL https://github.com/SigNoz/signoz/raw/main/deploy/install-linux.sh -o install-linux.sh
 
-# Run installation script
-./install.sh
+# Make it executable
+chmod +x install-linux.sh
+
+# Run the installation
+sudo ./install-linux.sh
 ```
 
-The installation will:
-- Download and start SigNoz containers
-- Configure ClickHouse for data storage
-- Set up OTLP collector on port 4317
+The script will:
+- Install all required dependencies (ClickHouse, OTEL Collector, Query Service)
+- Set up systemd services for automatic startup
+- Configure OTLP collector on port 4317
 - Start SigNoz UI on port 3301
+
+**Manage SigNoz Services:**
+
+```bash
+# Check status of all SigNoz services
+sudo systemctl status signoz-otel-collector
+sudo systemctl status signoz-query-service
+sudo systemctl status clickhouse-server
+
+# Start/Stop/Restart services
+sudo systemctl start signoz-otel-collector
+sudo systemctl stop signoz-otel-collector
+sudo systemctl restart signoz-otel-collector
+
+# Enable services to start on boot (should be done by installer)
+sudo systemctl enable signoz-otel-collector
+sudo systemctl enable signoz-query-service
+sudo systemctl enable clickhouse-server
+```
+
+**Benefits of Native Installation:**
+- ✅ No Docker overhead
+- ✅ Better performance on bare metal
+- ✅ Simpler service management via systemd
+- ✅ Lower resource consumption
+- ✅ Easier troubleshooting with standard Linux tools
 
 #### Configure Application to Use SigNoz
 
@@ -541,7 +874,7 @@ Add:
 ```nginx
 server {
     listen 80;
-    server_name signoz.your-domain.com;
+    server_name signoz.photohonor.coronasda.church;
 
     location / {
         proxy_pass http://localhost:3301;
@@ -560,29 +893,7 @@ Enable and secure with SSL:
 sudo ln -s /etc/nginx/sites-available/signoz /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-sudo certbot --nginx -d signoz.your-domain.com
-```
-
-#### SigNoz Startup on Boot
-
-SigNoz containers should start automatically with Docker. To ensure this:
-
-```bash
-cd /opt/signoz/signoz/deploy/
-docker compose ps
-# All containers should show "Up" status
-```
-
-To stop SigNoz:
-```bash
-cd /opt/signoz/signoz/deploy/
-docker compose down
-```
-
-To start SigNoz:
-```bash
-cd /opt/signoz/signoz/deploy/
-docker compose up -d
+sudo certbot --nginx -d signoz.photohonor.coronasda.church
 ```
 
 ### 7. Setup Automated Deployments (Optional)
@@ -1384,8 +1695,8 @@ cd ~/actions-runner
 ### Google OAuth Redirect URIs
 
 Add these URIs to your Google Cloud Console OAuth credentials:
-- `https://your-domain.com/signin-google`
-- `https://www.your-domain.com/signin-google`
+- `https://photohonor.coronasda.church/signin-google`
+- `https://www.photohonor.coronasda.church/signin-google`
 
 ### Email Configuration
 
@@ -1440,7 +1751,7 @@ cd /opt/pathfinder-photography
 sudo -u pathfinder bash
 cd /opt/pathfinder-photography
 export ASPNETCORE_ENVIRONMENT=Production
-dotnet ef database update  # If SDK is installed
+dotnet ef database update
 exit
 
 # Start the application
@@ -1623,14 +1934,15 @@ sudo systemctl reload nginx
 
 ### SigNoz Not Receiving Telemetry
 
-Check SigNoz containers:
+Check SigNoz services:
 ```bash
-cd /opt/signoz/signoz/deploy/
-docker compose ps
-# All containers should be "Up"
+# Check all SigNoz services status
+sudo systemctl status signoz-otel-collector
+sudo systemctl status signoz-query-service
+sudo systemctl status clickhouse-server
 
 # Check collector logs
-docker compose logs signoz-otel-collector
+sudo journalctl -u signoz-otel-collector -n 50
 
 # Verify endpoint in application service
 sudo systemctl cat pathfinder-photography | grep OTEL_EXPORTER
@@ -1689,10 +2001,10 @@ sudo systemctl restart pathfinder-photography
    sudo systemctl restart sshd
    ```
 
-8. **Keep .NET runtime updated**:
+8. **Keep .NET SDK and runtime updated**:
    ```bash
    sudo apt update
-   sudo apt install --only-upgrade aspnetcore-runtime-9.0
+   sudo apt install --only-upgrade dotnet-sdk-9.0
    ```
 
 ## Performance Tuning
@@ -1794,14 +2106,22 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Created OAuth 2.0 credentials
 - [ ] Configured OAuth consent screen
 - [ ] Added authorized redirect URIs:
-  - [ ] `https://your-domain.com/signin-google`
-  - [ ] `https://www.your-domain.com/signin-google` (if using www)
+  - [ ] `https://photohonor.coronasda.church/signin-google`
+  - [ ] `https://www.photohonor.coronasda.church/signin-google` (if using www)
 - [ ] Saved Client ID and Client Secret securely
 
 ### Step 1: PostgreSQL Installation
 
 - [ ] Installed PostgreSQL 16: `sudo apt install postgresql-16`
 - [ ] PostgreSQL service started and enabled
+- [ ] Installed Cockpit: `sudo apt install cockpit`
+- [ ] Cockpit service started and enabled
+- [ ] Enabled root login in Cockpit (commented out root in `/etc/cockpit/disallowed-users`)
+- [ ] Cockpit accessible at `https://your-server-ip:9090`
+- [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
+- [ ] Configured PGAdmin 4 with setup-web.sh
+- [ ] PGAdmin 4 accessible (either via Nginx proxy or SSH tunnel)
+- [ ] (Optional) Updated login message in `/etc/profile.d/00_lxc-details.sh` with service URLs
 - [ ] Created database: `pathfinder_photography`
 - [ ] Created user: `pathfinder` with strong password
 - [ ] Granted all privileges to pathfinder user
@@ -1810,12 +2130,14 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Restarted PostgreSQL service
 - [ ] Verified connection: `psql -h localhost -U pathfinder -d pathfinder_photography`
 
-### Step 2: .NET Runtime Installation
+### Step 2: .NET SDK and Runtime Installation
 
 - [ ] Added Microsoft package repository
-- [ ] Installed ASP.NET Core Runtime 9.0
-- [ ] Verified installation: `dotnet --list-runtimes`
+- [ ] Installed .NET SDK 9.0: `sudo apt install dotnet-sdk-9.0`
+- [ ] Verified SDK installation: `dotnet --list-sdks`
+- [ ] Verified runtime installation: `dotnet --list-runtimes`
 - [ ] Confirmed Microsoft.AspNetCore.App 9.0.x is listed
+- [ ] Confirmed .NET SDK 9.0.x is listed
 
 ### Step 3: Application Installation
 
@@ -1860,8 +2182,9 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Tested configuration: `nginx -t`
 - [ ] Reloaded Nginx: `systemctl reload nginx`
 - [ ] Installed Certbot: `apt install certbot python3-certbot-nginx`
-- [ ] Obtained SSL certificate: `certbot --nginx -d your-domain.com`
+- [ ] Obtained SSL certificate: `certbot --nginx -d photohonor.coronasda.church` (or using Cloudflare SSL/Tunnel)
 - [ ] Verified auto-renewal: `certbot renew --dry-run`
+- [ ] (Optional) If using Cloudflare Tunnel: Added service to cloudflared configuration and restarted container
 
 ### Step 6: Firewall Configuration
 
@@ -1915,7 +2238,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 
 #### Application Access
 - [ ] Can access http://localhost:5000 from server
-- [ ] Can access https://your-domain.com from browser
+- [ ] Can access https://photohonor.coronasda.church from browser
 - [ ] Home page loads correctly
 - [ ] Can see all 10 composition rules
 - [ ] SSL certificate is valid (no browser warnings)
@@ -1962,10 +2285,9 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 ### Optional Configuration
 
 #### SigNoz Observability (Optional)
-- [ ] Installed Docker for SigNoz components
-- [ ] Cloned SigNoz repository to `/opt/signoz`
-- [ ] Ran SigNoz installation script
-- [ ] SigNoz containers running: `docker compose ps`
+- [ ] Installed SigNoz natively using install-linux.sh script
+- [ ] SigNoz services running: `systemctl status signoz-otel-collector signoz-query-service clickhouse-server`
+- [ ] Services enabled to start on boot
 - [ ] Updated application systemd service with OTEL variables
 - [ ] Restarted application service
 - [ ] SigNoz UI accessible: `http://your-server-ip:3301`
