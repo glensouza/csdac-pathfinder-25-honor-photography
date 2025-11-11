@@ -180,7 +180,7 @@ sudo systemctl start pgadmin4
 sudo systemctl status pgadmin4
 ```
 
-PGAdmin will run on `http://localhost:5050`. We'll configure Nginx to proxy it at the `/pgadmin4` path (see Nginx configuration below).
+PGAdmin will run on `http://localhost:5050`. We'll configure Nginx to proxy it at the subdomain `pgadmin.photohonor.coronasda.church` (see Nginx configuration below).
 
 **Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators through Nginx.
 
@@ -201,17 +201,16 @@ echo -e "    🏠   Hostname: $(hostname)"
 echo -e "    💡   IP Address: $(hostname -I | awk '{print $1}')"
 echo -e ""
 echo -e "Available Services:"
-echo -e "    🖥️   Cockpit (System Management):"
-echo -e "        - Local: https://10.10.10.200:9090"
-echo -e "        - Public: https://photohonor.coronasda.church (via Cloudflare Tunnel)"
+echo -e "    🌐   Pathfinder Photography App:"
+echo -e "        - Local: http://10.10.10.200"
+echo -e "        - Public: https://photohonor.coronasda.church"
 echo -e "    🗄️   PGAdmin 4 (Database Management):"
-echo -e "        - Local: http://10.10.10.200/pgadmin4"
-echo -e "    📊   SigNoz (Observability):"
+echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
+echo -e "    📊   SigNoz (Observability - Optional):"
 echo -e "        - Local: http://10.10.10.200:3301"
 echo -e "        - Public: https://signoz.photohonor.coronasda.church"
-echo -e "    🌐   Pathfinder Photography App:"
-echo -e "        - Local: http://10.10.10.200:5000"
-echo -e "        - Public: https://photohonor.coronasda.church"
+echo -e "    🖥️   Cockpit (System Management):"
+echo -e "        - Local: https://10.10.10.200:9090"
 echo -e ""
 ```
 
@@ -579,7 +578,7 @@ Since you're using Cloudflare for SSL/TLS, start with a simple HTTP configuratio
 Add the following configuration:
 
 ```nginx
-# HTTP server - Cloudflare will handle SSL at their edge
+# Main application server
 server {
     listen 80;
     listen [::]:80;
@@ -594,26 +593,7 @@ server {
     # Client body size (for photo uploads)
     client_max_body_size 10M;
 
-    # PGAdmin 4 - proxy to standalone server on port 5050
-    location /pgadmin4/ {
-        proxy_pass http://localhost:5050/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Script-Name /pgadmin4;
-        proxy_cache_bypass $http_upgrade;
-        
-        # Timeouts
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    # Proxy to .NET application (main app)
+    # Proxy to .NET application
     location / {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
@@ -634,6 +614,41 @@ server {
     # Access and error logs
     access_log /var/log/nginx/pathfinder-photography-access.log;
     error_log /var/log/nginx/pathfinder-photography-error.log;
+}
+
+# PGAdmin subdomain server
+server {
+    listen 80;
+    listen [::]:80;
+    server_name pgadmin.photohonor.coronasda.church;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Proxy to PGAdmin standalone server on port 5050
+    location / {
+        proxy_pass http://localhost:5050/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Access and error logs
+    access_log /var/log/nginx/pgadmin-access.log;
+    error_log /var/log/nginx/pgadmin-error.log;
 }
 ```
 
@@ -712,18 +727,20 @@ If you already have a cloudflared container running (Cloudflare Tunnel), you onl
 
 1. **Add the service to your cloudflared configuration:**
    - Edit your cloudflared config file (typically in your container or `/etc/cloudflared/config.yml`)
-   - Add the following ingress rule:
+   - Add the following ingress rules:
    ```yaml
    ingress:
      - hostname: photohonor.coronasda.church
        service: http://localhost:5000
+     - hostname: pgadmin.photohonor.coronasda.church
+       service: http://localhost:5050
      - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
        service: http://localhost:3301
      # ... your other services ...
      - service: http_status:404  # catch-all rule
    ```
 
-   **Note**: PGAdmin is not included in the tunnel configuration for security reasons. Access PGAdmin via SSH tunnel or from within your local network only.
+   **Security Note**: PGAdmin provides database management capabilities. Ensure strong passwords are configured and consider additional authentication layers if exposing publicly.
 
 2. **Restart your cloudflared container** to apply the changes
 
