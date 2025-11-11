@@ -75,9 +75,14 @@ sudo apt install -y cockpit
 sudo systemctl start cockpit
 sudo systemctl enable cockpit
 
+# Enable root login (comment out root from disallowed users)
+sudo sed -i 's/^root$/#root/' /etc/cockpit/disallowed-users
+
 # Verify installation
 sudo systemctl status cockpit
 ```
+
+**Note**: By default, Cockpit disables root login for security. The configuration above enables root access by commenting out the root user from `/etc/cockpit/disallowed-users`. If you prefer to keep root disabled, skip the `sed` command and create a separate admin user instead.
 
 Cockpit will be accessible at `https://your-server-ip:9090`. To access it securely, you can configure Nginx as a reverse proxy or use SSH tunneling:
 
@@ -2023,6 +2028,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] PostgreSQL service started and enabled
 - [ ] Installed Cockpit: `sudo apt install cockpit`
 - [ ] Cockpit service started and enabled
+- [ ] Enabled root login in Cockpit (commented out root in `/etc/cockpit/disallowed-users`)
 - [ ] Cockpit accessible at `https://your-server-ip:9090`
 - [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
 - [ ] Configured PGAdmin 4 with setup-web.sh
