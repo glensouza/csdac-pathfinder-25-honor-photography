@@ -243,9 +243,9 @@ dotnet build
 
 ## Documentation
 
-- `README.md`: Main documentation
-- `SETUP.md`: Detailed setup guide
-- `HOMELAB_DEPLOYMENT.md`: Homelab deployment
+- `README.md`: Main documentation (in .github folder)
+- `SETUP.md`: Detailed local development setup guide
+- `BARE_METAL_DEPLOYMENT.md`: Production deployment on Ubuntu server/VM
 - `CODE_SUMMARY.md`: This document
 
 ## Testing
