@@ -26,6 +26,7 @@ This guide provides instructions for deploying the Pathfinder Photography applic
 - Root or sudo access
 - Domain name configured (example: `photohonor.coronasda.church`)
 - Cloudflare account (if using Cloudflare for DNS and SSL/CDN)
+- (Optional) Cloudflare Tunnel (cloudflared) if already running - see Cloudflare configuration section
 - Google OAuth credentials (see [SETUP.md](SETUP.md#google-oauth20-setup))
 
 ## System Requirements
@@ -611,6 +612,43 @@ Certbot will automatically:
 #### Configure Cloudflare (Optional)
 
 If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`):
+
+**Option A: Using Cloudflare Tunnel (cloudflared) - If Already Running**
+
+If you already have a cloudflared container running (Cloudflare Tunnel), you only need to add this service to your existing tunnel configuration:
+
+1. **Add the service to your cloudflared configuration:**
+   - Edit your cloudflared config file (typically in your container or `/etc/cloudflared/config.yml`)
+   - Add the following ingress rule:
+   ```yaml
+   ingress:
+     - hostname: photohonor.coronasda.church
+       service: http://localhost:5000
+     - hostname: pgadmin.photohonor.coronasda.church
+       service: http://localhost:5050
+     - hostname: signoz.photohonor.coronasda.church  # if using SigNoz
+       service: http://localhost:3301
+     # ... your other services ...
+     - service: http_status:404  # catch-all rule
+   ```
+
+2. **Restart your cloudflared container** to apply the changes
+
+3. **Configure DNS in Cloudflare Dashboard:**
+   - The DNS records should already be created automatically by cloudflared
+   - If not, add CNAME records pointing to your tunnel subdomain
+   - Proxy status should be "DNS only" (gray cloud) when using Cloudflare Tunnel
+
+**Benefits of Cloudflare Tunnel:**
+- ✅ No need to expose ports publicly
+- ✅ Automatic SSL/TLS certificates
+- ✅ DDoS protection
+- ✅ No need for port forwarding or firewall configuration
+- ✅ Access from anywhere without VPN
+
+**Option B: Direct Connection (Standard Cloudflare Proxy)**
+
+If you're NOT using Cloudflare Tunnel, use the standard DNS proxy configuration:
 
 **1. Add DNS Records in Cloudflare Dashboard:**
 
@@ -2094,8 +2132,9 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Tested configuration: `nginx -t`
 - [ ] Reloaded Nginx: `systemctl reload nginx`
 - [ ] Installed Certbot: `apt install certbot python3-certbot-nginx`
-- [ ] Obtained SSL certificate: `certbot --nginx -d photohonor.coronasda.church` (or using Cloudflare SSL)
+- [ ] Obtained SSL certificate: `certbot --nginx -d photohonor.coronasda.church` (or using Cloudflare SSL/Tunnel)
 - [ ] Verified auto-renewal: `certbot renew --dry-run`
+- [ ] (Optional) If using Cloudflare Tunnel: Added service to cloudflared configuration and restarted container
 
 ### Step 6: Firewall Configuration
 
