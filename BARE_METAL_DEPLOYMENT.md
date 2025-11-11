@@ -733,40 +733,61 @@ sudo ufw status verbose
 
 SigNoz provides observability (traces, metrics, logs). Install it only if you need application monitoring.
 
-#### Prerequisites for SigNoz
+**Native Linux Installation** (no Docker required):
+
+**Prerequisites:**
+- Ubuntu 22.04 LTS or later
+- 4GB RAM minimum (8GB recommended)
+- 20GB disk space
+
+**Install SigNoz:**
 
 ```bash
-# Install Docker (SigNoz components run in containers)
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-
-# Install Docker Compose
-sudo apt install -y docker-compose-plugin
-
-# Log out and back in for group changes to take effect
-```
-
-#### Install SigNoz
-
-```bash
-# Create directory for SigNoz
+# Create installation directory
 sudo mkdir -p /opt/signoz
 cd /opt/signoz
 
-# Clone SigNoz repository
-git clone -b main https://github.com/SigNoz/signoz.git
-cd signoz/deploy/
+# Download the installation script
+curl -sL https://github.com/SigNoz/signoz/raw/main/deploy/install-linux.sh -o install-linux.sh
 
-# Run installation script
-./install.sh
+# Make it executable
+chmod +x install-linux.sh
+
+# Run the installation
+sudo ./install-linux.sh
 ```
 
-The installation will:
-- Download and start SigNoz containers
-- Configure ClickHouse for data storage
-- Set up OTLP collector on port 4317
+The script will:
+- Install all required dependencies (ClickHouse, OTEL Collector, Query Service)
+- Set up systemd services for automatic startup
+- Configure OTLP collector on port 4317
 - Start SigNoz UI on port 3301
+
+**Manage SigNoz Services:**
+
+```bash
+# Check status of all SigNoz services
+sudo systemctl status signoz-otel-collector
+sudo systemctl status signoz-query-service
+sudo systemctl status clickhouse-server
+
+# Start/Stop/Restart services
+sudo systemctl start signoz-otel-collector
+sudo systemctl stop signoz-otel-collector
+sudo systemctl restart signoz-otel-collector
+
+# Enable services to start on boot (should be done by installer)
+sudo systemctl enable signoz-otel-collector
+sudo systemctl enable signoz-query-service
+sudo systemctl enable clickhouse-server
+```
+
+**Benefits of Native Installation:**
+- ✅ No Docker overhead
+- ✅ Better performance on bare metal
+- ✅ Simpler service management via systemd
+- ✅ Lower resource consumption
+- ✅ Easier troubleshooting with standard Linux tools
 
 #### Configure Application to Use SigNoz
 
@@ -823,28 +844,6 @@ sudo ln -s /etc/nginx/sites-available/signoz /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 sudo certbot --nginx -d signoz.photohonor.coronasda.church
-```
-
-#### SigNoz Startup on Boot
-
-SigNoz containers should start automatically with Docker. To ensure this:
-
-```bash
-cd /opt/signoz/signoz/deploy/
-docker compose ps
-# All containers should show "Up" status
-```
-
-To stop SigNoz:
-```bash
-cd /opt/signoz/signoz/deploy/
-docker compose down
-```
-
-To start SigNoz:
-```bash
-cd /opt/signoz/signoz/deploy/
-docker compose up -d
 ```
 
 ### 7. Setup Automated Deployments (Optional)
@@ -1885,14 +1884,15 @@ sudo systemctl reload nginx
 
 ### SigNoz Not Receiving Telemetry
 
-Check SigNoz containers:
+Check SigNoz services:
 ```bash
-cd /opt/signoz/signoz/deploy/
-docker compose ps
-# All containers should be "Up"
+# Check all SigNoz services status
+sudo systemctl status signoz-otel-collector
+sudo systemctl status signoz-query-service
+sudo systemctl status clickhouse-server
 
 # Check collector logs
-docker compose logs signoz-otel-collector
+sudo journalctl -u signoz-otel-collector -n 50
 
 # Verify endpoint in application service
 sudo systemctl cat pathfinder-photography | grep OTEL_EXPORTER
@@ -2235,10 +2235,9 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 ### Optional Configuration
 
 #### SigNoz Observability (Optional)
-- [ ] Installed Docker for SigNoz components
-- [ ] Cloned SigNoz repository to `/opt/signoz`
-- [ ] Ran SigNoz installation script
-- [ ] SigNoz containers running: `docker compose ps`
+- [ ] Installed SigNoz natively using install-linux.sh script
+- [ ] SigNoz services running: `systemctl status signoz-otel-collector signoz-query-service clickhouse-server`
+- [ ] Services enabled to start on boot
 - [ ] Updated application systemd service with OTEL variables
 - [ ] Restarted application service
 - [ ] SigNoz UI accessible: `http://your-server-ip:3301`
