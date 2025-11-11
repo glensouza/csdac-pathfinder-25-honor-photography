@@ -139,15 +139,6 @@ jobs:
           
           # Set correct ownership for deployed files
           sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
-          
-          # Preserve uploads directory if it exists
-          if [ -d "/opt/backups/pathfinder-photography/uploads" ]; then
-            sudo rsync -av /opt/backups/pathfinder-photography/uploads/ ${{ env.DEPLOY_DIR }}/wwwroot/uploads/
-          fi
-          
-          # Ensure uploads directory exists with correct permissions
-          sudo mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
-          sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
                     
           echo "Deployment completed successfully"
       
@@ -270,7 +261,6 @@ jobs:
           
           # Set correct ownership after restore
           sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
-          sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
           
           # Start service
           sudo systemctl start ${{ env.SERVICE_NAME }}

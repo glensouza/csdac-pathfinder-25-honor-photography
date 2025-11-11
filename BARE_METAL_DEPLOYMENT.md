@@ -400,15 +400,6 @@ sudo rm pathfinder-photography.tar.gz
 sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography
 ```
 
-#### Create Uploads Directory
-
-```bash
-# Create directory for uploaded photos
-sudo mkdir -p /opt/pathfinder-photography/wwwroot/uploads
-sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography/wwwroot/uploads
-sudo chmod 755 /opt/pathfinder-photography/wwwroot/uploads
-```
-
 #### Configure Application
 
 Create production configuration file:
@@ -510,7 +501,6 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/pathfinder-photography/wwwroot/uploads
 
 # Resource limits
 LimitNOFILE=65536
@@ -543,6 +533,30 @@ sudo systemctl status pathfinder-photography
 
 # View logs
 sudo journalctl -u pathfinder-photography -f
+```
+
+**Important Note about Direct Access to Port 5000:**
+
+At this point in the deployment, the application is running on `http://localhost:5000`, but you **will not** be able to access it directly via a web browser at `http://10.10.10.200:5000` (or your server's IP). This is **normal and expected** behavior because:
+
+1. The application is configured with `ASPNETCORE_URLS=http://localhost:5000`, which binds only to localhost (not all network interfaces)
+2. The application has `UseHttpsRedirection()` enabled, which automatically redirects all HTTP requests to HTTPS
+3. Without a valid SSL certificate configured, the HTTPS redirect will fail
+
+The application is **designed to work through a reverse proxy** (Nginx), which will be set up in the next section. After completing Section 5 (Nginx configuration), you'll be able to access the application through your domain name with proper SSL/TLS.
+
+To verify the service is running correctly at this stage, check:
+```bash
+# Verify service is active
+sudo systemctl status pathfinder-photography
+
+# Check that it's listening on port 5000
+sudo netstat -tlnp | grep :5000
+# OR
+sudo ss -tlnp | grep :5000
+
+# View recent logs for any errors
+sudo journalctl -u pathfinder-photography -n 50 --no-pager
 ```
 
 ### 5. Install Nginx Reverse Proxy
@@ -609,13 +623,6 @@ server {
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
-    }
-
-    # Optional: serve static files directly (better performance)
-    location /uploads/ {
-        alias /opt/pathfinder-photography/wwwroot/uploads/;
-        expires 1y;
-        access_log off;
     }
 
     # Access and error logs
@@ -987,10 +994,6 @@ github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder /opt/bac
 
 # File permissions - specific modes only for security
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 755 /opt/pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod 755 /opt/pathfinder-photography/wwwroot/uploads
-
-# Rsync for preserving uploads
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/rsync -av /opt/backups/pathfinder-photography/uploads/ /opt/pathfinder-photography/wwwroot/uploads/
 
 # Log viewing - restricted to pathfinder-photography service only
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u pathfinder-photography *
@@ -1650,7 +1653,6 @@ After setting up the runner, every push to the `main` branch will automatically:
 - ✅ Artifact integrity verification prevents corrupted deployments
 - ✅ Automatic backup before deployment enables safe rollback
 - ✅ File ownership set to `pathfinder:pathfinder` after extraction
-- ✅ Upload directory permissions set to 755 for proper access control
 - ✅ Health check verification ensures application is responding
 - ✅ Automatic rollback restores from backup on any failure
 - ✅ All operations use sudo with restricted privileges from sudoers file
@@ -1775,15 +1777,11 @@ BACKUP_DIR="/opt/backups/pathfinder"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
-# Backup database
+# Backup database (includes photo data stored in ImageData column)
 sudo -u postgres pg_dump pathfinder_photography | gzip > $BACKUP_DIR/db_backup_$TIMESTAMP.sql.gz
-
-# Backup uploaded photos
-tar -czf $BACKUP_DIR/uploads_backup_$TIMESTAMP.tar.gz /opt/pathfinder-photography/wwwroot/uploads/
 
 # Keep only last 7 days of backups
 find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +7 -delete
-find $BACKUP_DIR -name "uploads_backup_*.tar.gz" -mtime +7 -delete
 
 echo "Backup completed: $TIMESTAMP"
 ```
@@ -1805,11 +1803,8 @@ sudo crontab -e
 # Stop the application
 sudo systemctl stop pathfinder-photography
 
-# Restore database
+# Restore database (includes all photo data)
 gunzip -c /opt/backups/pathfinder/db_backup_YYYYMMDD_HHMMSS.sql.gz | sudo -u postgres psql pathfinder_photography
-
-# Restore uploads
-sudo tar -xzf /opt/backups/pathfinder/uploads_backup_YYYYMMDD_HHMMSS.tar.gz -C /
 
 # Start the application
 sudo systemctl start pathfinder-photography
@@ -1919,13 +1914,21 @@ Check disk space:
 df -h
 ```
 
-Check directory permissions:
+Check application logs for upload errors:
 ```bash
-ls -la /opt/pathfinder-photography/wwwroot/uploads/
-# Should be owned by pathfinder:pathfinder with 755 permissions
+sudo journalctl -u pathfinder-photography -n 100 | grep -i "upload\|image\|photo"
 ```
 
-Increase upload size limit in Nginx if needed:
+Verify database connectivity and storage:
+```bash
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+
+# Check database size and available space
+sudo -u postgres psql pathfinder_photography -c "SELECT pg_size_pretty(pg_database_size('pathfinder_photography'));"
+```
+
+Increase upload size limit in Nginx if needed (default is 10M):
 ```bash
 sudo nano /etc/nginx/sites-available/pathfinder-photography
 # Adjust: client_max_body_size 20M;
@@ -1983,7 +1986,7 @@ sudo systemctl restart pathfinder-photography
 
 3. **Enable firewall** and only open necessary ports
 
-4. **Regular backups** - automate database and uploads backups
+4. **Regular backups** - automate database backups (photos are stored in database)
 
 5. **Monitor logs** for suspicious activity:
    ```bash
@@ -2145,7 +2148,6 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Added pathfinder to www-data group
 - [ ] Created application directory: `/opt/pathfinder-photography`
 - [ ] Downloaded/built application files
-- [ ] Created uploads directory: `/opt/pathfinder-photography/wwwroot/uploads`
 - [ ] Set ownership: `chown -R pathfinder:pathfinder /opt/pathfinder-photography`
 - [ ] Created `appsettings.Production.json` with:
   - [ ] PostgreSQL connection string
@@ -2161,7 +2163,6 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Set WorkingDirectory=/opt/pathfinder-photography
 - [ ] Configured environment variables (ASPNETCORE_ENVIRONMENT=Production)
 - [ ] Set security settings (NoNewPrivileges, PrivateTmp, etc.)
-- [ ] Added ReadWritePaths for uploads directory
 - [ ] (Optional) Added SigNoz environment variables if using observability
 - [ ] Reloaded systemd: `systemctl daemon-reload`
 - [ ] Enabled service: `systemctl enable pathfinder-photography`
@@ -2265,7 +2266,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Added description
 - [ ] Submitted successfully
 - [ ] Photo appears in gallery
-- [ ] Photo file exists in `/opt/pathfinder-photography/wwwroot/uploads/`
+- [ ] Photo displays correctly when clicked
 - [ ] Uploads persist after service restart
 
 #### Database
