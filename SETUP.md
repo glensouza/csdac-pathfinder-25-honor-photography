@@ -183,7 +183,7 @@ For production deployment on Ubuntu servers or VMs, see the comprehensive [BARE_
 ### Important Notes
 - Use HTTPS for Google OAuth in production
 - Keep PostgreSQL credentials secure
-- Back up database and uploads regularly
+- Back up database regularly (photos are stored in database)
 - Follow the deployment checklist in BARE_METAL_DEPLOYMENT.md
 
 ## Observability & Health
@@ -284,7 +284,7 @@ Match protocol, port, and path exactly in Google Console.
 Check PostgreSQL service status, credentials, and network connectivity.
 
 ### Photos Not Uploading
-Validate `wwwroot/uploads` exists & writable; check file size (<10MB) & disk space.
+Check file size (<10MB), disk space, database connectivity, and application logs for errors.
 
 ### Email Failures
 Confirm App Password usage; inspect logs for SMTP errors; verify port 587 is accessible.

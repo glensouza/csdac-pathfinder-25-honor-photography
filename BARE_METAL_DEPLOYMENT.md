@@ -122,65 +122,67 @@ sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] h
 # Update package list
 sudo apt update
 
-# Install PGAdmin 4 (web mode only)
-sudo apt install -y pgadmin4-web
+# Install PGAdmin 4 (desktop/web mode - we'll use it in standalone mode)
+sudo apt install -y pgadmin4
 
-# Configure PGAdmin 4
-sudo /usr/pgadmin4/bin/setup-web.sh
+# Create PGAdmin configuration directory
+sudo mkdir -p /var/lib/pgadmin
+sudo mkdir -p /var/log/pgadmin
+
+# Set up PGAdmin to run in standalone mode (not with Apache)
+# We'll configure it to run on port 5050 and proxy through Nginx
 ```
 
-During setup, you'll be prompted to:
-1. Create an initial PGAdmin user email and password
-2. Configure the web server (select option to use Apache or standalone mode)
+**Configure PGAdmin to run as a service:**
 
-PGAdmin 4 will be accessible at `http://your-server-ip/pgadmin4`. To access it securely:
-
-**Option A: Configure Nginx reverse proxy (recommended for production)**
-
-Add to your Nginx configuration:
+Create a systemd service file:
 
 ```bash
-sudo nano /etc/nginx/sites-available/pgadmin4
+sudo nano /etc/systemd/system/pgadmin4.service
 ```
 
 Add the following content:
 
-```nginx
-server {
-    listen 80;
-    server_name pgadmin.photohonor.coronasda.church;
+```ini
+[Unit]
+Description=PGAdmin4
+After=network.target
 
-    location / {
-        proxy_pass http://localhost:80/pgadmin4/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Environment="PGADMIN_SETUP_EMAIL=admin@example.com"
+Environment="PGADMIN_SETUP_PASSWORD=ChangeThisPassword"
+WorkingDirectory=/usr/pgadmin4/web
+ExecStart=/usr/bin/python3 /usr/pgadmin4/web/pgAdmin4.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-Enable the site and secure with SSL:
+**Important**: Change `PGADMIN_SETUP_EMAIL` and `PGADMIN_SETUP_PASSWORD` to your desired credentials.
+
+Enable and start PGAdmin:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/pgadmin4 /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-sudo certbot --nginx -d pgadmin.photohonor.coronasda.church
+# Set proper ownership
+sudo chown -R www-data:www-data /var/lib/pgadmin
+sudo chown -R www-data:www-data /var/log/pgadmin
+
+# Enable and start the service
+sudo systemctl daemon-reload
+sudo systemctl enable pgadmin4
+sudo systemctl start pgadmin4
+
+# Check status
+sudo systemctl status pgadmin4
 ```
 
-**Option B: SSH tunnel (for temporary access)**
+PGAdmin will run on `http://localhost:5050`. We'll configure Nginx to proxy it at the subdomain `pgadmin.photohonor.coronasda.church` (see Nginx configuration below).
 
-```bash
-# SSH tunnel to access PGAdmin 4 securely
-ssh -L 8080:localhost:80 user@your-server-ip
-# Then access http://localhost:8080/pgadmin4 from your local browser
-```
-
-**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators. Consider restricting access via firewall rules or VPN.
+**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators through Nginx.
 
 #### Update Login Message (Optional)
 
@@ -199,18 +201,16 @@ echo -e "    🏠   Hostname: $(hostname)"
 echo -e "    💡   IP Address: $(hostname -I | awk '{print $1}')"
 echo -e ""
 echo -e "Available Services:"
-echo -e "    🖥️   Cockpit (System Management):"
-echo -e "        - Local: https://10.10.10.200:9090"
-echo -e "        - Public: https://photohonor.coronasda.church (via Cloudflare Tunnel)"
+echo -e "    🌐   Pathfinder Photography App:"
+echo -e "        - Local: http://10.10.10.200"
+echo -e "        - Public: https://photohonor.coronasda.church"
 echo -e "    🗄️   PGAdmin 4 (Database Management):"
-echo -e "        - Local: http://10.10.10.200/pgadmin4"
 echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
-echo -e "    📊   SigNoz (Observability):"
+echo -e "    📊   SigNoz (Observability - Optional):"
 echo -e "        - Local: http://10.10.10.200:3301"
 echo -e "        - Public: https://signoz.photohonor.coronasda.church"
-echo -e "    🌐   Pathfinder Photography App:"
-echo -e "        - Local: http://10.10.10.200:5000"
-echo -e "        - Public: https://photohonor.coronasda.church"
+echo -e "    🖥️   Cockpit (System Management):"
+echo -e "        - Local: https://10.10.10.200:9090"
 echo -e ""
 ```
 
@@ -400,15 +400,6 @@ sudo rm pathfinder-photography.tar.gz
 sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography
 ```
 
-#### Create Uploads Directory
-
-```bash
-# Create directory for uploaded photos
-sudo mkdir -p /opt/pathfinder-photography/wwwroot/uploads
-sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography/wwwroot/uploads
-sudo chmod 755 /opt/pathfinder-photography/wwwroot/uploads
-```
-
 #### Configure Application
 
 Create production configuration file:
@@ -510,7 +501,6 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/pathfinder-photography/wwwroot/uploads
 
 # Resource limits
 LimitNOFILE=65536
@@ -545,6 +535,30 @@ sudo systemctl status pathfinder-photography
 sudo journalctl -u pathfinder-photography -f
 ```
 
+**Important Note about Direct Access to Port 5000:**
+
+At this point in the deployment, the application is running on `http://localhost:5000`, but you **will not** be able to access it directly via a web browser at `http://10.10.10.200:5000` (or your server's IP). This is **normal and expected** behavior because:
+
+1. The application is configured with `ASPNETCORE_URLS=http://localhost:5000`, which binds only to localhost (not all network interfaces)
+2. The application has `UseHttpsRedirection()` enabled, which automatically redirects all HTTP requests to HTTPS
+3. Without a valid SSL certificate configured, the HTTPS redirect will fail
+
+The application is **designed to work through a reverse proxy** (Nginx), which will be set up in the next section. After completing Section 5 (Nginx configuration), you'll be able to access the application through your domain name with proper SSL/TLS.
+
+To verify the service is running correctly at this stage, check:
+```bash
+# Verify service is active
+sudo systemctl status pathfinder-photography
+
+# Check that it's listening on port 5000
+sudo netstat -tlnp | grep :5000
+# OR
+sudo ss -tlnp | grep :5000
+
+# View recent logs for any errors
+sudo journalctl -u pathfinder-photography -n 50 --no-pager
+```
+
 ### 5. Install Nginx Reverse Proxy
 
 Install Nginx to serve the application over HTTP/HTTPS:
@@ -557,32 +571,18 @@ sudo apt install -y nginx
 sudo nano /etc/nginx/sites-available/pathfinder-photography
 ```
 
+**Initial configuration (HTTP only):**
+
+Since you're using Cloudflare for SSL/TLS, start with a simple HTTP configuration. Cloudflare will handle the SSL termination at their edge.
+
 Add the following configuration:
 
 ```nginx
-# HTTP server - redirects to HTTPS
+# Main application server
 server {
     listen 80;
     listen [::]:80;
     server_name photohonor.coronasda.church www.photohonor.coronasda.church;
-
-    # Redirect all HTTP to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-# HTTPS server
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name photohonor.coronasda.church www.photohonor.coronasda.church;
-
-    # SSL configuration (will be managed by Certbot or Cloudflare)
-    # If using Cloudflare, SSL certificates are managed by Cloudflare
-    # If using Let's Encrypt directly:
-    # ssl_certificate /etc/letsencrypt/live/photohonor.coronasda.church/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/photohonor.coronasda.church/privkey.pem;
-    # include /etc/letsencrypt/options-ssl-nginx.conf;
-    # ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -611,43 +611,100 @@ server {
         proxy_read_timeout 60s;
     }
 
-    # Optional: serve static files directly (better performance)
-    location /uploads/ {
-        alias /opt/pathfinder-photography/wwwroot/uploads/;
-        expires 1y;
-        access_log off;
-    }
-
     # Access and error logs
     access_log /var/log/nginx/pathfinder-photography-access.log;
     error_log /var/log/nginx/pathfinder-photography-error.log;
 }
+
+# PGAdmin subdomain server
+server {
+    listen 80;
+    listen [::]:80;
+    server_name pgadmin.photohonor.coronasda.church;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Proxy to PGAdmin standalone server on port 5050
+    location / {
+        proxy_pass http://localhost:5050/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Access and error logs
+    access_log /var/log/nginx/pgadmin-access.log;
+    error_log /var/log/nginx/pgadmin-error.log;
+}
 ```
 
-Enable the site and reload Nginx:
+Enable the site and test:
 
 ```bash
+# Stop and disable Apache if it's running
+sudo systemctl stop apache2
+sudo systemctl disable apache2
+
 # Enable site
 sudo ln -s /etc/nginx/sites-available/pathfinder-photography /etc/nginx/sites-enabled/
 
 # Test Nginx configuration
 sudo nginx -t
 
-# Reload Nginx
-sudo systemctl reload nginx
+# Start Nginx
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+# Verify it's running
+sudo systemctl status nginx
 ```
 
-#### Install SSL Certificate with Let's Encrypt
+**Important**: When using Cloudflare, you typically don't need to configure SSL certificates on your server because:
+1. Cloudflare handles SSL/TLS at their edge (between users and Cloudflare)
+2. Traffic from Cloudflare to your server can be HTTP (Flexible SSL mode) or HTTPS with Cloudflare Origin Certificate (Full/Strict mode)
 
-**Note**: If you're using Cloudflare for DNS and SSL management (recommended for `photohonor.coronasda.church`), Cloudflare can handle SSL certificates automatically. In that case, you can skip this section and configure Cloudflare SSL settings in your Cloudflare dashboard.
+**Test the application** by visiting `http://your-server-ip` directly. After configuring Cloudflare DNS (see below), you'll access via `https://photohonor.coronasda.church`.
 
-**If NOT using Cloudflare SSL** (using Let's Encrypt directly):
+#### Configure Cloudflare SSL/TLS
+
+**Recommended**: Since you're using Cloudflare for `photohonor.coronasda.church`, configure Cloudflare to handle SSL/TLS.
+
+**Cloudflare SSL/TLS Settings:**
+
+1. **Go to SSL/TLS → Overview in Cloudflare Dashboard**
+2. **Set encryption mode:**
+   - **Flexible**: Cloudflare ↔ User (HTTPS), Your Server ↔ Cloudflare (HTTP) - Easiest, works with HTTP-only Nginx config above
+   - **Full**: Cloudflare ↔ User (HTTPS), Your Server ↔ Cloudflare (HTTPS with self-signed cert)
+   - **Full (strict)**: Requires valid certificate on your server (Let's Encrypt or Cloudflare Origin Certificate)
+
+**For most users, "Flexible" mode is sufficient** and works with the HTTP-only Nginx configuration above.
+
+#### Optional: Install Let's Encrypt SSL (Only if NOT using Cloudflare)
+
+**Skip this section if using Cloudflare** - it handles SSL automatically.
+
+If you're NOT using Cloudflare and want to use Let's Encrypt directly:
 
 ```bash
 # Install Certbot
 sudo apt install -y certbot python3-certbot-nginx
 
 # Obtain and install certificate
+# Certbot will automatically modify your Nginx configuration to add SSL
 sudo certbot --nginx -d photohonor.coronasda.church -d www.photohonor.coronasda.church
 
 # Test automatic renewal
@@ -656,10 +713,11 @@ sudo certbot renew --dry-run
 
 Certbot will automatically:
 - Obtain SSL certificate
-- Update Nginx configuration
+- Update Nginx configuration to add HTTPS server block
+- Add HTTP to HTTPS redirect
 - Set up automatic renewal
 
-#### Configure Cloudflare (Optional)
+#### Configure Cloudflare DNS
 
 If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`):
 
@@ -669,18 +727,20 @@ If you already have a cloudflared container running (Cloudflare Tunnel), you onl
 
 1. **Add the service to your cloudflared configuration:**
    - Edit your cloudflared config file (typically in your container or `/etc/cloudflared/config.yml`)
-   - Add the following ingress rule:
+   - Add the following ingress rules:
    ```yaml
    ingress:
      - hostname: photohonor.coronasda.church
        service: http://localhost:5000
      - hostname: pgadmin.photohonor.coronasda.church
-       service: http://localhost:80/pgadmin4
+       service: http://localhost:5050
      - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
        service: http://localhost:3301
      # ... your other services ...
      - service: http_status:404  # catch-all rule
    ```
+
+   **Security Note**: PGAdmin provides database management capabilities. Ensure strong passwords are configured and consider additional authentication layers if exposing publicly.
 
 2. **Restart your cloudflared container** to apply the changes
 
@@ -972,7 +1032,6 @@ github-runner ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 # Directory creation - restricted to specific paths
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography/deployments
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography/uploads
 
 # Backup operations - highly restricted paths
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz -C /opt/pathfinder-photography .
@@ -987,10 +1046,6 @@ github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder /opt/bac
 
 # File permissions - specific modes only for security
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 755 /opt/pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod 755 /opt/pathfinder-photography/wwwroot/uploads
-
-# Rsync for preserving uploads
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/rsync -av /opt/backups/pathfinder-photography/uploads/ /opt/pathfinder-photography/wwwroot/uploads/
 
 # Log viewing - restricted to pathfinder-photography service only
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u pathfinder-photography *
@@ -1174,7 +1229,6 @@ Verify the runner is online:
 ```bash
 # Create backup directories
 sudo mkdir -p /opt/backups/pathfinder-photography/deployments
-sudo mkdir -p /opt/backups/pathfinder-photography/uploads
 
 # Set ownership to github-runner so backups can be created without sudo
 sudo chown -R github-runner:github-runner /opt/backups/pathfinder-photography
@@ -1650,7 +1704,6 @@ After setting up the runner, every push to the `main` branch will automatically:
 - ✅ Artifact integrity verification prevents corrupted deployments
 - ✅ Automatic backup before deployment enables safe rollback
 - ✅ File ownership set to `pathfinder:pathfinder` after extraction
-- ✅ Upload directory permissions set to 755 for proper access control
 - ✅ Health check verification ensures application is responding
 - ✅ Automatic rollback restores from backup on any failure
 - ✅ All operations use sudo with restricted privileges from sudoers file
@@ -1775,15 +1828,11 @@ BACKUP_DIR="/opt/backups/pathfinder"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
-# Backup database
+# Backup database (includes photo data stored in ImageData column)
 sudo -u postgres pg_dump pathfinder_photography | gzip > $BACKUP_DIR/db_backup_$TIMESTAMP.sql.gz
-
-# Backup uploaded photos
-tar -czf $BACKUP_DIR/uploads_backup_$TIMESTAMP.tar.gz /opt/pathfinder-photography/wwwroot/uploads/
 
 # Keep only last 7 days of backups
 find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +7 -delete
-find $BACKUP_DIR -name "uploads_backup_*.tar.gz" -mtime +7 -delete
 
 echo "Backup completed: $TIMESTAMP"
 ```
@@ -1805,11 +1854,8 @@ sudo crontab -e
 # Stop the application
 sudo systemctl stop pathfinder-photography
 
-# Restore database
+# Restore database (includes all photo data)
 gunzip -c /opt/backups/pathfinder/db_backup_YYYYMMDD_HHMMSS.sql.gz | sudo -u postgres psql pathfinder_photography
-
-# Restore uploads
-sudo tar -xzf /opt/backups/pathfinder/uploads_backup_YYYYMMDD_HHMMSS.tar.gz -C /
 
 # Start the application
 sudo systemctl start pathfinder-photography
@@ -1919,13 +1965,21 @@ Check disk space:
 df -h
 ```
 
-Check directory permissions:
+Check application logs for upload errors:
 ```bash
-ls -la /opt/pathfinder-photography/wwwroot/uploads/
-# Should be owned by pathfinder:pathfinder with 755 permissions
+sudo journalctl -u pathfinder-photography -n 100 | grep -i "upload\|image\|photo"
 ```
 
-Increase upload size limit in Nginx if needed:
+Verify database connectivity and storage:
+```bash
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+
+# Check database size and available space
+sudo -u postgres psql pathfinder_photography -c "SELECT pg_size_pretty(pg_database_size('pathfinder_photography'));"
+```
+
+Increase upload size limit in Nginx if needed (default is 10M):
 ```bash
 sudo nano /etc/nginx/sites-available/pathfinder-photography
 # Adjust: client_max_body_size 20M;
@@ -1983,7 +2037,7 @@ sudo systemctl restart pathfinder-photography
 
 3. **Enable firewall** and only open necessary ports
 
-4. **Regular backups** - automate database and uploads backups
+4. **Regular backups** - automate database backups (photos are stored in database)
 
 5. **Monitor logs** for suspicious activity:
    ```bash
@@ -2145,7 +2199,6 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Added pathfinder to www-data group
 - [ ] Created application directory: `/opt/pathfinder-photography`
 - [ ] Downloaded/built application files
-- [ ] Created uploads directory: `/opt/pathfinder-photography/wwwroot/uploads`
 - [ ] Set ownership: `chown -R pathfinder:pathfinder /opt/pathfinder-photography`
 - [ ] Created `appsettings.Production.json` with:
   - [ ] PostgreSQL connection string
@@ -2161,7 +2214,6 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Set WorkingDirectory=/opt/pathfinder-photography
 - [ ] Configured environment variables (ASPNETCORE_ENVIRONMENT=Production)
 - [ ] Set security settings (NoNewPrivileges, PrivateTmp, etc.)
-- [ ] Added ReadWritePaths for uploads directory
 - [ ] (Optional) Added SigNoz environment variables if using observability
 - [ ] Reloaded systemd: `systemctl daemon-reload`
 - [ ] Enabled service: `systemctl enable pathfinder-photography`
@@ -2265,7 +2317,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Added description
 - [ ] Submitted successfully
 - [ ] Photo appears in gallery
-- [ ] Photo file exists in `/opt/pathfinder-photography/wwwroot/uploads/`
+- [ ] Photo displays correctly when clicked
 - [ ] Uploads persist after service restart
 
 #### Database
@@ -2318,8 +2370,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 ### Backup Strategy
 
 - [ ] Created backup script: `/opt/backups/backup-pathfinder-db.sh`
-- [ ] Script backs up database
-- [ ] Script backs up uploaded photos
+- [ ] Script backs up database (includes all photo data)
 - [ ] Script keeps last 7 days of backups
 - [ ] Made script executable: `chmod +x`
 - [ ] Scheduled backup script in crontab (daily at 2 AM)
