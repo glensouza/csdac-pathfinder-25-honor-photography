@@ -10,6 +10,7 @@ This guide provides instructions for deploying the Pathfinder Photography applic
 - [Installation Steps](#installation-steps)
   - [1. Install PostgreSQL](#1-install-postgresql)
   - [2. Install .NET Runtime and SDK](#2-install-net-runtime-and-sdk)
+  - [2.1. Install Git (Required for Building from Source)](#21-install-git-required-for-building-from-source)
   - [3. Install Application](#3-install-application)
   - [4. Configure Systemd Service](#4-configure-systemd-service)
   - [5. Install Nginx Reverse Proxy](#5-install-nginx-reverse-proxy)
@@ -335,6 +336,26 @@ However, installing the SDK is **recommended** for production servers to enable:
 - Quick hotfixes and patches
 - Database schema updates
 - Troubleshooting and diagnostics
+
+### 2.1. Install Git (Required for Building from Source)
+
+If you plan to build the application from source (recommended), install Git:
+
+```bash
+# Install Git
+sudo apt update
+sudo apt install -y git
+
+# Verify installation
+git --version
+```
+
+**Expected output:**
+```
+git version 2.x.x
+```
+
+**Note**: Git is only required if you're building from source (Option A in Section 3). If you're deploying pre-built binaries (Option B), you can skip this step.
 
 ### 3. Install Application
 
