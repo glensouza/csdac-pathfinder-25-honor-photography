@@ -979,7 +979,6 @@ github-runner ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 # Directory creation - restricted to specific paths
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography/deployments
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography/uploads
 
 # Backup operations - highly restricted paths
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz -C /opt/pathfinder-photography .
@@ -1177,7 +1176,6 @@ Verify the runner is online:
 ```bash
 # Create backup directories
 sudo mkdir -p /opt/backups/pathfinder-photography/deployments
-sudo mkdir -p /opt/backups/pathfinder-photography/uploads
 
 # Set ownership to github-runner so backups can be created without sudo
 sudo chown -R github-runner:github-runner /opt/backups/pathfinder-photography
@@ -2319,8 +2317,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 ### Backup Strategy
 
 - [ ] Created backup script: `/opt/backups/backup-pathfinder-db.sh`
-- [ ] Script backs up database
-- [ ] Script backs up uploaded photos
+- [ ] Script backs up database (includes all photo data)
 - [ ] Script keeps last 7 days of backups
 - [ ] Made script executable: `chmod +x`
 - [ ] Scheduled backup script in crontab (daily at 2 AM)
