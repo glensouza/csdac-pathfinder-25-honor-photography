@@ -150,7 +150,7 @@ server {
     server_name pgadmin.photohonor.coronasda.church;
 
     location / {
-        proxy_pass http://localhost:5050;
+        proxy_pass http://localhost:80/pgadmin4/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -175,8 +175,8 @@ sudo certbot --nginx -d pgadmin.photohonor.coronasda.church
 
 ```bash
 # SSH tunnel to access PGAdmin 4 securely
-ssh -L 5050:localhost:5050 user@your-server-ip
-# Then access http://localhost:5050 from your local browser
+ssh -L 8080:localhost:80 user@your-server-ip
+# Then access http://localhost:8080/pgadmin4 from your local browser
 ```
 
 **Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators. Consider restricting access via firewall rules or VPN.
@@ -202,7 +202,7 @@ echo -e "    🖥️   Cockpit (System Management):"
 echo -e "        - Local: https://10.10.10.200:9090"
 echo -e "        - Public: https://photohonor.coronasda.church (via Cloudflare Tunnel)"
 echo -e "    🗄️   PGAdmin 4 (Database Management):"
-echo -e "        - Local: http://10.10.10.200:5050"
+echo -e "        - Local: http://10.10.10.200/pgadmin4"
 echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
 echo -e "    📊   SigNoz (Observability):"
 echo -e "        - Local: http://10.10.10.200:3301"
@@ -654,7 +654,7 @@ If you already have a cloudflared container running (Cloudflare Tunnel), you onl
      - hostname: photohonor.coronasda.church
        service: http://localhost:5000
      - hostname: pgadmin.photohonor.coronasda.church
-       service: http://localhost:5050
+       service: http://localhost:80/pgadmin4
      - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
        service: http://localhost:3301
      # ... your other services ...
