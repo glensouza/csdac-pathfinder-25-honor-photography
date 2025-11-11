@@ -133,46 +133,17 @@ During setup, you'll be prompted to:
 1. Create an initial PGAdmin user email and password
 2. Configure the web server (select option to use Apache or standalone mode)
 
-PGAdmin 4 will be accessible at `http://your-server-ip/pgadmin4`. To access it securely:
+PGAdmin 4 will be accessible at `http://your-server-ip/pgadmin4`.
 
-**Option A: Configure Nginx reverse proxy (recommended for production)**
+**Important**: PGAdmin 4 web mode integrates with Apache/WSGI and runs directly on the system. It is already accessible via HTTP on port 80 at the `/pgadmin4` path. **Do not create an Nginx proxy configuration** as it would create a conflict with Apache serving PGAdmin.
 
-Add to your Nginx configuration:
+**Access Options:**
 
-```bash
-sudo nano /etc/nginx/sites-available/pgadmin4
-```
+**Option A: Direct access (default)**
 
-Add the following content:
+Access PGAdmin directly at `http://your-server-ip/pgadmin4`. For production, ensure proper firewall rules restrict access to authorized IP addresses only.
 
-```nginx
-server {
-    listen 80;
-    server_name pgadmin.photohonor.coronasda.church;
-
-    location / {
-        proxy_pass http://localhost:80/pgadmin4/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-Enable the site and secure with SSL:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/pgadmin4 /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-sudo certbot --nginx -d pgadmin.photohonor.coronasda.church
-```
-
-**Option B: SSH tunnel (for temporary access)**
+**Option B: SSH tunnel (recommended for secure remote access)**
 
 ```bash
 # SSH tunnel to access PGAdmin 4 securely
@@ -204,7 +175,6 @@ echo -e "        - Local: https://10.10.10.200:9090"
 echo -e "        - Public: https://photohonor.coronasda.church (via Cloudflare Tunnel)"
 echo -e "    🗄️   PGAdmin 4 (Database Management):"
 echo -e "        - Local: http://10.10.10.200/pgadmin4"
-echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
 echo -e "    📊   SigNoz (Observability):"
 echo -e "        - Local: http://10.10.10.200:3301"
 echo -e "        - Public: https://signoz.photohonor.coronasda.church"
@@ -681,13 +651,13 @@ If you already have a cloudflared container running (Cloudflare Tunnel), you onl
    ingress:
      - hostname: photohonor.coronasda.church
        service: http://localhost:5000
-     - hostname: pgadmin.photohonor.coronasda.church
-       service: http://localhost:80/pgadmin4
      - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
        service: http://localhost:3301
      # ... your other services ...
      - service: http_status:404  # catch-all rule
    ```
+
+   **Note**: PGAdmin is not included in the tunnel configuration for security reasons. Access PGAdmin via SSH tunnel or from within your local network only.
 
 2. **Restart your cloudflared container** to apply the changes
 
