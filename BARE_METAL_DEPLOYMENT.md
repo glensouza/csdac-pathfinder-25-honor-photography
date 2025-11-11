@@ -159,6 +159,37 @@ ssh -L 5050:localhost:5050 user@your-server-ip
 
 **Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators. Consider restricting access via firewall rules or VPN.
 
+#### Update Login Message (Optional)
+
+To display service URLs in the login message, update the `/etc/profile.d/00_lxc-details.sh` file (or create it if it doesn't exist):
+
+```bash
+sudo nano /etc/profile.d/00_lxc-details.sh
+```
+
+Add the following content to display service information on login:
+
+```bash
+echo -e ""
+echo -e "Pathfinder Photography Server"
+echo -e "    🏠   Hostname: $(hostname)"
+echo -e "    💡   IP Address: $(hostname -I | awk '{print $1}')"
+echo -e ""
+echo -e "Available Services:"
+echo -e "    🖥️   Cockpit (System Management): https://$(hostname -I | awk '{print $1}'):9090"
+echo -e "    🗄️   PGAdmin 4 (Database Management): http://$(hostname -I | awk '{print $1}')/pgadmin4"
+echo -e "    🌐   Pathfinder Photography App: https://your-domain.com"
+echo -e ""
+```
+
+Make the script executable:
+
+```bash
+sudo chmod +x /etc/profile.d/00_lxc-details.sh
+```
+
+The login message will display on your next SSH login, showing quick access URLs for all services.
+
 #### Configure PostgreSQL
 
 **Security Note**: Generate a strong random password instead of using a weak one:
@@ -1931,6 +1962,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
 - [ ] Configured PGAdmin 4 with setup-web.sh
 - [ ] PGAdmin 4 accessible (either via Nginx proxy or SSH tunnel)
+- [ ] (Optional) Updated login message in `/etc/profile.d/00_lxc-details.sh` with service URLs
 - [ ] Created database: `pathfinder_photography`
 - [ ] Created user: `pathfinder` with strong password
 - [ ] Granted all privileges to pathfinder user
