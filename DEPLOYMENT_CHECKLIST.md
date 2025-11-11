@@ -125,7 +125,7 @@ Follow [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for detailed instruc
 - [ ] Added description
 - [ ] Submitted successfully
 - [ ] Photo appears in gallery
-- [ ] Photo file exists in `/opt/pathfinder-photography/wwwroot/uploads/`
+- [ ] Photo displays correctly when clicked
 
 #### Database
 - [ ] Database is accessible:
