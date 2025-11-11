@@ -24,7 +24,8 @@ This guide provides instructions for deploying the Pathfinder Photography applic
 - Ubuntu 22.04 LTS or later (or equivalent Debian-based distribution)
 - Physical server, virtual machine (VM), or cloud instance
 - Root or sudo access
-- Public IP address or domain name (for Google OAuth)
+- Domain name configured (example: `photohonor.coronasda.church`)
+- Cloudflare account (if using Cloudflare for DNS and SSL/CDN)
 - Google OAuth credentials (see [SETUP.md](SETUP.md#google-oauth20-setup))
 
 ## System Requirements
@@ -125,7 +126,7 @@ Add the following content:
 ```nginx
 server {
     listen 80;
-    server_name pgadmin.your-domain.com;
+    server_name pgadmin.photohonor.coronasda.church;
 
     location / {
         proxy_pass http://localhost:5050;
@@ -146,7 +147,7 @@ Enable the site and secure with SSL:
 sudo ln -s /etc/nginx/sites-available/pgadmin4 /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-sudo certbot --nginx -d pgadmin.your-domain.com
+sudo certbot --nginx -d pgadmin.photohonor.coronasda.church
 ```
 
 **Option B: SSH tunnel (for temporary access)**
@@ -177,8 +178,8 @@ echo -e "    💡   IP Address: $(hostname -I | awk '{print $1}')"
 echo -e ""
 echo -e "Available Services:"
 echo -e "    🖥️   Cockpit (System Management): https://$(hostname -I | awk '{print $1}'):9090"
-echo -e "    🗄️   PGAdmin 4 (Database Management): http://$(hostname -I | awk '{print $1}')/pgadmin4"
-echo -e "    🌐   Pathfinder Photography App: https://your-domain.com"
+echo -e "    🗄️   PGAdmin 4 (Database Management): https://pgadmin.photohonor.coronasda.church"
+echo -e "    🌐   Pathfinder Photography App: https://photohonor.coronasda.church"
 echo -e ""
 ```
 
@@ -507,7 +508,7 @@ Add the following configuration:
 server {
     listen 80;
     listen [::]:80;
-    server_name your-domain.com www.your-domain.com;
+    server_name photohonor.coronasda.church www.photohonor.coronasda.church;
 
     # Redirect all HTTP to HTTPS
     return 301 https://$server_name$request_uri;
@@ -517,11 +518,13 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name your-domain.com www.your-domain.com;
+    server_name photohonor.coronasda.church www.photohonor.coronasda.church;
 
-    # SSL configuration (will be managed by Certbot)
-    # ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    # SSL configuration (will be managed by Certbot or Cloudflare)
+    # If using Cloudflare, SSL certificates are managed by Cloudflare
+    # If using Let's Encrypt directly:
+    # ssl_certificate /etc/letsencrypt/live/photohonor.coronasda.church/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/photohonor.coronasda.church/privkey.pem;
     # include /etc/letsencrypt/options-ssl-nginx.conf;
     # ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -580,12 +583,16 @@ sudo systemctl reload nginx
 
 #### Install SSL Certificate with Let's Encrypt
 
+**Note**: If you're using Cloudflare for DNS and SSL management (recommended for `photohonor.coronasda.church`), Cloudflare can handle SSL certificates automatically. In that case, you can skip this section and configure Cloudflare SSL settings in your Cloudflare dashboard.
+
+**If NOT using Cloudflare SSL** (using Let's Encrypt directly):
+
 ```bash
 # Install Certbot
 sudo apt install -y certbot python3-certbot-nginx
 
 # Obtain and install certificate
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+sudo certbot --nginx -d photohonor.coronasda.church -d www.photohonor.coronasda.church
 
 # Test automatic renewal
 sudo certbot renew --dry-run
@@ -595,6 +602,64 @@ Certbot will automatically:
 - Obtain SSL certificate
 - Update Nginx configuration
 - Set up automatic renewal
+
+#### Configure Cloudflare (Optional)
+
+If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`):
+
+**1. Add DNS Records in Cloudflare Dashboard:**
+
+```
+Type: A
+Name: photohonor (or @)
+Content: Your-Server-IP
+Proxy status: Proxied (orange cloud)
+
+Type: A
+Name: www
+Content: Your-Server-IP
+Proxy status: Proxied (orange cloud)
+
+Type: CNAME
+Name: pgadmin
+Content: photohonor.coronasda.church
+Proxy status: Proxied (orange cloud)
+
+Type: CNAME
+Name: signoz (if using SigNoz)
+Content: photohonor.coronasda.church
+Proxy status: Proxied (orange cloud)
+```
+
+**2. Configure SSL/TLS Settings:**
+- Go to SSL/TLS → Overview
+- Set encryption mode to **Full (strict)** or **Full**
+- This ensures end-to-end encryption between Cloudflare and your server
+
+**3. Configure Cloudflare SSL Certificate (Optional):**
+- Go to SSL/TLS → Origin Server
+- Create Origin Certificate
+- Copy the certificate and private key
+- Save to your server:
+  ```bash
+  sudo mkdir -p /etc/ssl/cloudflare
+  sudo nano /etc/ssl/cloudflare/cert.pem    # Paste certificate
+  sudo nano /etc/ssl/cloudflare/key.pem     # Paste private key
+  sudo chmod 600 /etc/ssl/cloudflare/*.pem
+  ```
+- Update Nginx configuration to use these certificates instead of Let's Encrypt
+
+**4. Enable Cloudflare Features (Optional):**
+- Under Speed → Optimization: Enable Auto Minify (JS, CSS, HTML)
+- Under Security → Settings: Set Security Level to Medium
+- Under Firewall: Configure rules as needed
+
+**Benefits of Using Cloudflare:**
+- ✅ Free SSL/TLS certificates
+- ✅ DDoS protection
+- ✅ CDN for faster content delivery
+- ✅ Automatic HTTPS rewrites
+- ✅ Web Application Firewall (WAF)
 
 #### Configure Firewall
 
@@ -695,7 +760,7 @@ Add:
 ```nginx
 server {
     listen 80;
-    server_name signoz.your-domain.com;
+    server_name signoz.photohonor.coronasda.church;
 
     location / {
         proxy_pass http://localhost:3301;
@@ -714,7 +779,7 @@ Enable and secure with SSL:
 sudo ln -s /etc/nginx/sites-available/signoz /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-sudo certbot --nginx -d signoz.your-domain.com
+sudo certbot --nginx -d signoz.photohonor.coronasda.church
 ```
 
 #### SigNoz Startup on Boot
@@ -1538,8 +1603,8 @@ cd ~/actions-runner
 ### Google OAuth Redirect URIs
 
 Add these URIs to your Google Cloud Console OAuth credentials:
-- `https://your-domain.com/signin-google`
-- `https://www.your-domain.com/signin-google`
+- `https://photohonor.coronasda.church/signin-google`
+- `https://www.photohonor.coronasda.church/signin-google`
 
 ### Email Configuration
 
@@ -1948,8 +2013,8 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Created OAuth 2.0 credentials
 - [ ] Configured OAuth consent screen
 - [ ] Added authorized redirect URIs:
-  - [ ] `https://your-domain.com/signin-google`
-  - [ ] `https://www.your-domain.com/signin-google` (if using www)
+  - [ ] `https://photohonor.coronasda.church/signin-google`
+  - [ ] `https://www.photohonor.coronasda.church/signin-google` (if using www)
 - [ ] Saved Client ID and Client Secret securely
 
 ### Step 1: PostgreSQL Installation
@@ -2023,7 +2088,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Tested configuration: `nginx -t`
 - [ ] Reloaded Nginx: `systemctl reload nginx`
 - [ ] Installed Certbot: `apt install certbot python3-certbot-nginx`
-- [ ] Obtained SSL certificate: `certbot --nginx -d your-domain.com`
+- [ ] Obtained SSL certificate: `certbot --nginx -d photohonor.coronasda.church` (or using Cloudflare SSL)
 - [ ] Verified auto-renewal: `certbot renew --dry-run`
 
 ### Step 6: Firewall Configuration
@@ -2078,7 +2143,7 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 
 #### Application Access
 - [ ] Can access http://localhost:5000 from server
-- [ ] Can access https://your-domain.com from browser
+- [ ] Can access https://photohonor.coronasda.church from browser
 - [ ] Home page loads correctly
 - [ ] Can see all 10 composition rules
 - [ ] SSL certificate is valid (no browser warnings)
