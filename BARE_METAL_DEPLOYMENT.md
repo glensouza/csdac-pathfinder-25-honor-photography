@@ -93,14 +93,29 @@ ssh -L 9090:localhost:9090 user@your-server-ip
 # Then access http://localhost:9090 from your local browser
 ```
 
+**Troubleshooting: Cockpit Updates Page Error**
+
+If you encounter "Cannot refresh cache whilst offline" error on the Cockpit updates page, this is a known PackageKit issue on some systems where it requires a network interface with a gateway. Workaround:
+
+```bash
+# Create a dummy network interface with gateway
+sudo nmcli con add type dummy con-name fake ifname fake0 ip4 1.2.3.4/24 gw4 1.2.3.1
+```
+
+Alternatively, you can manage updates via command line instead:
+```bash
+sudo apt update && sudo apt upgrade
+```
+
 #### Install PGAdmin 4 (PostgreSQL Management Tool)
 
 PGAdmin 4 provides a web-based interface for managing PostgreSQL databases.
 
 ```bash
-# Add PGAdmin repository
-curl -fsS https://www.pgadmin.org/static/packages_pgadmin_org.pub | sudo gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
+# Add PGAdmin repository GPG key
+curl -fsSL https://www.pgadmin.org/static/packages_pgadmin_org.pub | sudo gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
 
+# Add PGAdmin repository
 sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list'
 
 # Update package list
