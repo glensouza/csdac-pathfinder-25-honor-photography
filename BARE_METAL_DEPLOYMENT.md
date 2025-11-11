@@ -541,32 +541,18 @@ sudo apt install -y nginx
 sudo nano /etc/nginx/sites-available/pathfinder-photography
 ```
 
+**Initial configuration (HTTP only):**
+
+Since you're using Cloudflare for SSL/TLS, start with a simple HTTP configuration. Cloudflare will handle the SSL termination at their edge.
+
 Add the following configuration:
 
 ```nginx
-# HTTP server - redirects to HTTPS
+# HTTP server - Cloudflare will handle SSL at their edge
 server {
     listen 80;
     listen [::]:80;
     server_name photohonor.coronasda.church www.photohonor.coronasda.church;
-
-    # Redirect all HTTP to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-# HTTPS server
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name photohonor.coronasda.church www.photohonor.coronasda.church;
-
-    # SSL configuration (will be managed by Certbot or Cloudflare)
-    # If using Cloudflare, SSL certificates are managed by Cloudflare
-    # If using Let's Encrypt directly:
-    # ssl_certificate /etc/letsencrypt/live/photohonor.coronasda.church/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/photohonor.coronasda.church/privkey.pem;
-    # include /etc/letsencrypt/options-ssl-nginx.conf;
-    # ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -601,7 +587,7 @@ server {
 }
 ```
 
-Enable the site and reload Nginx:
+Enable the site and test:
 
 ```bash
 # Enable site
@@ -614,17 +600,38 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-#### Install SSL Certificate with Let's Encrypt
+**Important**: When using Cloudflare, you typically don't need to configure SSL certificates on your server because:
+1. Cloudflare handles SSL/TLS at their edge (between users and Cloudflare)
+2. Traffic from Cloudflare to your server can be HTTP (Flexible SSL mode) or HTTPS with Cloudflare Origin Certificate (Full/Strict mode)
 
-**Note**: If you're using Cloudflare for DNS and SSL management (recommended for `photohonor.coronasda.church`), Cloudflare can handle SSL certificates automatically. In that case, you can skip this section and configure Cloudflare SSL settings in your Cloudflare dashboard.
+**Test the application** by visiting `http://your-server-ip` directly. After configuring Cloudflare DNS (see below), you'll access via `https://photohonor.coronasda.church`.
 
-**If NOT using Cloudflare SSL** (using Let's Encrypt directly):
+#### Configure Cloudflare SSL/TLS
+
+**Recommended**: Since you're using Cloudflare for `photohonor.coronasda.church`, configure Cloudflare to handle SSL/TLS.
+
+**Cloudflare SSL/TLS Settings:**
+
+1. **Go to SSL/TLS → Overview in Cloudflare Dashboard**
+2. **Set encryption mode:**
+   - **Flexible**: Cloudflare ↔ User (HTTPS), Your Server ↔ Cloudflare (HTTP) - Easiest, works with HTTP-only Nginx config above
+   - **Full**: Cloudflare ↔ User (HTTPS), Your Server ↔ Cloudflare (HTTPS with self-signed cert)
+   - **Full (strict)**: Requires valid certificate on your server (Let's Encrypt or Cloudflare Origin Certificate)
+
+**For most users, "Flexible" mode is sufficient** and works with the HTTP-only Nginx configuration above.
+
+#### Optional: Install Let's Encrypt SSL (Only if NOT using Cloudflare)
+
+**Skip this section if using Cloudflare** - it handles SSL automatically.
+
+If you're NOT using Cloudflare and want to use Let's Encrypt directly:
 
 ```bash
 # Install Certbot
 sudo apt install -y certbot python3-certbot-nginx
 
 # Obtain and install certificate
+# Certbot will automatically modify your Nginx configuration to add SSL
 sudo certbot --nginx -d photohonor.coronasda.church -d www.photohonor.coronasda.church
 
 # Test automatic renewal
@@ -633,10 +640,11 @@ sudo certbot renew --dry-run
 
 Certbot will automatically:
 - Obtain SSL certificate
-- Update Nginx configuration
+- Update Nginx configuration to add HTTPS server block
+- Add HTTP to HTTPS redirect
 - Set up automatic renewal
 
-#### Configure Cloudflare (Optional)
+#### Configure Cloudflare DNS
 
 If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`):
 
