@@ -9,7 +9,7 @@ This guide provides instructions for deploying the Pathfinder Photography applic
 - [System Requirements](#system-requirements)
 - [Installation Steps](#installation-steps)
   - [1. Install PostgreSQL](#1-install-postgresql)
-  - [2. Install .NET Runtime](#2-install-net-runtime)
+  - [2. Install .NET Runtime and SDK](#2-install-net-runtime-and-sdk)
   - [3. Install Application](#3-install-application)
   - [4. Configure Systemd Service](#4-configure-systemd-service)
   - [5. Install Nginx Reverse Proxy](#5-install-nginx-reverse-proxy)
@@ -61,6 +61,103 @@ sudo systemctl enable postgresql
 # Verify installation
 sudo systemctl status postgresql
 ```
+
+#### Install Cockpit (System Management Interface)
+
+Cockpit provides a web-based management interface for your server, making it easier to monitor system resources, manage services, and perform administrative tasks.
+
+```bash
+# Install Cockpit
+sudo apt install -y cockpit
+
+# Start and enable Cockpit
+sudo systemctl start cockpit
+sudo systemctl enable cockpit
+
+# Verify installation
+sudo systemctl status cockpit
+```
+
+Cockpit will be accessible at `https://your-server-ip:9090`. To access it securely, you can configure Nginx as a reverse proxy or use SSH tunneling:
+
+```bash
+# SSH tunnel to access Cockpit securely
+ssh -L 9090:localhost:9090 user@your-server-ip
+# Then access http://localhost:9090 from your local browser
+```
+
+#### Install PGAdmin 4 (PostgreSQL Management Tool)
+
+PGAdmin 4 provides a web-based interface for managing PostgreSQL databases.
+
+```bash
+# Add PGAdmin repository
+curl -fsS https://www.pgadmin.org/static/packages_pgadmin_org.pub | sudo gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
+
+sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list'
+
+# Update package list
+sudo apt update
+
+# Install PGAdmin 4 (web mode only)
+sudo apt install -y pgadmin4-web
+
+# Configure PGAdmin 4
+sudo /usr/pgadmin4/bin/setup-web.sh
+```
+
+During setup, you'll be prompted to:
+1. Create an initial PGAdmin user email and password
+2. Configure the web server (select option to use Apache or standalone mode)
+
+PGAdmin 4 will be accessible at `http://your-server-ip/pgadmin4`. To access it securely:
+
+**Option A: Configure Nginx reverse proxy (recommended for production)**
+
+Add to your Nginx configuration:
+
+```bash
+sudo nano /etc/nginx/sites-available/pgadmin4
+```
+
+Add the following content:
+
+```nginx
+server {
+    listen 80;
+    server_name pgadmin.your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:5050;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+Enable the site and secure with SSL:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/pgadmin4 /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d pgadmin.your-domain.com
+```
+
+**Option B: SSH tunnel (for temporary access)**
+
+```bash
+# SSH tunnel to access PGAdmin 4 securely
+ssh -L 5050:localhost:5050 user@your-server-ip
+# Then access http://localhost:5050 from your local browser
+```
+
+**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators. Consider restricting access via firewall rules or VPN.
 
 #### Configure PostgreSQL
 
@@ -122,9 +219,9 @@ Restart PostgreSQL:
 sudo systemctl restart postgresql
 ```
 
-### 2. Install .NET Runtime
+### 2. Install .NET Runtime and SDK
 
-Install .NET 9.0 Runtime (required for the application):
+Install .NET 9.0 Runtime (required for running the application) and .NET SDK (required for building and database migrations):
 
 ```bash
 # Add Microsoft package repository
@@ -135,18 +232,42 @@ rm packages-microsoft-prod.deb
 # Update package list
 sudo apt update
 
-# Install .NET 9.0 Runtime and ASP.NET Core Runtime
-sudo apt install -y aspnetcore-runtime-9.0
+# Install .NET 9.0 SDK (includes runtime and ASP.NET Core)
+sudo apt install -y dotnet-sdk-9.0
 
 # Verify installation
+dotnet --version
 dotnet --list-runtimes
+dotnet --list-sdks
 ```
 
-Expected output should include:
+Expected output from `dotnet --list-runtimes` should include:
 ```
 Microsoft.AspNetCore.App 9.0.x
 Microsoft.NETCore.App 9.0.x
 ```
+
+Expected output from `dotnet --list-sdks` should include:
+```
+9.0.xxx [/usr/share/dotnet/sdk]
+```
+
+**Note**: The .NET SDK is required for:
+- Building the application from source (`dotnet publish`)
+- Running Entity Framework migrations (`dotnet ef database update`)
+- Development and debugging on the server
+
+If you're only deploying pre-built releases and don't need to run migrations manually, you can install just the runtime:
+
+```bash
+# Alternative: Runtime only (minimal installation)
+sudo apt install -y aspnetcore-runtime-9.0
+```
+
+However, installing the SDK is **recommended** for production servers to enable:
+- Quick hotfixes and patches
+- Database schema updates
+- Troubleshooting and diagnostics
 
 ### 3. Install Application
 
@@ -160,7 +281,7 @@ sudo usermod -aG www-data pathfinder
 
 #### Download and Deploy Application
 
-Option A: Build from source (if you have .NET SDK):
+Option A: Build from source (recommended with .NET SDK installed):
 ```bash
 # Clone repository
 cd /tmp
@@ -174,7 +295,7 @@ dotnet publish -c Release -o /opt/pathfinder-photography
 sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography
 ```
 
-Option B: Use pre-built release (recommended):
+Option B: Use pre-built release:
 ```bash
 # Create application directory
 sudo mkdir -p /opt/pathfinder-photography
@@ -257,12 +378,14 @@ cd /opt/pathfinder-photography
 # Set environment
 export ASPNETCORE_ENVIRONMENT=Production
 
-# Apply migrations (if dotnet SDK is installed)
+# Apply migrations
 dotnet ef database update
 
-# If SDK is not installed, migrations will run automatically on first startup
+# Exit pathfinder user
 exit
 ```
+
+**Note**: Database migrations will also run automatically on first application startup if not applied manually.
 
 ### 4. Configure Systemd Service
 
@@ -1440,7 +1563,7 @@ cd /opt/pathfinder-photography
 sudo -u pathfinder bash
 cd /opt/pathfinder-photography
 export ASPNETCORE_ENVIRONMENT=Production
-dotnet ef database update  # If SDK is installed
+dotnet ef database update
 exit
 
 # Start the application
@@ -1689,10 +1812,10 @@ sudo systemctl restart pathfinder-photography
    sudo systemctl restart sshd
    ```
 
-8. **Keep .NET runtime updated**:
+8. **Keep .NET SDK and runtime updated**:
    ```bash
    sudo apt update
-   sudo apt install --only-upgrade aspnetcore-runtime-9.0
+   sudo apt install --only-upgrade dotnet-sdk-9.0
    ```
 
 ## Performance Tuning
@@ -1802,6 +1925,12 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 
 - [ ] Installed PostgreSQL 16: `sudo apt install postgresql-16`
 - [ ] PostgreSQL service started and enabled
+- [ ] Installed Cockpit: `sudo apt install cockpit`
+- [ ] Cockpit service started and enabled
+- [ ] Cockpit accessible at `https://your-server-ip:9090`
+- [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
+- [ ] Configured PGAdmin 4 with setup-web.sh
+- [ ] PGAdmin 4 accessible (either via Nginx proxy or SSH tunnel)
 - [ ] Created database: `pathfinder_photography`
 - [ ] Created user: `pathfinder` with strong password
 - [ ] Granted all privileges to pathfinder user
@@ -1810,12 +1939,14 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Restarted PostgreSQL service
 - [ ] Verified connection: `psql -h localhost -U pathfinder -d pathfinder_photography`
 
-### Step 2: .NET Runtime Installation
+### Step 2: .NET SDK and Runtime Installation
 
 - [ ] Added Microsoft package repository
-- [ ] Installed ASP.NET Core Runtime 9.0
-- [ ] Verified installation: `dotnet --list-runtimes`
+- [ ] Installed .NET SDK 9.0: `sudo apt install dotnet-sdk-9.0`
+- [ ] Verified SDK installation: `dotnet --list-sdks`
+- [ ] Verified runtime installation: `dotnet --list-runtimes`
 - [ ] Confirmed Microsoft.AspNetCore.App 9.0.x is listed
+- [ ] Confirmed .NET SDK 9.0.x is listed
 
 ### Step 3: Application Installation
 
