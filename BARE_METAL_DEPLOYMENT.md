@@ -198,14 +198,25 @@ echo -e "    🏠   Hostname: $(hostname)"
 echo -e "    💡   IP Address: $(hostname -I | awk '{print $1}')"
 echo -e ""
 echo -e "Available Services:"
-echo -e "    🖥️   Cockpit (System Management): https://$(hostname -I | awk '{print $1}'):9090"
-echo -e "    🗄️   PGAdmin 4 (Database Management): https://pgadmin.photohonor.coronasda.church"
-echo -e "    📊   SigNoz (Observability): https://signoz.photohonor.coronasda.church"  # Optional: if SigNoz installed
-echo -e "    🌐   Pathfinder Photography App: https://photohonor.coronasda.church"
+echo -e "    🖥️   Cockpit (System Management):"
+echo -e "        - Local: https://10.10.10.200:9090"
+echo -e "        - Public: https://photohonor.coronasda.church (via Cloudflare Tunnel)"
+echo -e "    🗄️   PGAdmin 4 (Database Management):"
+echo -e "        - Local: http://10.10.10.200:5050"
+echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
+echo -e "    📊   SigNoz (Observability):"
+echo -e "        - Local: http://10.10.10.200:3301"
+echo -e "        - Public: https://signoz.photohonor.coronasda.church"
+echo -e "    🌐   Pathfinder Photography App:"
+echo -e "        - Local: http://10.10.10.200:5000"
+echo -e "        - Public: https://photohonor.coronasda.church"
 echo -e ""
 ```
 
-**Note**: Comment out or remove the SigNoz line if you don't install SigNoz (Section 6).
+**Note**: 
+- Replace `10.10.10.200` with your actual local network IP address
+- Comment out or remove the SigNoz section if you don't install SigNoz (Section 6)
+- Local URLs use HTTP and specific ports; public URLs use HTTPS via Cloudflare Tunnel
 
 Make the script executable:
 
