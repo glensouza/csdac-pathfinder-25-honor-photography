@@ -6,7 +6,6 @@ namespace PathfinderPhotography.Services;
 
 public class PhotoSubmissionService(
     IDbContextFactory<ApplicationDbContext> contextFactory, 
-    IWebHostEnvironment env,
     EmailNotificationService emailService,
     UserService userService,
     ILogger<PhotoSubmissionService> logger)
