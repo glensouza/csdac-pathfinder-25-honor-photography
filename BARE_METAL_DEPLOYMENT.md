@@ -122,36 +122,67 @@ sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] h
 # Update package list
 sudo apt update
 
-# Install PGAdmin 4 (web mode only)
-sudo apt install -y pgadmin4-web
+# Install PGAdmin 4 (desktop/web mode - we'll use it in standalone mode)
+sudo apt install -y pgadmin4
 
-# Configure PGAdmin 4
-sudo /usr/pgadmin4/bin/setup-web.sh
+# Create PGAdmin configuration directory
+sudo mkdir -p /var/lib/pgadmin
+sudo mkdir -p /var/log/pgadmin
+
+# Set up PGAdmin to run in standalone mode (not with Apache)
+# We'll configure it to run on port 5050 and proxy through Nginx
 ```
 
-During setup, you'll be prompted to:
-1. Create an initial PGAdmin user email and password
-2. Configure the web server (select option to use Apache or standalone mode)
+**Configure PGAdmin to run as a service:**
 
-PGAdmin 4 will be accessible at `http://your-server-ip/pgadmin4`.
-
-**Important**: PGAdmin 4 web mode integrates with Apache/WSGI and runs directly on the system. It is already accessible via HTTP on port 80 at the `/pgadmin4` path. **Do not create an Nginx proxy configuration** as it would create a conflict with Apache serving PGAdmin.
-
-**Access Options:**
-
-**Option A: Direct access (default)**
-
-Access PGAdmin directly at `http://your-server-ip/pgadmin4`. For production, ensure proper firewall rules restrict access to authorized IP addresses only.
-
-**Option B: SSH tunnel (recommended for secure remote access)**
+Create a systemd service file:
 
 ```bash
-# SSH tunnel to access PGAdmin 4 securely
-ssh -L 8080:localhost:80 user@your-server-ip
-# Then access http://localhost:8080/pgadmin4 from your local browser
+sudo nano /etc/systemd/system/pgadmin4.service
 ```
 
-**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators. Consider restricting access via firewall rules or VPN.
+Add the following content:
+
+```ini
+[Unit]
+Description=PGAdmin4
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Environment="PGADMIN_SETUP_EMAIL=admin@example.com"
+Environment="PGADMIN_SETUP_PASSWORD=ChangeThisPassword"
+WorkingDirectory=/usr/pgadmin4/web
+ExecStart=/usr/bin/python3 /usr/pgadmin4/web/pgAdmin4.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Important**: Change `PGADMIN_SETUP_EMAIL` and `PGADMIN_SETUP_PASSWORD` to your desired credentials.
+
+Enable and start PGAdmin:
+
+```bash
+# Set proper ownership
+sudo chown -R www-data:www-data /var/lib/pgadmin
+sudo chown -R www-data:www-data /var/log/pgadmin
+
+# Enable and start the service
+sudo systemctl daemon-reload
+sudo systemctl enable pgadmin4
+sudo systemctl start pgadmin4
+
+# Check status
+sudo systemctl status pgadmin4
+```
+
+PGAdmin will run on `http://localhost:5050`. We'll configure Nginx to proxy it at the `/pgadmin4` path (see Nginx configuration below).
+
+**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators through Nginx.
 
 #### Update Login Message (Optional)
 
@@ -563,7 +594,26 @@ server {
     # Client body size (for photo uploads)
     client_max_body_size 10M;
 
-    # Proxy to .NET application
+    # PGAdmin 4 - proxy to standalone server on port 5050
+    location /pgadmin4/ {
+        proxy_pass http://localhost:5050/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /pgadmin4;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Proxy to .NET application (main app)
     location / {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
@@ -590,14 +640,22 @@ server {
 Enable the site and test:
 
 ```bash
+# Stop and disable Apache if it's running
+sudo systemctl stop apache2
+sudo systemctl disable apache2
+
 # Enable site
 sudo ln -s /etc/nginx/sites-available/pathfinder-photography /etc/nginx/sites-enabled/
 
 # Test Nginx configuration
 sudo nginx -t
 
-# Reload Nginx
-sudo systemctl reload nginx
+# Start Nginx
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+# Verify it's running
+sudo systemctl status nginx
 ```
 
 **Important**: When using Cloudflare, you typically don't need to configure SSL certificates on your server because:
