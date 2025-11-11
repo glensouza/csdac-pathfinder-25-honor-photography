@@ -185,9 +185,12 @@ echo -e ""
 echo -e "Available Services:"
 echo -e "    🖥️   Cockpit (System Management): https://$(hostname -I | awk '{print $1}'):9090"
 echo -e "    🗄️   PGAdmin 4 (Database Management): https://pgadmin.photohonor.coronasda.church"
+echo -e "    📊   SigNoz (Observability): https://signoz.photohonor.coronasda.church"  # Optional: if SigNoz installed
 echo -e "    🌐   Pathfinder Photography App: https://photohonor.coronasda.church"
 echo -e ""
 ```
+
+**Note**: Comment out or remove the SigNoz line if you don't install SigNoz (Section 6).
 
 Make the script executable:
 
@@ -626,7 +629,7 @@ If you already have a cloudflared container running (Cloudflare Tunnel), you onl
        service: http://localhost:5000
      - hostname: pgadmin.photohonor.coronasda.church
        service: http://localhost:5050
-     - hostname: signoz.photohonor.coronasda.church  # if using SigNoz
+     - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
        service: http://localhost:3301
      # ... your other services ...
      - service: http_status:404  # catch-all rule
