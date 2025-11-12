@@ -2298,6 +2298,283 @@ maintenance_work_mem = 128MB
 sudo systemctl restart postgresql
 ```
 
+### Cloudflare 502 Bad Gateway Error
+
+If you're getting a 502 Bad Gateway error when accessing through Cloudflare Tunnel, follow these systematic troubleshooting steps:
+
+**Step 1: Verify Nginx is running and listening on port 80**
+
+```bash
+# Check Nginx status
+sudo systemctl status nginx
+
+# Verify Nginx is listening on port 80
+sudo ss -tlnp | grep :80
+
+# Test Nginx locally
+curl -I http://localhost
+# Should return HTTP 200 OK (not 502)
+```
+
+**Step 2: Test the application backend**
+
+```bash
+# Test the main application directly
+curl -I http://localhost:5000
+# Should return HTTP 200 or 302
+
+# Test through Nginx
+curl -I http://localhost/
+# Should return HTTP 200 or 302
+
+# If you get 502 here, the issue is between Nginx and your application
+```
+
+**Step 3: Check application is running**
+
+```bash
+# Check application status
+sudo systemctl status pathfinder-photography
+
+# View recent logs
+sudo journalctl -u pathfinder-photography -n 50
+
+# Check if port 5000 is listening
+sudo ss -tlnp | grep :5000
+```
+
+**Step 4: Verify cloudflared configuration**
+
+```bash
+# If cloudflared is on this server:
+sudo systemctl status cloudflared
+
+# Check cloudflared logs
+sudo journalctl -u cloudflared -n 50
+
+# If cloudflared is on a different server, check from that server
+```
+
+**Step 5: Test connectivity from cloudflared server to application server**
+
+If cloudflared is on a different VM/server:
+
+```bash
+# From the cloudflared server, test connectivity:
+curl -I http://<YOUR_SERVER_IP>:80
+# Should return HTTP 200 OK
+
+# If this fails, check:
+# 1. Firewall rules on application server
+sudo ufw status
+# Port 80 should be allowed from cloudflared server
+
+# 2. Network connectivity
+ping <YOUR_SERVER_IP>
+
+# 3. Ensure Nginx is listening on all interfaces (not just localhost)
+# Check /etc/nginx/sites-available/pathfinder-photography
+# Should have: listen 80;
+# NOT: listen 127.0.0.1:80;
+```
+
+**Step 6: Check Nginx error logs**
+
+```bash
+# View Nginx error log
+sudo tail -f /var/log/nginx/error.log
+
+# View access log
+sudo tail -f /var/log/nginx/access.log
+
+# Common issues in error.log:
+# - "Connection refused" = backend service not running
+# - "Connection timed out" = backend service slow or firewall blocking
+# - "No such file or directory" = socket file missing (if using Unix socket)
+```
+
+**Step 7: Verify Nginx upstream configuration**
+
+```bash
+# Check Nginx config syntax
+sudo nginx -t
+
+# View the server block configuration
+sudo cat /etc/nginx/sites-available/pathfinder-photography | grep -A 10 "location /"
+
+# Ensure proxy_pass is correct:
+# Should be: proxy_pass http://localhost:5000;
+# NOT: http://localhost:80 (circular)
+```
+
+**Step 8: Check for SELinux or AppArmor blocking (if applicable)**
+
+```bash
+# Check if SELinux is enforcing (CentOS/RHEL)
+getenforce
+# If "Enforcing", may need to configure SELinux contexts
+
+# Check AppArmor (Ubuntu)
+sudo aa-status | grep nginx
+```
+
+**Step 9: Restart services in correct order**
+
+```bash
+# Restart application
+sudo systemctl restart pathfinder-photography
+
+# Wait for it to fully start (check logs)
+sudo journalctl -u pathfinder-photography -f &
+
+# Restart Nginx
+sudo systemctl restart nginx
+
+# Restart cloudflared (on the cloudflared server)
+sudo systemctl restart cloudflared
+
+# Test again
+curl -I http://localhost
+```
+
+**Step 10: Enable debug logging temporarily**
+
+```bash
+# Enable debug logging in Nginx
+sudo nano /etc/nginx/sites-available/pathfinder-photography
+
+# Add inside server block:
+error_log /var/log/nginx/debug.log debug;
+
+# Reload Nginx
+sudo systemctl reload nginx
+
+# Generate traffic and check debug log
+curl http://localhost
+sudo tail -50 /var/log/nginx/debug.log
+
+# Remember to remove debug logging after troubleshooting (it's verbose)
+```
+
+**Common 502 Error Causes and Solutions:**
+
+| Cause | Solution |
+|-------|----------|
+| Application not running | `sudo systemctl start pathfinder-photography` |
+| Application crashed | Check logs: `sudo journalctl -u pathfinder-photography -n 100` |
+| Port mismatch in Nginx config | Verify `proxy_pass http://localhost:5000;` |
+| Firewall blocking cloudflared→server | Allow port 80: `sudo ufw allow from <cloudflared_ip> to any port 80` |
+| Nginx not listening on all interfaces | Change `listen 80;` (remove 127.0.0.1) |
+| Database connection failing | Check PostgreSQL: `sudo systemctl status postgresql` |
+| Out of memory | Check: `free -h`, restart services |
+| Permissions issue | Check pathfinder user owns app files |
+
+**Custom Cloudflare Error Pages:**
+
+To replace Cloudflare's generic 502 error page with a custom one:
+
+1. **Create custom error page in your application** (recommended approach):
+   
+   Your application can serve custom error pages. Create a static HTML file:
+   
+   ```bash
+   sudo mkdir -p /var/www/errors
+   sudo nano /var/www/errors/502.html
+   ```
+   
+   Add custom HTML:
+   ```html
+   <!DOCTYPE html>
+   <html>
+   <head>
+       <title>Service Temporarily Unavailable</title>
+       <style>
+           body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+           h1 { color: #333; }
+           p { color: #666; }
+       </style>
+   </head>
+   <body>
+       <h1>Pathfinder Photography Honor</h1>
+       <h2>Service Temporarily Unavailable</h2>
+       <p>We're currently experiencing technical difficulties.</p>
+       <p>Please try again in a few moments.</p>
+       <p>If the problem persists, please contact your administrator.</p>
+   </body>
+   </html>
+   ```
+   
+   Configure Nginx to serve this error page:
+   ```bash
+   sudo nano /etc/nginx/sites-available/pathfinder-photography
+   ```
+   
+   Add in the server block:
+   ```nginx
+   error_page 502 503 504 /502.html;
+   location = /502.html {
+       root /var/www/errors;
+       internal;
+   }
+   ```
+   
+   Reload Nginx:
+   ```bash
+   sudo nginx -t
+   sudo systemctl reload nginx
+   ```
+
+2. **Use Cloudflare Pages for custom error pages** (if Cloudflare sees the error):
+   
+   Note: This only works if the error is detected by Cloudflare (when your origin is completely unreachable). For 502 errors coming from your origin, use method 1.
+   
+   - Go to Cloudflare Dashboard → Custom Pages
+   - Upload custom HTML for 502 error page
+   - Customize branding, colors, and messaging
+
+3. **Serve a maintenance page during planned downtime:**
+   
+   ```bash
+   # Create maintenance page
+   sudo nano /var/www/errors/maintenance.html
+   ```
+   
+   When performing maintenance:
+   ```bash
+   # Temporarily redirect all traffic to maintenance page
+   sudo nano /etc/nginx/sites-available/pathfinder-photography
+   
+   # Add at the top of server block:
+   return 503;
+   
+   # And configure 503 page:
+   error_page 503 /maintenance.html;
+   location = /maintenance.html {
+       root /var/www/errors;
+       internal;
+   }
+   
+   # Reload
+   sudo systemctl reload nginx
+   
+   # After maintenance, remove the 'return 503;' line and reload again
+   ```
+
+**Testing custom error pages:**
+
+```bash
+# Stop application to trigger 502
+sudo systemctl stop pathfinder-photography
+
+# Test through browser or curl
+curl http://localhost
+
+# Should show your custom error page instead of generic Nginx 502
+
+# Restart application
+sudo systemctl start pathfinder-photography
+```
+
 ### SSL Certificate Issues
 
 ```bash
