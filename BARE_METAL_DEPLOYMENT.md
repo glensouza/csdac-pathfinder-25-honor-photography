@@ -421,6 +421,42 @@ However, installing the SDK is **recommended** for production servers to enable:
 - Database schema updates
 - Troubleshooting and diagnostics
 
+#### Install Entity Framework Core Tools
+
+The EF Core tools are required for running database migrations. Install them globally:
+
+```bash
+# Install EF Core tools globally
+dotnet tool install --global dotnet-ef
+
+# Verify installation
+dotnet ef --version
+```
+
+Expected output:
+```
+Entity Framework Core .NET Command-line Tools
+9.x.x
+```
+
+**Note**: If you get a warning about the tools not being on PATH, add the .NET tools directory to your PATH:
+
+```bash
+# Add to PATH (add this to ~/.bashrc for persistence)
+export PATH="$PATH:$HOME/.dotnet/tools"
+
+# Or for the pathfinder user (recommended)
+sudo -u pathfinder bash -c 'echo "export PATH=\"\$PATH:\$HOME/.dotnet/tools\"" >> ~/.bashrc'
+
+# Verify it works
+dotnet ef --version
+```
+
+**Troubleshooting**: If you see "Could not execute because the specified command or file was not found" when running `dotnet ef`:
+- The EF tools are not installed globally - run `dotnet tool install --global dotnet-ef`
+- The tools path is not in PATH - add `~/.dotnet/tools` to your PATH environment variable
+- Try updating the tools: `dotnet tool update --global dotnet-ef`
+
 ### 2.1. Install Git (Required for Building from Source)
 
 If you plan to build the application from source (recommended), install Git:
@@ -2492,6 +2528,8 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Verified runtime installation: `dotnet --list-runtimes`
 - [ ] Confirmed Microsoft.AspNetCore.App 9.0.x is listed
 - [ ] Confirmed .NET SDK 9.0.x is listed
+- [ ] Installed Entity Framework Core tools globally: `dotnet tool install --global dotnet-ef`
+- [ ] Verified EF tools installation: `dotnet ef --version`
 
 ### Step 3: Application Installation
 
