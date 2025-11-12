@@ -144,40 +144,47 @@ The setup script will:
 
 **Configure Apache for pgAdmin:**
 
-After running setup-web.sh with Apache configuration enabled, you need to configure Apache to work with Nginx:
+After running setup-web.sh with Apache configuration enabled, you need to configure Apache to work with Nginx. 
+
+**Important**: The setup script creates the configuration file in `/etc/apache2/conf-available/pgadmin4.conf` (not `sites-available`).
 
 ```bash
-# Apache should already be installed, but if not:
-sudo apt install -y apache2
-
-# Stop and disable the Apache service (we'll use Nginx as reverse proxy to Apache)
-# Apache will run only for pgAdmin on localhost
-sudo systemctl stop apache2
-sudo systemctl disable apache2
-
-# Edit Apache to listen only on a different port (e.g., 8080) for pgAdmin
+# Apache should already be installed and enabled by setup-web.sh
+# First, configure Apache to listen on 127.0.0.1:8080
 sudo nano /etc/apache2/ports.conf
 ```
 
-Change the Listen directive:
+Add this line (keep any existing Listen 80 if present):
 ```
 Listen 127.0.0.1:8080
 ```
 
-Then update the pgAdmin Apache config:
+Now edit the pgAdmin Apache configuration file. **Important**: Replace the entire file content (don't just add to it):
+
 ```bash
-sudo nano /etc/apache2/sites-available/pgadmin4.conf
+sudo nano /etc/apache2/conf-available/pgadmin4.conf
 ```
 
-Change the VirtualHost line to:
+Replace the entire file content with:
 ```apache
 <VirtualHost 127.0.0.1:8080>
+    WSGIDaemonProcess pgadmin processes=1 threads=25 python-home=/usr/pgadmin4/venv
+    WSGIScriptAlias /pgadmin4 /usr/pgadmin4/web/pgAdmin4.wsgi
+    
+    <Directory /usr/pgadmin4/web>
+        WSGIProcessGroup pgadmin
+        WSGIApplicationGroup %{GLOBAL}
+        Require all granted
+    </Directory>
+</VirtualHost>
 ```
 
-Enable and start Apache:
+**Critical**: The original file from setup-web.sh contains only WSGIDaemonProcess and WSGIScriptAlias directives without a VirtualHost wrapper. You must replace the entire file content with the above configuration to avoid duplicate WSGI daemon definitions.
+
+Restart Apache:
 ```bash
-sudo systemctl enable apache2
-sudo systemctl start apache2
+sudo systemctl restart apache2
+sudo systemctl status apache2
 ```
 
 pgAdmin will now be accessible at `http://localhost:8080/pgadmin4`. 
@@ -209,24 +216,43 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
 
 **Common Issues and Solutions:**
 
-1. **Apache fails to start**: Check Apache logs with `sudo journalctl -u apache2 -n 50`
-2. **Port 8080 already in use**: 
+1. **"Name duplicates previous WSGI daemon definition"**: You appended the VirtualHost wrapper instead of replacing the file content.
    ```bash
-   sudo netstat -tlnp | grep 8080
-   # Change to a different port in /etc/apache2/ports.conf and pgadmin4.conf
+   # Edit the file and replace ALL content with the VirtualHost block above
+   sudo nano /etc/apache2/conf-available/pgadmin4.conf
+   sudo systemctl restart apache2
    ```
-3. **Permission denied errors**: Check ownership of `/var/lib/pgadmin` and `/var/log/pgadmin` directories:
+
+2. **Apache fails to start**: Check Apache logs with `sudo journalctl -u apache2 -n 50 --no-pager`
+
+3. **Connection refused on port 8080**: Verify ports.conf has `Listen 127.0.0.1:8080`
+   ```bash
+   cat /etc/apache2/ports.conf | grep 8080
+   # If not found, add: Listen 127.0.0.1:8080
+   sudo systemctl restart apache2
+   ```
+
+4. **Port 8080 already in use**: 
+   ```bash
+   sudo ss -tlnp | grep 8080
+   # Change to a different port in both /etc/apache2/ports.conf and pgadmin4.conf
+   ```
+
+5. **Permission denied errors**: Check ownership of `/var/lib/pgadmin` and `/var/log/pgadmin` directories:
    ```bash
    sudo chown -R www-data:www-data /var/lib/pgadmin
    sudo chown -R www-data:www-data /var/log/pgadmin
    ```
-4. **Database initialization errors**: Re-run the setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
-5. **Apache pgadmin4 site not enabled**:
+
+6. **Database initialization errors**: Re-run the setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
+
+7. **Configuration file not found**: The file is in `/etc/apache2/conf-available/pgadmin4.conf`, not `sites-available`:
    ```bash
-   sudo a2ensite pgadmin4
-   sudo systemctl reload apache2
+   ls -la /etc/apache2/conf-available/pgadmin4.conf
+   ls -la /etc/apache2/conf-enabled/pgadmin4.conf
    ```
-6. **Apache configuration test fails**:
+
+8. **Apache configuration test fails**:
    ```bash
    sudo apache2ctl configtest
    # Fix any configuration errors shown
@@ -2084,29 +2110,75 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    sudo systemctl restart apache2
    ```
 
-7. **Apache specific issues**
+7. **"Name duplicates previous WSGI daemon definition"**
+   
+   This error occurs when you add the VirtualHost wrapper to the configuration file without removing the original directives.
+   
+   ```bash
+   # The configuration file is in conf-available, not sites-available
+   sudo nano /etc/apache2/conf-available/pgadmin4.conf
+   
+   # Replace the ENTIRE file content with:
+   # <VirtualHost 127.0.0.1:8080>
+   #     WSGIDaemonProcess pgadmin processes=1 threads=25 python-home=/usr/pgadmin4/venv
+   #     WSGIScriptAlias /pgadmin4 /usr/pgadmin4/web/pgAdmin4.wsgi
+   #     
+   #     <Directory /usr/pgadmin4/web>
+   #         WSGIProcessGroup pgadmin
+   #         WSGIApplicationGroup %{GLOBAL}
+   #         Require all granted
+   #     </Directory>
+   # </VirtualHost>
+   
+   # Restart Apache
+   sudo systemctl restart apache2
+   ```
+
+8. **Configuration file not in expected location**
+   
+   The setup script creates `/etc/apache2/conf-available/pgadmin4.conf`, not `/etc/apache2/sites-available/pgadmin4.conf`.
+   
+   ```bash
+   # Find the actual configuration file
+   grep -r "pgadmin" /etc/apache2/
+   
+   # It should be in:
+   ls -la /etc/apache2/conf-available/pgadmin4.conf
+   ls -la /etc/apache2/conf-enabled/pgadmin4.conf
+   ```
+
+9. **Apache not listening on port 8080**
+   
+   ```bash
+   # Verify ports.conf has the Listen directive
+   cat /etc/apache2/ports.conf | grep 8080
+   
+   # If not found, add it
+   echo "Listen 127.0.0.1:8080" | sudo tee -a /etc/apache2/ports.conf
+   
+   # Restart Apache
+   sudo systemctl restart apache2
+   
+   # Verify it's listening
+   sudo ss -tlnp | grep 8080
+   ```
+
+10. **Apache specific issues**
    
    ```bash
    # Check Apache error logs
-   sudo journalctl -u apache2 -n 50
+   sudo journalctl -u apache2 -n 50 --no-pager
    sudo tail -f /var/log/apache2/error.log
    
-   # Verify Apache pgadmin4 site is enabled
-   ls -la /etc/apache2/sites-enabled/ | grep pgadmin
-   
-   # If not enabled, enable it
-   sudo a2ensite pgadmin4
-   sudo systemctl reload apache2
-   
    # Verify Apache is listening on correct port
-   sudo nano /etc/apache2/ports.conf
+   cat /etc/apache2/ports.conf | grep 8080
    # Should have: Listen 127.0.0.1:8080
    
    # Check Apache configuration
    sudo apache2ctl configtest
    ```
 
-8. **Complete reinstall if all else fails**
+11. **Complete reinstall if all else fails**
    
    ```bash
    # Stop Apache
@@ -2393,10 +2465,12 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Created pgAdmin admin email and password during setup
 - [ ] Answered 'y' to Apache configuration during setup
 - [ ] Configured Apache to listen on 127.0.0.1:8080 in `/etc/apache2/ports.conf`
-- [ ] Updated Apache pgadmin4.conf VirtualHost to 127.0.0.1:8080
-- [ ] Enabled Apache pgadmin4 site: `sudo a2ensite pgadmin4`
-- [ ] Started Apache service: `sudo systemctl start apache2`
+- [ ] Located pgAdmin configuration file: `/etc/apache2/conf-available/pgadmin4.conf` (not sites-available)
+- [ ] **Replaced entire content** of pgadmin4.conf with VirtualHost wrapper (not appended)
+- [ ] Verified Apache configuration: `sudo apache2ctl configtest`
+- [ ] Restarted Apache service: `sudo systemctl restart apache2`
 - [ ] Verified Apache is running: `systemctl status apache2`
+- [ ] Verified Apache is listening on port 8080: `sudo ss -tlnp | grep 8080`
 - [ ] Verified pgAdmin accessible at `http://localhost:8080/pgadmin4`
 - [ ] Set proper ownership of pgAdmin directories: `chown -R www-data:www-data /var/lib/pgadmin /var/log/pgadmin`
 - [ ] Updated Nginx config to proxy to port 8080
