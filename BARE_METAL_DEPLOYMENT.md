@@ -138,15 +138,13 @@ The setup script will:
 - Create the pgAdmin configuration database
 - Set up the initial admin user
 - Configure the required directories and permissions
-- Configure Apache to serve pgAdmin (if you answered 'y')
+- Configure Apache to serve pgAdmin
 
 **Important Security Note**: The email and password you set here are for accessing the pgAdmin web interface. This is separate from your PostgreSQL database credentials. Use a strong, unique password.
 
-**Note**: If you answered 'n' to Apache configuration during setup, you'll need to use gunicorn as shown below.
+**Configure Apache for pgAdmin:**
 
-**Option A: Using Apache (Recommended - Configured by setup-web.sh)**
-
-If you chose 'y' when asked about Apache configuration, pgAdmin is already configured. You just need to ensure Apache is installed and running:
+After running setup-web.sh with Apache configuration enabled, you need to configure Apache to work with Nginx:
 
 ```bash
 # Apache should already be installed, but if not:
@@ -182,95 +180,28 @@ sudo systemctl enable apache2
 sudo systemctl start apache2
 ```
 
-pgAdmin will now be accessible at `http://localhost:8080/pgadmin4`. Update the Nginx proxy configuration (in section 5) to proxy to port 8080 instead of 5050.
+pgAdmin will now be accessible at `http://localhost:8080/pgadmin4`. 
 
-**Option B: Using Gunicorn (Alternative if Apache was declined)**
-
-If you chose 'n' during the Apache configuration, you can use gunicorn instead:
+**Verify Apache is working:**
 
 ```bash
-# Install gunicorn
-sudo apt install -y gunicorn
+# Check if Apache is running
+sudo systemctl status apache2
 
-# Create a configuration file
-sudo nano /usr/pgadmin4/web/config_local.py
-```
+# Verify Apache is listening on port 8080
+sudo ss -tlnp | grep 8080
 
-Add the following content:
-
-```python
-# pgAdmin 4 configuration for gunicorn
-import os
-
-# Data and log directories (already created by setup-web.sh)
-DATA_DIR = '/var/lib/pgadmin'
-LOG_FILE = '/var/log/pgadmin/pgadmin4.log'
-SQLITE_PATH = os.path.join(DATA_DIR, 'pgadmin4.db')
-SESSION_DB_PATH = os.path.join(DATA_DIR, 'sessions')
-STORAGE_DIR = os.path.join(DATA_DIR, 'storage')
-
-# Server mode
-SERVER_MODE = True
-
-# Security
-ENHANCED_COOKIE_PROTECTION = True
-```
-
-Create a systemd service file:
-
-```bash
-sudo nano /etc/systemd/system/pgadmin4.service
-```
-
-Add the following content:
-
-```ini
-[Unit]
-Description=pgAdmin4
-After=network.target postgresql.service
-Wants=postgresql.service
-
-[Service]
-Type=notify
-User=www-data
-Group=www-data
-WorkingDirectory=/usr/pgadmin4/web
-
-# Run pgAdmin4 using gunicorn
-ExecStart=/usr/bin/gunicorn --bind 127.0.0.1:5050 --workers=1 --threads=25 --chdir /usr/pgadmin4/web --timeout 86400 pgAdmin4:app
-
-Restart=always
-RestartSec=10
-
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start pgAdmin:
-
-```bash
-# Ensure proper ownership (should already be set by setup-web.sh)
-sudo chown -R www-data:www-data /var/lib/pgadmin
-sudo chown -R www-data:www-data /var/log/pgadmin
-
-# Reload systemd and enable the service
-sudo systemctl daemon-reload
-sudo systemctl enable pgadmin4
-sudo systemctl start pgadmin4
-
-# Check status
-sudo systemctl status pgadmin4
+# Test pgAdmin accessibility
+curl -I http://localhost:8080/pgadmin4
+# Should return HTTP 200 OK or 302 redirect
 ```
 
 If the service fails to start, check the logs:
 
 ```bash
-# View systemd logs
-sudo journalctl -u pgadmin4 -n 50 --no-pager
+# View Apache error logs
+sudo journalctl -u apache2 -n 50 --no-pager
+sudo tail -f /var/log/apache2/error.log
 
 # View pgAdmin application logs
 sudo tail -f /var/log/pgadmin/pgadmin4.log
@@ -278,25 +209,30 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
 
 **Common Issues and Solutions:**
 
-1. **Service fails with "No module named 'pgadmin'"**: Ensure you installed `pgadmin4-web` package, not just `pgadmin4`
-2. **Permission denied errors**: Check ownership of `/var/lib/pgadmin` and `/var/log/pgadmin` directories
-3. **Port already in use**: Verify the port is not being used by another service: `sudo netstat -tlnp | grep 5050` (for gunicorn) or `sudo netstat -tlnp | grep 8080` (for Apache)
+1. **Apache fails to start**: Check Apache logs with `sudo journalctl -u apache2 -n 50`
+2. **Port 8080 already in use**: 
+   ```bash
+   sudo netstat -tlnp | grep 8080
+   # Change to a different port in /etc/apache2/ports.conf and pgadmin4.conf
+   ```
+3. **Permission denied errors**: Check ownership of `/var/lib/pgadmin` and `/var/log/pgadmin` directories:
+   ```bash
+   sudo chown -R www-data:www-data /var/lib/pgadmin
+   sudo chown -R www-data:www-data /var/log/pgadmin
+   ```
 4. **Database initialization errors**: Re-run the setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
-5. **Gunicorn not found** (Option B): Install it with `sudo apt install -y gunicorn`
-6. **Apache fails to start** (Option A): Check Apache logs with `sudo journalctl -u apache2 -n 50`
+5. **Apache pgadmin4 site not enabled**:
+   ```bash
+   sudo a2ensite pgadmin4
+   sudo systemctl reload apache2
+   ```
+6. **Apache configuration test fails**:
+   ```bash
+   sudo apache2ctl configtest
+   # Fix any configuration errors shown
+   ```
 
-**Which Option Should You Choose?**
-
-- **Option A (Apache)**: More robust, better tested by pgAdmin developers, includes built-in WSGI server
-- **Option B (Gunicorn)**: Simpler, doesn't require Apache, but requires additional package
-
-**Recommendation**: Use Option A (Apache) if you're new to pgAdmin deployment, as it's the officially supported method.
-
-PGAdmin will run on:
-- **Option A (Apache)**: `http://localhost:8080/pgadmin4`
-- **Option B (Gunicorn)**: `http://localhost:5050`
-
-We'll configure Nginx to proxy it at the subdomain `pgadmin.photohonor.coronasda.church` (see Nginx configuration below).
+PGAdmin will run on `http://localhost:8080/pgadmin4` and will be proxied through Nginx at the subdomain `pgadmin.photohonor.coronasda.church` (see Nginx configuration below).
 
 **Security Note**: 
 - PGAdmin 4 is a powerful database management tool with full access to your PostgreSQL databases
@@ -749,30 +685,9 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # Option A: Proxy to Apache on port 8080 (if using Apache setup)
-    # Uncomment these lines if you chose Option A during pgAdmin setup:
-    # location / {
-    #     proxy_pass http://localhost:8080/pgadmin4/;
-    #     proxy_http_version 1.1;
-    #     proxy_set_header Upgrade $http_upgrade;
-    #     proxy_set_header Connection 'upgrade';
-    #     proxy_set_header Host $host;
-    #     proxy_set_header X-Real-IP $remote_addr;
-    #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    #     proxy_set_header X-Forwarded-Proto $scheme;
-    #     proxy_set_header X-Script-Name /pgadmin4;
-    #     proxy_cache_bypass $http_upgrade;
-    #     
-    #     # Timeouts
-    #     proxy_connect_timeout 60s;
-    #     proxy_send_timeout 60s;
-    #     proxy_read_timeout 60s;
-    # }
-
-    # Option B: Proxy to Gunicorn on port 5050 (if using Gunicorn setup)
-    # Uncomment these lines if you chose Option B during pgAdmin setup:
+    # Proxy to Apache on port 8080
     location / {
-        proxy_pass http://localhost:5050/;
+        proxy_pass http://localhost:8080/pgadmin4/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -780,6 +695,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /pgadmin4;
         proxy_cache_bypass $http_upgrade;
         
         # Timeouts
@@ -2125,67 +2041,38 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    # Answer the prompts:
    # - Email: your admin email
    # - Password: choose a strong password
-   # - Apache configuration: y (Yes) for Option A, or n (No) for Option B
+   # - Apache configuration: y (Yes)
    
-   # If using Option A (Apache), ensure Apache is configured
-   # If using Option B (Gunicorn), restart the pgadmin4 service
-   sudo systemctl restart pgadmin4  # (for Option B)
-   # OR
-   sudo systemctl restart apache2   # (for Option A)
+   # Restart Apache
+   sudo systemctl restart apache2
    ```
 
-4. **Service fails with exit code 1 when using gunicorn**
+4. **Port 8080 already in use**
    
    ```bash
-   # Check if gunicorn is installed
-   which gunicorn
-   
-   # If not found, install it
-   sudo apt install -y gunicorn
-   
-   # Check for Python module errors
-   sudo -u www-data /usr/bin/gunicorn --bind 127.0.0.1:5050 --chdir /usr/pgadmin4/web pgAdmin4:app
-   # This will show any import or configuration errors
-   
-   # If you see errors, consider switching to Option A (Apache) instead
-   ```
-
-5. **Port already in use**
-   
-   ```bash
-   # Check what's using port 5050 (for Gunicorn/Option B)
-   sudo netstat -tlnp | grep 5050
-   # OR
-   sudo ss -tlnp | grep 5050
-   
-   # Check what's using port 8080 (for Apache/Option A)
+   # Check what's using port 8080
    sudo netstat -tlnp | grep 8080
    # OR
    sudo ss -tlnp | grep 8080
    
    # If another service is using it, either:
    # a) Stop that service, or
-   # b) Change the port configuration and update Nginx accordingly
+   # b) Change the port in /etc/apache2/ports.conf and pgadmin4.conf
    ```
 
-6. **Service starts but web interface shows errors**
+5. **Service starts but web interface shows errors**
    
    ```bash
-   # For Option B (Gunicorn), check if it's listening on port 5050
-   sudo netstat -tlnp | grep 5050
-   
-   # For Option A (Apache), check if it's listening on port 8080
+   # Check if Apache is listening on port 8080
    sudo netstat -tlnp | grep 8080
    
    # Test connection locally
-   curl http://localhost:5050  # for Option B
-   # OR
-   curl http://localhost:8080/pgadmin4  # for Option A
+   curl http://localhost:8080/pgadmin4
    
    # Should return HTML content, not connection refused
    ```
 
-7. **"ERROR: Failed to create the directory /var/lib/pgadmin/sessions"**
+6. **"ERROR: Failed to create the directory /var/lib/pgadmin/sessions"**
    
    ```bash
    # Create missing directories
@@ -2193,13 +2080,11 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    sudo mkdir -p /var/lib/pgadmin/storage
    sudo chown -R www-data:www-data /var/lib/pgadmin
    
-   # Restart appropriate service
-   sudo systemctl restart pgadmin4  # for Option B
-   # OR
-   sudo systemctl restart apache2   # for Option A
+   # Restart Apache
+   sudo systemctl restart apache2
    ```
 
-8. **Apache specific issues (Option A)**
+7. **Apache specific issues**
    
    ```bash
    # Check Apache error logs
@@ -2221,13 +2106,11 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    sudo apache2ctl configtest
    ```
 
-9. **Complete reinstall if all else fails**
+8. **Complete reinstall if all else fails**
    
    ```bash
-   # Stop services
-   sudo systemctl stop pgadmin4  # if using Option B
-   sudo systemctl stop apache2   # if using Option A
-   sudo systemctl disable pgadmin4
+   # Stop Apache
+   sudo systemctl stop apache2
    
    # Remove package
    sudo apt remove --purge pgadmin4-web
@@ -2235,32 +2118,29 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    # Clean up directories
    sudo rm -rf /var/lib/pgadmin
    sudo rm -rf /var/log/pgadmin
-   sudo rm /etc/systemd/system/pgadmin4.service
    
    # Reinstall following the instructions in this guide
    sudo apt update
    sudo apt install -y pgadmin4-web
    sudo /usr/pgadmin4/bin/setup-web.sh
-   # ... continue with configuration steps (choose Option A or B)
+   # Answer 'y' to Apache configuration
+   # ... continue with Apache configuration steps
    ```
 
 **Verify pgAdmin is working:**
 
-Once the service is running, verify it's accessible:
+Once Apache is running, verify it's accessible:
 
 ```bash
-# For Option B (Gunicorn): Check if it's listening on port 5050
-sudo ss -tlnp | grep 5050
-curl -I http://localhost:5050
-# Should return HTTP 200 OK or 302 redirect
-
-# For Option A (Apache): Check if it's listening on port 8080
+# Check if Apache is listening on port 8080
 sudo ss -tlnp | grep 8080
+
+# Test with curl
 curl -I http://localhost:8080/pgadmin4
 # Should return HTTP 200 OK or 302 redirect
 ```
 
-If you can access it locally but not through Nginx, check the Nginx configuration in section 5 and ensure you uncommented the correct option (A or B).
+If you can access it locally but not through Nginx, check the Nginx configuration in section 5.
 
 ### High Memory Usage
 
@@ -2511,25 +2391,15 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
 - [ ] Ran PGAdmin setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
 - [ ] Created pgAdmin admin email and password during setup
-- [ ] **Option A (Apache - Recommended):**
-  - [ ] Answered 'y' to Apache configuration during setup
-  - [ ] Configured Apache to listen on 127.0.0.1:8080
-  - [ ] Updated Apache pgadmin4.conf VirtualHost to 127.0.0.1:8080
-  - [ ] Enabled and started Apache service
-  - [ ] Verified pgAdmin accessible at `http://localhost:8080/pgadmin4`
-  - [ ] Updated Nginx config to proxy to port 8080 (uncommented Option A in nginx config)
-- [ ] **Option B (Gunicorn - Alternative):**
-  - [ ] Answered 'n' to Apache configuration during setup
-  - [ ] Installed gunicorn: `sudo apt install -y gunicorn`
-  - [ ] Created configuration file: `/usr/pgadmin4/web/config_local.py`
-  - [ ] Created systemd service file: `/etc/systemd/system/pgadmin4.service` with gunicorn
-  - [ ] Enabled and started pgAdmin service
-  - [ ] Verified pgAdmin service is running: `systemctl status pgadmin4`
-  - [ ] Checked pgAdmin logs for any errors: `journalctl -u pgadmin4 -n 50`
-  - [ ] Verified pgAdmin accessible at `http://localhost:5050`
-  - [ ] Updated Nginx config to use Option B (port 5050)
+- [ ] Answered 'y' to Apache configuration during setup
+- [ ] Configured Apache to listen on 127.0.0.1:8080 in `/etc/apache2/ports.conf`
+- [ ] Updated Apache pgadmin4.conf VirtualHost to 127.0.0.1:8080
+- [ ] Enabled Apache pgadmin4 site: `sudo a2ensite pgadmin4`
+- [ ] Started Apache service: `sudo systemctl start apache2`
+- [ ] Verified Apache is running: `systemctl status apache2`
+- [ ] Verified pgAdmin accessible at `http://localhost:8080/pgadmin4`
 - [ ] Set proper ownership of pgAdmin directories: `chown -R www-data:www-data /var/lib/pgadmin /var/log/pgadmin`
-- [ ] PGAdmin accessible through chosen method (Option A or B)
+- [ ] Updated Nginx config to proxy to port 8080
 - [ ] (Optional) Updated login message in `/etc/profile.d/00_lxc-details.sh` with service URLs
 - [ ] Created database: `pathfinder_photography`
 - [ ] Created user: `pathfinder` with strong password
