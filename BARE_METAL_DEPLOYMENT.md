@@ -227,7 +227,7 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
 
 3. **Connection refused on port 8080**: Verify ports.conf has `Listen 127.0.0.1:8080`
    ```bash
-   cat /etc/apache2/ports.conf | grep 8080
+   grep 8080 /etc/apache2/ports.conf
    # If not found, add: Listen 127.0.0.1:8080
    sudo systemctl restart apache2
    ```
@@ -258,7 +258,9 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    # Fix any configuration errors shown
    ```
 
-PGAdmin will run on `http://localhost:8080/pgadmin4` and will be proxied through Nginx at the subdomain `pgadmin.photohonor.coronasda.church` (see Nginx configuration below).
+PGAdmin will run on `http://localhost:8080/pgadmin4` and will be proxied through Nginx at the subdomain `photohonorpgadmin.coronasda.church` (see Nginx configuration below).
+
+**Note**: Using single-level subdomains (e.g., `photohonorpgadmin`) instead of multi-level subdomains (e.g., `pgadmin.photohonor`) avoids SSL/TLS certificate issues with wildcard certificates.
 
 **Security Note**: 
 - PGAdmin 4 is a powerful database management tool with full access to your PostgreSQL databases
@@ -289,10 +291,10 @@ echo -e "        - Local: http://10.10.10.200"
 echo -e "        - Public: https://photohonor.coronasda.church"
 echo -e "    🗄️   PGAdmin 4 (Database Management):"
 echo -e "        - Local: http://localhost:8080/pgadmin4"
-echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
+echo -e "        - Public: https://photohonorpgadmin.coronasda.church"
 echo -e "    📊   SigNoz (Observability - Optional):"
 echo -e "        - Local: http://10.10.10.200:3301"
-echo -e "        - Public: https://signoz.photohonor.coronasda.church"
+echo -e "        - Public: https://photohonorsignoz.coronasda.church"
 echo -e "    🖥️   Cockpit (System Management):"
 echo -e "        - Local: https://10.10.10.200:9090"
 echo -e ""
@@ -736,11 +738,11 @@ server {
     error_log /var/log/nginx/pathfinder-photography-error.log;
 }
 
-# PGAdmin subdomain server
+# PGAdmin subdomain server (using single-level subdomain to avoid certificate issues)
 server {
     listen 80;
     listen [::]:80;
-    server_name pgadmin.photohonor.coronasda.church;
+    server_name photohonorpgadmin.coronasda.church;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -857,9 +859,9 @@ If you're using Cloudflare Tunnel, you need to configure your tunnel to route tr
    ingress:
      - hostname: photohonor.coronasda.church
        service: http://localhost:80
-     - hostname: pgadmin.photohonor.coronasda.church
+     - hostname: photohonorpgadmin.coronasda.church  # Note: Single-level subdomain to avoid certificate issues
        service: http://localhost:80
-     - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
+     - hostname: photohonorsignoz.coronasda.church  # Optional: if using SigNoz for observability
        service: http://localhost:80
      # ... your other services ...
      - service: http_status:404  # catch-all rule
@@ -869,16 +871,18 @@ If you're using Cloudflare Tunnel, you need to configure your tunnel to route tr
    ```yaml
    ingress:
      - hostname: photohonor.coronasda.church
-       service: http://YOUR_SERVER_IP:80
-     - hostname: pgadmin.photohonor.coronasda.church
-       service: http://YOUR_SERVER_IP:80
-     - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
-       service: http://YOUR_SERVER_IP:80
+       service: http://<YOUR_SERVER_IP>:80
+     - hostname: photohonorpgadmin.coronasda.church  # Note: Single-level subdomain to avoid certificate issues
+       service: http://<YOUR_SERVER_IP>:80
+     - hostname: photohonorsignoz.coronasda.church  # Optional: if using SigNoz for observability
+       service: http://<YOUR_SERVER_IP>:80
      # ... your other services ...
      - service: http_status:404  # catch-all rule
    ```
    
-   Replace `YOUR_SERVER_IP` with the IP address of this Pathfinder Photography server.
+   Replace `<YOUR_SERVER_IP>` with the IP address of this Pathfinder Photography server.
+   
+   **Important**: Using single-level subdomains (e.g., `photohonorpgadmin.coronasda.church`) instead of multi-level subdomains (e.g., `pgadmin.photohonor.coronasda.church`) avoids SSL/TLS certificate issues with wildcard certificates that don't cover multi-level subdomains.
 
    **Note**: All services are routed through Nginx on port 80. Nginx handles the routing to the appropriate backend services:
    - Main application runs on port 5000 (proxied by Nginx)
@@ -1079,7 +1083,7 @@ Add:
 ```nginx
 server {
     listen 80;
-    server_name signoz.photohonor.coronasda.church;
+    server_name photohonorsignoz.coronasda.church;
 
     location / {
         proxy_pass http://localhost:3301;
@@ -1098,7 +1102,7 @@ Enable and secure with SSL:
 sudo ln -s /etc/nginx/sites-available/signoz /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-sudo certbot --nginx -d signoz.photohonor.coronasda.church
+sudo certbot --nginx -d photohonorsignoz.coronasda.church
 ```
 
 ### 7. Setup Automated Deployments (Optional)
@@ -2212,7 +2216,7 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    
    ```bash
    # Verify ports.conf has the Listen directive
-   cat /etc/apache2/ports.conf | grep 8080
+   grep 8080 /etc/apache2/ports.conf
    
    # If not found, add it
    echo "Listen 127.0.0.1:8080" | sudo tee -a /etc/apache2/ports.conf
@@ -2232,7 +2236,7 @@ sudo tail -f /var/log/pgadmin/pgadmin4.log
    sudo tail -f /var/log/apache2/error.log
    
    # Verify Apache is listening on correct port
-   cat /etc/apache2/ports.conf | grep 8080
+   grep 8080 /etc/apache2/ports.conf
    # Should have: Listen 127.0.0.1:8080
    
    # Check Apache configuration
