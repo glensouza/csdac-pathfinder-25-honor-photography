@@ -842,28 +842,52 @@ Certbot will automatically:
 
 If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`):
 
-**Option A: Using Cloudflare Tunnel (cloudflared) - If Already Running**
+**Option A: Using Cloudflare Tunnel (cloudflared)**
 
-If you already have a cloudflared container running (Cloudflare Tunnel), you only need to add this service to your existing tunnel configuration:
+If you're using Cloudflare Tunnel, you need to configure your tunnel to route traffic to this server's Nginx web server.
+
+**Important**: Nginx listens on port 80 (HTTP) on this server. If your cloudflared service runs on a different machine/VM, configure the service URLs to point to this server's IP address.
 
 1. **Add the service to your cloudflared configuration:**
-   - Edit your cloudflared config file (typically in your container or `/etc/cloudflared/config.yml`)
+   - Edit your cloudflared config file (typically `/etc/cloudflared/config.yml` or in your container)
    - Add the following ingress rules:
+   
+   **If cloudflared is on the SAME server:**
    ```yaml
    ingress:
      - hostname: photohonor.coronasda.church
-       service: http://localhost:5000
+       service: http://localhost:80
      - hostname: pgadmin.photohonor.coronasda.church
-       service: http://localhost:5050
+       service: http://localhost:80
      - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
-       service: http://localhost:3301
+       service: http://localhost:80
      # ... your other services ...
      - service: http_status:404  # catch-all rule
    ```
+   
+   **If cloudflared is on a DIFFERENT server/VM:**
+   ```yaml
+   ingress:
+     - hostname: photohonor.coronasda.church
+       service: http://YOUR_SERVER_IP:80
+     - hostname: pgadmin.photohonor.coronasda.church
+       service: http://YOUR_SERVER_IP:80
+     - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
+       service: http://YOUR_SERVER_IP:80
+     # ... your other services ...
+     - service: http_status:404  # catch-all rule
+   ```
+   
+   Replace `YOUR_SERVER_IP` with the IP address of this Pathfinder Photography server.
+
+   **Note**: All services are routed through Nginx on port 80. Nginx handles the routing to the appropriate backend services:
+   - Main application runs on port 5000 (proxied by Nginx)
+   - pgAdmin runs on port 8080 (proxied by Nginx)
+   - SigNoz runs on port 3301 (proxied by Nginx)
 
    **Security Note**: PGAdmin provides database management capabilities. Ensure strong passwords are configured and consider additional authentication layers if exposing publicly.
 
-2. **Restart your cloudflared container** to apply the changes
+2. **Restart your cloudflared service** to apply the changes
 
 3. **Configure DNS in Cloudflare Dashboard:**
    - The DNS records should already be created automatically by cloudflared
