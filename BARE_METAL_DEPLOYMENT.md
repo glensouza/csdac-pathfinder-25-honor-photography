@@ -122,18 +122,58 @@ sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] h
 # Update package list
 sudo apt update
 
-# Install PGAdmin 4 (desktop/web mode - we'll use it in standalone mode)
-sudo apt install -y pgadmin4
+# Install PGAdmin 4 web mode
+sudo apt install -y pgadmin4-web
 
-# Create PGAdmin configuration directory
-sudo mkdir -p /var/lib/pgadmin
-sudo mkdir -p /var/log/pgadmin
-
-# Set up PGAdmin to run in standalone mode (not with Apache)
-# We'll configure it to run on port 5050 and proxy through Nginx
+# Run the setup script to configure pgAdmin4
+sudo /usr/pgadmin4/bin/setup-web.sh
 ```
 
-**Configure PGAdmin to run as a service:**
+**During the setup script, you will be prompted for:**
+- Email address (this will be your pgAdmin login username)
+- Password (choose a strong password - this is for pgAdmin access, not PostgreSQL)
+- Whether to configure Apache (answer 'n' for No - we'll use Nginx instead)
+
+The setup script will:
+- Create the pgAdmin configuration database
+- Set up the initial admin user
+- Configure the required directories and permissions
+
+**Important Security Note**: The email and password you set here are for accessing the pgAdmin web interface. This is separate from your PostgreSQL database credentials. Use a strong, unique password.
+
+After setup completes, pgAdmin 4 will be configured to run via WSGI. However, for simpler deployment without Apache, we'll run it as a standalone Python application.
+
+**Configure PGAdmin to run as a standalone service:**
+
+First, create a configuration file to specify the server settings:
+
+```bash
+sudo nano /usr/pgadmin4/web/config_local.py
+```
+
+Add the following content:
+
+```python
+# pgAdmin 4 standalone server configuration
+import os
+
+# Server settings
+DEFAULT_SERVER = '0.0.0.0'
+DEFAULT_SERVER_PORT = 5050
+
+# Data and log directories (already created by setup-web.sh)
+DATA_DIR = '/var/lib/pgadmin'
+LOG_FILE = '/var/log/pgadmin/pgadmin4.log'
+SQLITE_PATH = os.path.join(DATA_DIR, 'pgadmin4.db')
+SESSION_DB_PATH = os.path.join(DATA_DIR, 'sessions')
+STORAGE_DIR = os.path.join(DATA_DIR, 'storage')
+
+# Server mode (not desktop mode)
+SERVER_MODE = True
+
+# Security
+ENHANCED_COOKIE_PROTECTION = True
+```
 
 Create a systemd service file:
 
@@ -145,29 +185,34 @@ Add the following content:
 
 ```ini
 [Unit]
-Description=PGAdmin4
-After=network.target
+Description=pgAdmin4
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
 User=www-data
 Group=www-data
-Environment="PGADMIN_SETUP_EMAIL=admin@example.com"
-Environment="PGADMIN_SETUP_PASSWORD=ChangeThisPassword"
 WorkingDirectory=/usr/pgadmin4/web
+
+# Run pgAdmin4 in server mode
 ExecStart=/usr/bin/python3 /usr/pgadmin4/web/pgAdmin4.py
+
 Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-**Important**: Change `PGADMIN_SETUP_EMAIL` and `PGADMIN_SETUP_PASSWORD` to your desired credentials.
-
-Enable and start PGAdmin:
+Enable and start pgAdmin:
 
 ```bash
-# Set proper ownership
+# Ensure proper ownership (should already be set by setup-web.sh)
 sudo chown -R www-data:www-data /var/lib/pgadmin
 sudo chown -R www-data:www-data /var/log/pgadmin
 
@@ -180,9 +225,31 @@ sudo systemctl start pgadmin4
 sudo systemctl status pgadmin4
 ```
 
+If the service fails to start, check the logs:
+
+```bash
+# View systemd logs
+sudo journalctl -u pgadmin4 -n 50
+
+# View pgAdmin application logs
+sudo tail -f /var/log/pgadmin/pgadmin4.log
+```
+
+**Common Issues and Solutions:**
+
+1. **Service fails with "No module named 'pgadmin'"**: Ensure you installed `pgadmin4-web` package, not just `pgadmin4`
+2. **Permission denied errors**: Check ownership of `/var/lib/pgadmin` and `/var/log/pgadmin` directories
+3. **Port already in use**: Verify port 5050 is not being used by another service: `sudo netstat -tlnp | grep 5050`
+4. **Database initialization errors**: Re-run the setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
+
 PGAdmin will run on `http://localhost:5050`. We'll configure Nginx to proxy it at the subdomain `pgadmin.photohonor.coronasda.church` (see Nginx configuration below).
 
-**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators through Nginx.
+**Security Note**: 
+- PGAdmin 4 is a powerful database management tool with full access to your PostgreSQL databases
+- Only expose it through Nginx with HTTPS (SSL/TLS)
+- Use strong passwords for both pgAdmin login and PostgreSQL users
+- Consider restricting access by IP address in Nginx configuration if only accessing from specific locations
+- The pgAdmin interface should only be accessible by authorized administrators
 
 #### Update Login Message (Optional)
 
@@ -1926,6 +1993,144 @@ sudo -u pathfinder psql -h localhost -U pathfinder -d pathfinder_photography
 sudo nano /etc/postgresql/16/main/pg_hba.conf
 ```
 
+### PGAdmin 4 Won't Start
+
+If PGAdmin 4 fails to start or shows errors, try these troubleshooting steps:
+
+**Check service status and logs:**
+
+```bash
+# Check service status
+sudo systemctl status pgadmin4
+
+# View systemd logs
+sudo journalctl -u pgadmin4 -n 100
+
+# View pgAdmin application logs
+sudo tail -f /var/log/pgadmin/pgadmin4.log
+```
+
+**Common issues and solutions:**
+
+1. **"No module named 'pgadmin'" or "ImportError"**
+   
+   This usually means the wrong package was installed or the Python path is incorrect.
+   
+   ```bash
+   # Ensure you have the web package installed
+   sudo apt install -y pgadmin4-web
+   
+   # Verify the installation
+   ls -la /usr/pgadmin4/web/
+   ```
+
+2. **Permission denied errors**
+   
+   ```bash
+   # Fix directory ownership
+   sudo chown -R www-data:www-data /var/lib/pgadmin
+   sudo chown -R www-data:www-data /var/log/pgadmin
+   
+   # Fix directory permissions
+   sudo chmod 700 /var/lib/pgadmin
+   sudo chmod 700 /var/log/pgadmin
+   
+   # Restart service
+   sudo systemctl restart pgadmin4
+   ```
+
+3. **"Config database not found" or initialization errors**
+   
+   The setup script wasn't run or didn't complete successfully.
+   
+   ```bash
+   # Re-run the setup script
+   sudo /usr/pgadmin4/bin/setup-web.sh
+   
+   # Answer the prompts:
+   # - Email: your admin email
+   # - Password: choose a strong password
+   # - Apache configuration: n (No)
+   
+   # Restart the service
+   sudo systemctl restart pgadmin4
+   ```
+
+4. **Port 5050 already in use**
+   
+   ```bash
+   # Check what's using port 5050
+   sudo netstat -tlnp | grep 5050
+   # OR
+   sudo ss -tlnp | grep 5050
+   
+   # If another service is using it, either:
+   # a) Stop that service, or
+   # b) Change pgAdmin port in /usr/pgadmin4/web/config_local.py
+   #    Set DEFAULT_SERVER_PORT = 5051  (or another available port)
+   #    Then update Nginx proxy_pass to use the new port
+   ```
+
+5. **Service starts but web interface shows errors**
+   
+   ```bash
+   # Check if pgAdmin is listening on the correct port
+   sudo netstat -tlnp | grep python
+   
+   # Test connection locally
+   curl http://localhost:5050
+   
+   # Should return HTML content, not connection refused
+   ```
+
+6. **"ERROR: Failed to create the directory /var/lib/pgadmin/sessions"**
+   
+   ```bash
+   # Create missing directories
+   sudo mkdir -p /var/lib/pgadmin/sessions
+   sudo mkdir -p /var/lib/pgadmin/storage
+   sudo chown -R www-data:www-data /var/lib/pgadmin
+   sudo systemctl restart pgadmin4
+   ```
+
+7. **Complete reinstall if all else fails**
+   
+   ```bash
+   # Stop and disable service
+   sudo systemctl stop pgadmin4
+   sudo systemctl disable pgadmin4
+   
+   # Remove package
+   sudo apt remove --purge pgadmin4-web
+   
+   # Clean up directories
+   sudo rm -rf /var/lib/pgadmin
+   sudo rm -rf /var/log/pgadmin
+   sudo rm /etc/systemd/system/pgadmin4.service
+   
+   # Reinstall following the instructions in this guide
+   sudo apt update
+   sudo apt install -y pgadmin4-web
+   sudo /usr/pgadmin4/bin/setup-web.sh
+   # ... continue with configuration steps
+   ```
+
+**Verify pgAdmin is working:**
+
+Once the service is running, verify it's accessible:
+
+```bash
+# Check if it's listening on port 5050
+sudo ss -tlnp | grep 5050
+
+# Test with curl
+curl -I http://localhost:5050
+
+# Should return HTTP 200 OK or 302 redirect
+```
+
+If you can access it locally but not through Nginx, check the Nginx configuration in section 5.
+
 ### High Memory Usage
 
 ```bash
@@ -2173,8 +2378,16 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Enabled root login in Cockpit (commented out root in `/etc/cockpit/disallowed-users`)
 - [ ] Cockpit accessible at `https://your-server-ip:9090`
 - [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
-- [ ] Configured PGAdmin 4 with setup-web.sh
-- [ ] PGAdmin 4 accessible (either via Nginx proxy or SSH tunnel)
+- [ ] Ran PGAdmin setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
+- [ ] Created pgAdmin admin email and password during setup
+- [ ] Declined Apache configuration (answered 'n' when prompted)
+- [ ] Created configuration file: `/usr/pgadmin4/web/config_local.py`
+- [ ] Created systemd service file: `/etc/systemd/system/pgadmin4.service`
+- [ ] Set proper ownership of pgAdmin directories
+- [ ] Enabled and started pgAdmin service
+- [ ] Verified pgAdmin service is running: `systemctl status pgadmin4`
+- [ ] Checked pgAdmin logs for any errors: `journalctl -u pgadmin4 -n 50`
+- [ ] PGAdmin 4 accessible at `http://localhost:5050` (will be proxied via Nginx)
 - [ ] (Optional) Updated login message in `/etc/profile.d/00_lxc-details.sh` with service URLs
 - [ ] Created database: `pathfinder_photography`
 - [ ] Created user: `pathfinder` with strong password
