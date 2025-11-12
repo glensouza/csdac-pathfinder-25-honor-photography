@@ -122,67 +122,152 @@ sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] h
 # Update package list
 sudo apt update
 
-# Install PGAdmin 4 (desktop/web mode - we'll use it in standalone mode)
-sudo apt install -y pgadmin4
+# Install PGAdmin 4 web mode
+sudo apt install -y pgadmin4-web
 
-# Create PGAdmin configuration directory
-sudo mkdir -p /var/lib/pgadmin
-sudo mkdir -p /var/log/pgadmin
-
-# Set up PGAdmin to run in standalone mode (not with Apache)
-# We'll configure it to run on port 5050 and proxy through Nginx
+# Run the setup script to configure pgAdmin4
+sudo /usr/pgadmin4/bin/setup-web.sh
 ```
 
-**Configure PGAdmin to run as a service:**
+**During the setup script, you will be prompted for:**
+- Email address (this will be your pgAdmin login username)
+- Password (choose a strong password - this is for pgAdmin access, not PostgreSQL)
+- Whether to configure Apache (answer 'y' for Yes - this will automatically configure Apache)
 
-Create a systemd service file:
+The setup script will:
+- Create the pgAdmin configuration database
+- Set up the initial admin user
+- Configure the required directories and permissions
+- Configure Apache to serve pgAdmin
+
+**Important Security Note**: The email and password you set here are for accessing the pgAdmin web interface. This is separate from your PostgreSQL database credentials. Use a strong, unique password.
+
+**Configure Apache for pgAdmin:**
+
+After running setup-web.sh with Apache configuration enabled, you need to configure Apache to work with Nginx. 
+
+**Important**: The setup script creates the configuration file in `/etc/apache2/conf-available/pgadmin4.conf` (not `sites-available`).
 
 ```bash
-sudo nano /etc/systemd/system/pgadmin4.service
+# Apache should already be installed and enabled by setup-web.sh
+# First, configure Apache to listen on 127.0.0.1:8080
+sudo nano /etc/apache2/ports.conf
 ```
 
-Add the following content:
-
-```ini
-[Unit]
-Description=PGAdmin4
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-Environment="PGADMIN_SETUP_EMAIL=admin@example.com"
-Environment="PGADMIN_SETUP_PASSWORD=ChangeThisPassword"
-WorkingDirectory=/usr/pgadmin4/web
-ExecStart=/usr/bin/python3 /usr/pgadmin4/web/pgAdmin4.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
+Add this line (keep any existing Listen 80 if present):
+```
+Listen 127.0.0.1:8080
 ```
 
-**Important**: Change `PGADMIN_SETUP_EMAIL` and `PGADMIN_SETUP_PASSWORD` to your desired credentials.
-
-Enable and start PGAdmin:
+Now edit the pgAdmin Apache configuration file. **Important**: Replace the entire file content (don't just add to it):
 
 ```bash
-# Set proper ownership
-sudo chown -R www-data:www-data /var/lib/pgadmin
-sudo chown -R www-data:www-data /var/log/pgadmin
-
-# Enable and start the service
-sudo systemctl daemon-reload
-sudo systemctl enable pgadmin4
-sudo systemctl start pgadmin4
-
-# Check status
-sudo systemctl status pgadmin4
+sudo nano /etc/apache2/conf-available/pgadmin4.conf
 ```
 
-PGAdmin will run on `http://localhost:5050`. We'll configure Nginx to proxy it at the subdomain `pgadmin.photohonor.coronasda.church` (see Nginx configuration below).
+Replace the entire file content with:
+```apache
+<VirtualHost 127.0.0.1:8080>
+    WSGIDaemonProcess pgadmin processes=1 threads=25 python-home=/usr/pgadmin4/venv
+    WSGIScriptAlias /pgadmin4 /usr/pgadmin4/web/pgAdmin4.wsgi
+    
+    <Directory /usr/pgadmin4/web>
+        WSGIProcessGroup pgadmin
+        WSGIApplicationGroup %{GLOBAL}
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
 
-**Security Note**: PGAdmin 4 is a powerful database management tool. Ensure it's properly secured with strong passwords and only accessible by authorized administrators through Nginx.
+**Critical**: The original file from setup-web.sh contains only WSGIDaemonProcess and WSGIScriptAlias directives without a VirtualHost wrapper. You must replace the entire file content with the above configuration to avoid duplicate WSGI daemon definitions.
+
+Restart Apache:
+```bash
+sudo systemctl restart apache2
+sudo systemctl status apache2
+```
+
+pgAdmin will now be accessible at `http://localhost:8080/pgadmin4`. 
+
+**Verify Apache is working:**
+
+```bash
+# Check if Apache is running
+sudo systemctl status apache2
+
+# Verify Apache is listening on port 8080
+sudo ss -tlnp | grep 8080
+
+# Test pgAdmin accessibility
+curl -I http://localhost:8080/pgadmin4
+# Should return HTTP 200 OK or 302 redirect
+```
+
+If the service fails to start, check the logs:
+
+```bash
+# View Apache error logs
+sudo journalctl -u apache2 -n 50 --no-pager
+sudo tail -f /var/log/apache2/error.log
+
+# View pgAdmin application logs
+sudo tail -f /var/log/pgadmin/pgadmin4.log
+```
+
+**Common Issues and Solutions:**
+
+1. **"Name duplicates previous WSGI daemon definition"**: You appended the VirtualHost wrapper instead of replacing the file content.
+   ```bash
+   # Edit the file and replace ALL content with the VirtualHost block above
+   sudo nano /etc/apache2/conf-available/pgadmin4.conf
+   sudo systemctl restart apache2
+   ```
+
+2. **Apache fails to start**: Check Apache logs with `sudo journalctl -u apache2 -n 50 --no-pager`
+
+3. **Connection refused on port 8080**: Verify ports.conf has `Listen 127.0.0.1:8080`
+   ```bash
+   grep 8080 /etc/apache2/ports.conf
+   # If not found, add: Listen 127.0.0.1:8080
+   sudo systemctl restart apache2
+   ```
+
+4. **Port 8080 already in use**: 
+   ```bash
+   sudo ss -tlnp | grep 8080
+   # Change to a different port in both /etc/apache2/ports.conf and pgadmin4.conf
+   ```
+
+5. **Permission denied errors**: Check ownership of `/var/lib/pgadmin` and `/var/log/pgadmin` directories:
+   ```bash
+   sudo chown -R www-data:www-data /var/lib/pgadmin
+   sudo chown -R www-data:www-data /var/log/pgadmin
+   ```
+
+6. **Database initialization errors**: Re-run the setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
+
+7. **Configuration file not found**: The file is in `/etc/apache2/conf-available/pgadmin4.conf`, not `sites-available`:
+   ```bash
+   ls -la /etc/apache2/conf-available/pgadmin4.conf
+   ls -la /etc/apache2/conf-enabled/pgadmin4.conf
+   ```
+
+8. **Apache configuration test fails**:
+   ```bash
+   sudo apache2ctl configtest
+   # Fix any configuration errors shown
+   ```
+
+PGAdmin will run on `http://localhost:8080/pgadmin4` and will be proxied through Nginx at the subdomain `photohonorpgadmin.coronasda.church` (see Nginx configuration below).
+
+**Note**: Using single-level subdomains (e.g., `photohonorpgadmin`) instead of multi-level subdomains (e.g., `pgadmin.photohonor`) avoids SSL/TLS certificate issues with wildcard certificates.
+
+**Security Note**: 
+- PGAdmin 4 is a powerful database management tool with full access to your PostgreSQL databases
+- Only expose it through Nginx with HTTPS (SSL/TLS)
+- Use strong passwords for both pgAdmin login and PostgreSQL users
+- Consider restricting access by IP address in Nginx configuration if only accessing from specific locations
+- The pgAdmin interface should only be accessible by authorized administrators
 
 #### Update Login Message (Optional)
 
@@ -205,10 +290,11 @@ echo -e "    🌐   Pathfinder Photography App:"
 echo -e "        - Local: http://10.10.10.200"
 echo -e "        - Public: https://photohonor.coronasda.church"
 echo -e "    🗄️   PGAdmin 4 (Database Management):"
-echo -e "        - Public: https://pgadmin.photohonor.coronasda.church"
+echo -e "        - Local: http://localhost:8080/pgadmin4"
+echo -e "        - Public: https://photohonorpgadmin.coronasda.church"
 echo -e "    📊   SigNoz (Observability - Optional):"
 echo -e "        - Local: http://10.10.10.200:3301"
-echo -e "        - Public: https://signoz.photohonor.coronasda.church"
+echo -e "        - Public: https://photohonorsignoz.coronasda.church"
 echo -e "    🖥️   Cockpit (System Management):"
 echo -e "        - Local: https://10.10.10.200:9090"
 echo -e ""
@@ -336,6 +422,42 @@ However, installing the SDK is **recommended** for production servers to enable:
 - Quick hotfixes and patches
 - Database schema updates
 - Troubleshooting and diagnostics
+
+#### Install Entity Framework Core Tools
+
+The EF Core tools are required for running database migrations. Install them globally:
+
+```bash
+# Install EF Core tools globally
+dotnet tool install --global dotnet-ef
+
+# Verify installation
+dotnet ef --version
+```
+
+Expected output:
+```
+Entity Framework Core .NET Command-line Tools
+9.x.x
+```
+
+**Note**: If you get a warning about the tools not being on PATH, add the .NET tools directory to your PATH:
+
+```bash
+# Add to PATH (add this to ~/.bashrc for persistence)
+export PATH="$PATH:$HOME/.dotnet/tools"
+
+# Or for the pathfinder user (recommended)
+sudo -u pathfinder bash -c 'echo "export PATH=\"\$PATH:\$HOME/.dotnet/tools\"" >> ~/.bashrc'
+
+# Verify it works
+dotnet ef --version
+```
+
+**Troubleshooting**: If you see "Could not execute because the specified command or file was not found" when running `dotnet ef`:
+- The EF tools are not installed globally - run `dotnet tool install --global dotnet-ef`
+- The tools path is not in PATH - add `~/.dotnet/tools` to your PATH environment variable
+- Try updating the tools: `dotnet tool update --global dotnet-ef`
 
 ### 2.1. Install Git (Required for Building from Source)
 
@@ -616,11 +738,11 @@ server {
     error_log /var/log/nginx/pathfinder-photography-error.log;
 }
 
-# PGAdmin subdomain server
+# PGAdmin subdomain server (using single-level subdomain to avoid certificate issues)
 server {
     listen 80;
     listen [::]:80;
-    server_name pgadmin.photohonor.coronasda.church;
+    server_name photohonorpgadmin.coronasda.church;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -628,9 +750,9 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # Proxy to PGAdmin standalone server on port 5050
+    # Proxy to Apache on port 8080
     location / {
-        proxy_pass http://localhost:5050/;
+        proxy_pass http://localhost:8080/pgadmin4/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -638,6 +760,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Script-Name /pgadmin4;
         proxy_cache_bypass $http_upgrade;
         
         # Timeouts
@@ -721,28 +844,54 @@ Certbot will automatically:
 
 If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`):
 
-**Option A: Using Cloudflare Tunnel (cloudflared) - If Already Running**
+**Option A: Using Cloudflare Tunnel (cloudflared)**
 
-If you already have a cloudflared container running (Cloudflare Tunnel), you only need to add this service to your existing tunnel configuration:
+If you're using Cloudflare Tunnel, you need to configure your tunnel to route traffic to this server's Nginx web server.
+
+**Important**: Nginx listens on port 80 (HTTP) on this server. If your cloudflared service runs on a different machine/VM, configure the service URLs to point to this server's IP address.
 
 1. **Add the service to your cloudflared configuration:**
-   - Edit your cloudflared config file (typically in your container or `/etc/cloudflared/config.yml`)
+   - Edit your cloudflared config file (typically `/etc/cloudflared/config.yml` or in your container)
    - Add the following ingress rules:
+   
+   **If cloudflared is on the SAME server:**
    ```yaml
    ingress:
      - hostname: photohonor.coronasda.church
-       service: http://localhost:5000
-     - hostname: pgadmin.photohonor.coronasda.church
-       service: http://localhost:5050
-     - hostname: signoz.photohonor.coronasda.church  # Optional: if using SigNoz for observability
-       service: http://localhost:3301
+       service: http://localhost:80
+     - hostname: photohonorpgadmin.coronasda.church  # Note: Single-level subdomain to avoid certificate issues
+       service: http://localhost:80
+     - hostname: photohonorsignoz.coronasda.church  # Optional: if using SigNoz for observability
+       service: http://localhost:80
      # ... your other services ...
      - service: http_status:404  # catch-all rule
    ```
+   
+   **If cloudflared is on a DIFFERENT server/VM:**
+   ```yaml
+   ingress:
+     - hostname: photohonor.coronasda.church
+       service: http://<YOUR_SERVER_IP>:80
+     - hostname: photohonorpgadmin.coronasda.church  # Note: Single-level subdomain to avoid certificate issues
+       service: http://<YOUR_SERVER_IP>:80
+     - hostname: photohonorsignoz.coronasda.church  # Optional: if using SigNoz for observability
+       service: http://<YOUR_SERVER_IP>:80
+     # ... your other services ...
+     - service: http_status:404  # catch-all rule
+   ```
+   
+   Replace `<YOUR_SERVER_IP>` with the IP address of this Pathfinder Photography server.
+   
+   **Important**: Using single-level subdomains (e.g., `photohonorpgadmin.coronasda.church`) instead of multi-level subdomains (e.g., `pgadmin.photohonor.coronasda.church`) avoids SSL/TLS certificate issues with wildcard certificates that don't cover multi-level subdomains.
+
+   **Note**: All services are routed through Nginx on port 80. Nginx handles the routing to the appropriate backend services:
+   - Main application runs on port 5000 (proxied by Nginx)
+   - pgAdmin runs on port 8080 (proxied by Nginx)
+   - SigNoz runs on port 3301 (proxied by Nginx)
 
    **Security Note**: PGAdmin provides database management capabilities. Ensure strong passwords are configured and consider additional authentication layers if exposing publicly.
 
-2. **Restart your cloudflared container** to apply the changes
+2. **Restart your cloudflared service** to apply the changes
 
 3. **Configure DNS in Cloudflare Dashboard:**
    - The DNS records should already be created automatically by cloudflared
@@ -934,7 +1083,7 @@ Add:
 ```nginx
 server {
     listen 80;
-    server_name signoz.photohonor.coronasda.church;
+    server_name photohonorsignoz.coronasda.church;
 
     location / {
         proxy_pass http://localhost:3301;
@@ -953,7 +1102,7 @@ Enable and secure with SSL:
 sudo ln -s /etc/nginx/sites-available/signoz /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-sudo certbot --nginx -d signoz.photohonor.coronasda.church
+sudo certbot --nginx -d photohonorsignoz.coronasda.church
 ```
 
 ### 7. Setup Automated Deployments (Optional)
@@ -1926,6 +2075,210 @@ sudo -u pathfinder psql -h localhost -U pathfinder -d pathfinder_photography
 sudo nano /etc/postgresql/16/main/pg_hba.conf
 ```
 
+### PGAdmin 4 Won't Start
+
+If PGAdmin 4 fails to start or shows errors, try these troubleshooting steps:
+
+**Check service status and logs:**
+
+```bash
+# Check service status
+sudo systemctl status pgadmin4
+
+# View systemd logs
+sudo journalctl -u pgadmin4 -n 100
+
+# View pgAdmin application logs
+sudo tail -f /var/log/pgadmin/pgadmin4.log
+```
+
+**Common issues and solutions:**
+
+1. **"No module named 'pgadmin'" or "ImportError"**
+   
+   This usually means the wrong package was installed or the Python path is incorrect.
+   
+   ```bash
+   # Ensure you have the web package installed
+   sudo apt install -y pgadmin4-web
+   
+   # Verify the installation
+   ls -la /usr/pgadmin4/web/
+   ```
+
+2. **Permission denied errors**
+   
+   ```bash
+   # Fix directory ownership
+   sudo chown -R www-data:www-data /var/lib/pgadmin
+   sudo chown -R www-data:www-data /var/log/pgadmin
+   
+   # Fix directory permissions
+   sudo chmod 700 /var/lib/pgadmin
+   sudo chmod 700 /var/log/pgadmin
+   
+   # Restart service
+   sudo systemctl restart pgadmin4
+   ```
+
+3. **"Config database not found" or initialization errors**
+   
+   The setup script wasn't run or didn't complete successfully.
+   
+   ```bash
+   # Re-run the setup script
+   sudo /usr/pgadmin4/bin/setup-web.sh
+   
+   # Answer the prompts:
+   # - Email: your admin email
+   # - Password: choose a strong password
+   # - Apache configuration: y (Yes)
+   
+   # Restart Apache
+   sudo systemctl restart apache2
+   ```
+
+4. **Port 8080 already in use**
+   
+   ```bash
+   # Check what's using port 8080
+   sudo netstat -tlnp | grep 8080
+   # OR
+   sudo ss -tlnp | grep 8080
+   
+   # If another service is using it, either:
+   # a) Stop that service, or
+   # b) Change the port in /etc/apache2/ports.conf and pgadmin4.conf
+   ```
+
+5. **Service starts but web interface shows errors**
+   
+   ```bash
+   # Check if Apache is listening on port 8080
+   sudo netstat -tlnp | grep 8080
+   
+   # Test connection locally
+   curl http://localhost:8080/pgadmin4
+   
+   # Should return HTML content, not connection refused
+   ```
+
+6. **"ERROR: Failed to create the directory /var/lib/pgadmin/sessions"**
+   
+   ```bash
+   # Create missing directories
+   sudo mkdir -p /var/lib/pgadmin/sessions
+   sudo mkdir -p /var/lib/pgadmin/storage
+   sudo chown -R www-data:www-data /var/lib/pgadmin
+   
+   # Restart Apache
+   sudo systemctl restart apache2
+   ```
+
+7. **"Name duplicates previous WSGI daemon definition"**
+   
+   This error occurs when you add the VirtualHost wrapper to the configuration file without removing the original directives.
+   
+   ```bash
+   # The configuration file is in conf-available, not sites-available
+   sudo nano /etc/apache2/conf-available/pgadmin4.conf
+   
+   # Replace the ENTIRE file content with:
+   # <VirtualHost 127.0.0.1:8080>
+   #     WSGIDaemonProcess pgadmin processes=1 threads=25 python-home=/usr/pgadmin4/venv
+   #     WSGIScriptAlias /pgadmin4 /usr/pgadmin4/web/pgAdmin4.wsgi
+   #     
+   #     <Directory /usr/pgadmin4/web>
+   #         WSGIProcessGroup pgadmin
+   #         WSGIApplicationGroup %{GLOBAL}
+   #         Require all granted
+   #     </Directory>
+   # </VirtualHost>
+   
+   # Restart Apache
+   sudo systemctl restart apache2
+   ```
+
+8. **Configuration file not in expected location**
+   
+   The setup script creates `/etc/apache2/conf-available/pgadmin4.conf`, not `/etc/apache2/sites-available/pgadmin4.conf`.
+   
+   ```bash
+   # Find the actual configuration file
+   grep -r "pgadmin" /etc/apache2/
+   
+   # It should be in:
+   ls -la /etc/apache2/conf-available/pgadmin4.conf
+   ls -la /etc/apache2/conf-enabled/pgadmin4.conf
+   ```
+
+9. **Apache not listening on port 8080**
+   
+   ```bash
+   # Verify ports.conf has the Listen directive
+   grep 8080 /etc/apache2/ports.conf
+   
+   # If not found, add it
+   echo "Listen 127.0.0.1:8080" | sudo tee -a /etc/apache2/ports.conf
+   
+   # Restart Apache
+   sudo systemctl restart apache2
+   
+   # Verify it's listening
+   sudo ss -tlnp | grep 8080
+   ```
+
+10. **Apache specific issues**
+   
+   ```bash
+   # Check Apache error logs
+   sudo journalctl -u apache2 -n 50 --no-pager
+   sudo tail -f /var/log/apache2/error.log
+   
+   # Verify Apache is listening on correct port
+   grep 8080 /etc/apache2/ports.conf
+   # Should have: Listen 127.0.0.1:8080
+   
+   # Check Apache configuration
+   sudo apache2ctl configtest
+   ```
+
+11. **Complete reinstall if all else fails**
+   
+   ```bash
+   # Stop Apache
+   sudo systemctl stop apache2
+   
+   # Remove package
+   sudo apt remove --purge pgadmin4-web
+   
+   # Clean up directories
+   sudo rm -rf /var/lib/pgadmin
+   sudo rm -rf /var/log/pgadmin
+   
+   # Reinstall following the instructions in this guide
+   sudo apt update
+   sudo apt install -y pgadmin4-web
+   sudo /usr/pgadmin4/bin/setup-web.sh
+   # Answer 'y' to Apache configuration
+   # ... continue with Apache configuration steps
+   ```
+
+**Verify pgAdmin is working:**
+
+Once Apache is running, verify it's accessible:
+
+```bash
+# Check if Apache is listening on port 8080
+sudo ss -tlnp | grep 8080
+
+# Test with curl
+curl -I http://localhost:8080/pgadmin4
+# Should return HTTP 200 OK or 302 redirect
+```
+
+If you can access it locally but not through Nginx, check the Nginx configuration in section 5.
+
 ### High Memory Usage
 
 ```bash
@@ -1943,6 +2296,283 @@ maintenance_work_mem = 128MB
 
 # Restart PostgreSQL
 sudo systemctl restart postgresql
+```
+
+### Cloudflare 502 Bad Gateway Error
+
+If you're getting a 502 Bad Gateway error when accessing through Cloudflare Tunnel, follow these systematic troubleshooting steps:
+
+**Step 1: Verify Nginx is running and listening on port 80**
+
+```bash
+# Check Nginx status
+sudo systemctl status nginx
+
+# Verify Nginx is listening on port 80
+sudo ss -tlnp | grep :80
+
+# Test Nginx locally
+curl -I http://localhost
+# Should return HTTP 200 OK (not 502)
+```
+
+**Step 2: Test the application backend**
+
+```bash
+# Test the main application directly
+curl -I http://localhost:5000
+# Should return HTTP 200 or 302
+
+# Test through Nginx
+curl -I http://localhost/
+# Should return HTTP 200 or 302
+
+# If you get 502 here, the issue is between Nginx and your application
+```
+
+**Step 3: Check application is running**
+
+```bash
+# Check application status
+sudo systemctl status pathfinder-photography
+
+# View recent logs
+sudo journalctl -u pathfinder-photography -n 50
+
+# Check if port 5000 is listening
+sudo ss -tlnp | grep :5000
+```
+
+**Step 4: Verify cloudflared configuration**
+
+```bash
+# If cloudflared is on this server:
+sudo systemctl status cloudflared
+
+# Check cloudflared logs
+sudo journalctl -u cloudflared -n 50
+
+# If cloudflared is on a different server, check from that server
+```
+
+**Step 5: Test connectivity from cloudflared server to application server**
+
+If cloudflared is on a different VM/server:
+
+```bash
+# From the cloudflared server, test connectivity:
+curl -I http://<YOUR_SERVER_IP>:80
+# Should return HTTP 200 OK
+
+# If this fails, check:
+# 1. Firewall rules on application server
+sudo ufw status
+# Port 80 should be allowed from cloudflared server
+
+# 2. Network connectivity
+ping <YOUR_SERVER_IP>
+
+# 3. Ensure Nginx is listening on all interfaces (not just localhost)
+# Check /etc/nginx/sites-available/pathfinder-photography
+# Should have: listen 80;
+# NOT: listen 127.0.0.1:80;
+```
+
+**Step 6: Check Nginx error logs**
+
+```bash
+# View Nginx error log
+sudo tail -f /var/log/nginx/error.log
+
+# View access log
+sudo tail -f /var/log/nginx/access.log
+
+# Common issues in error.log:
+# - "Connection refused" = backend service not running
+# - "Connection timed out" = backend service slow or firewall blocking
+# - "No such file or directory" = socket file missing (if using Unix socket)
+```
+
+**Step 7: Verify Nginx upstream configuration**
+
+```bash
+# Check Nginx config syntax
+sudo nginx -t
+
+# View the server block configuration
+sudo cat /etc/nginx/sites-available/pathfinder-photography | grep -A 10 "location /"
+
+# Ensure proxy_pass is correct:
+# Should be: proxy_pass http://localhost:5000;
+# NOT: http://localhost:80 (circular)
+```
+
+**Step 8: Check for SELinux or AppArmor blocking (if applicable)**
+
+```bash
+# Check if SELinux is enforcing (CentOS/RHEL)
+getenforce
+# If "Enforcing", may need to configure SELinux contexts
+
+# Check AppArmor (Ubuntu)
+sudo aa-status | grep nginx
+```
+
+**Step 9: Restart services in correct order**
+
+```bash
+# Restart application
+sudo systemctl restart pathfinder-photography
+
+# Wait for it to fully start (check logs)
+sudo journalctl -u pathfinder-photography -f &
+
+# Restart Nginx
+sudo systemctl restart nginx
+
+# Restart cloudflared (on the cloudflared server)
+sudo systemctl restart cloudflared
+
+# Test again
+curl -I http://localhost
+```
+
+**Step 10: Enable debug logging temporarily**
+
+```bash
+# Enable debug logging in Nginx
+sudo nano /etc/nginx/sites-available/pathfinder-photography
+
+# Add inside server block:
+error_log /var/log/nginx/debug.log debug;
+
+# Reload Nginx
+sudo systemctl reload nginx
+
+# Generate traffic and check debug log
+curl http://localhost
+sudo tail -50 /var/log/nginx/debug.log
+
+# Remember to remove debug logging after troubleshooting (it's verbose)
+```
+
+**Common 502 Error Causes and Solutions:**
+
+| Cause | Solution |
+|-------|----------|
+| Application not running | `sudo systemctl start pathfinder-photography` |
+| Application crashed | Check logs: `sudo journalctl -u pathfinder-photography -n 100` |
+| Port mismatch in Nginx config | Verify `proxy_pass http://localhost:5000;` |
+| Firewall blocking cloudflared→server | Allow port 80: `sudo ufw allow from <cloudflared_ip> to any port 80` |
+| Nginx not listening on all interfaces | Change `listen 80;` (remove 127.0.0.1) |
+| Database connection failing | Check PostgreSQL: `sudo systemctl status postgresql` |
+| Out of memory | Check: `free -h`, restart services |
+| Permissions issue | Check pathfinder user owns app files |
+
+**Custom Cloudflare Error Pages:**
+
+To replace Cloudflare's generic 502 error page with a custom one:
+
+1. **Create custom error page in your application** (recommended approach):
+   
+   Your application can serve custom error pages. Create a static HTML file:
+   
+   ```bash
+   sudo mkdir -p /var/www/errors
+   sudo nano /var/www/errors/502.html
+   ```
+   
+   Add custom HTML:
+   ```html
+   <!DOCTYPE html>
+   <html>
+   <head>
+       <title>Service Temporarily Unavailable</title>
+       <style>
+           body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+           h1 { color: #333; }
+           p { color: #666; }
+       </style>
+   </head>
+   <body>
+       <h1>Pathfinder Photography Honor</h1>
+       <h2>Service Temporarily Unavailable</h2>
+       <p>We're currently experiencing technical difficulties.</p>
+       <p>Please try again in a few moments.</p>
+       <p>If the problem persists, please contact your administrator.</p>
+   </body>
+   </html>
+   ```
+   
+   Configure Nginx to serve this error page:
+   ```bash
+   sudo nano /etc/nginx/sites-available/pathfinder-photography
+   ```
+   
+   Add in the server block:
+   ```nginx
+   error_page 502 503 504 /502.html;
+   location = /502.html {
+       root /var/www/errors;
+       internal;
+   }
+   ```
+   
+   Reload Nginx:
+   ```bash
+   sudo nginx -t
+   sudo systemctl reload nginx
+   ```
+
+2. **Use Cloudflare Pages for custom error pages** (if Cloudflare sees the error):
+   
+   Note: This only works if the error is detected by Cloudflare (when your origin is completely unreachable). For 502 errors coming from your origin, use method 1.
+   
+   - Go to Cloudflare Dashboard → Custom Pages
+   - Upload custom HTML for 502 error page
+   - Customize branding, colors, and messaging
+
+3. **Serve a maintenance page during planned downtime:**
+   
+   ```bash
+   # Create maintenance page
+   sudo nano /var/www/errors/maintenance.html
+   ```
+   
+   When performing maintenance:
+   ```bash
+   # Temporarily redirect all traffic to maintenance page
+   sudo nano /etc/nginx/sites-available/pathfinder-photography
+   
+   # Add at the top of server block:
+   return 503;
+   
+   # And configure 503 page:
+   error_page 503 /maintenance.html;
+   location = /maintenance.html {
+       root /var/www/errors;
+       internal;
+   }
+   
+   # Reload
+   sudo systemctl reload nginx
+   
+   # After maintenance, remove the 'return 503;' line and reload again
+   ```
+
+**Testing custom error pages:**
+
+```bash
+# Stop application to trigger 502
+sudo systemctl stop pathfinder-photography
+
+# Test through browser or curl
+curl http://localhost
+
+# Should show your custom error page instead of generic Nginx 502
+
+# Restart application
+sudo systemctl start pathfinder-photography
 ```
 
 ### SSL Certificate Issues
@@ -2173,8 +2803,19 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Enabled root login in Cockpit (commented out root in `/etc/cockpit/disallowed-users`)
 - [ ] Cockpit accessible at `https://your-server-ip:9090`
 - [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
-- [ ] Configured PGAdmin 4 with setup-web.sh
-- [ ] PGAdmin 4 accessible (either via Nginx proxy or SSH tunnel)
+- [ ] Ran PGAdmin setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
+- [ ] Created pgAdmin admin email and password during setup
+- [ ] Answered 'y' to Apache configuration during setup
+- [ ] Configured Apache to listen on 127.0.0.1:8080 in `/etc/apache2/ports.conf`
+- [ ] Located pgAdmin configuration file: `/etc/apache2/conf-available/pgadmin4.conf` (not sites-available)
+- [ ] **Replaced entire content** of pgadmin4.conf with VirtualHost wrapper (not appended)
+- [ ] Verified Apache configuration: `sudo apache2ctl configtest`
+- [ ] Restarted Apache service: `sudo systemctl restart apache2`
+- [ ] Verified Apache is running: `systemctl status apache2`
+- [ ] Verified Apache is listening on port 8080: `sudo ss -tlnp | grep 8080`
+- [ ] Verified pgAdmin accessible at `http://localhost:8080/pgadmin4`
+- [ ] Set proper ownership of pgAdmin directories: `chown -R www-data:www-data /var/lib/pgadmin /var/log/pgadmin`
+- [ ] Updated Nginx config to proxy to port 8080
 - [ ] (Optional) Updated login message in `/etc/profile.d/00_lxc-details.sh` with service URLs
 - [ ] Created database: `pathfinder_photography`
 - [ ] Created user: `pathfinder` with strong password
@@ -2192,6 +2833,8 @@ Use this checklist when deploying the Pathfinder Photography application on bare
 - [ ] Verified runtime installation: `dotnet --list-runtimes`
 - [ ] Confirmed Microsoft.AspNetCore.App 9.0.x is listed
 - [ ] Confirmed .NET SDK 9.0.x is listed
+- [ ] Installed Entity Framework Core tools globally: `dotnet tool install --global dotnet-ef`
+- [ ] Verified EF tools installation: `dotnet ef --version`
 
 ### Step 3: Application Installation
 
