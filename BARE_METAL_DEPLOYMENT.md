@@ -1226,37 +1226,29 @@ sudo chmod 0440 /etc/sudoers.d/github-runner
 
 #### 7.3. Download and Configure GitHub Runner
 
-Switch to the runner user:
+- Create runner directory and set ownership
 ```bash
-sudo -u github-runner bash
-cd ~
+sudo mkdir -p /home/github-runner/actions-runner
+
+# Set ownership
+sudo chown github-runner:github-runner /home/github-runner/actions-runner
 ```
 
-Create runner directory:
+- Install jq (admin) if needed
 ```bash
-mkdir actions-runner && cd actions-runner
-```
-
-Download the latest runner package:
-```bash
-# Get the latest runner version automatically (requires jq)
+sudo apt update
 sudo apt install -y jq
-RUNNER_VERSION=$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+```
 
-# Or manually set version (check https://github.com/actions/runner/releases for latest)
-# RUNNER_VERSION="2.311.0"
-
-echo "Installing GitHub Actions Runner version: $RUNNER_VERSION"
-
-# Download runner
-curl -o actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz -L https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
-
-# Optional: Verify the download with checksum
-# Get the expected checksum from: https://github.com/actions/runner/releases/latest
-# echo "EXPECTED_SHA256  actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" | shasum -a 256 -c
-
-# Extract
-tar xzf ./actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
+- Download and extract the runner as the github-runner user (non-interactive)
+```bash
+sudo -u github-runner bash -lc '
+ cd /home/github-runner/actions-runner || exit1
+ RUNNER_VERSION=$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r ".tag_name" | sed "s/^v//")
+ echo "Installing GitHub Actions Runner version: $RUNNER_VERSION"
+ curl -o actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz -L https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
+ tar xzf actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
+'
 ```
 
 #### 7.4. Get Repository Token
@@ -1307,12 +1299,6 @@ When prompted:
 
 #### 7.6. Create Systemd Service for Runner
 
-Exit back to your regular user:
-```bash
-exit  # Exit github-runner user
-```
-
-Create systemd service file:
 ```bash
 sudo nano /etc/systemd/system/github-runner.service
 ```
@@ -1371,8 +1357,7 @@ sudo systemctl status github-runner
 ```
 
 Verify the runner is online:
-- Go to your GitHub repository
-- Navigate to **Settings** → **Actions** → **Runners**
+- Go to **Settings** → **Actions** → **Runners** on your GitHub repository
 - You should see your runner listed with a green "Idle" status
 
 #### 7.8. Create Backup Directory Structure
@@ -1863,222 +1848,3 @@ open_file_cache max=2000 inactive=20s;
 open_file_cache_valid 60s;
 open_file_cache_min_uses 2;
 ```
-
-## Post-deployment fixes / gotchas
-
-After initial deployment you may encounter a few environment-specific issues. Use these quick fixes and explanations to resolve them.
-
-- Fix duplicate `server_name` warning in Nginx
- - Symptom: `conflicting server name "photohonor.coronasda.church" on0.0.0.0:80, ignored` in `nginx -T` output.
- - Fix:
-
-```bash
-sudo sed -i 's/server_name photohonor.coronasda.church photohonor.coronasda.church;/server_name photohonor.coronasda.church www.photohonor.coronasda.church;/' /etc/nginx/sites-available/pathfinder-photography
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-- Prefer IPv4 upstream in Nginx to avoid IPv6 connect() refused
- - Symptom: `connect() failed (111: Connection refused) while connecting to upstream` referencing `::1:5000`.
- - Fix: use `127.0.0.1` in `proxy_pass` so Nginx uses IPv4 when Kestrel is listening on IPv4:
-
-```nginx
-# inside the server/location block
-proxy_pass http://127.0.0.1:5000;
-proxy_set_header X-Forwarded-Proto $scheme;
-```
-
-- HEAD vs GET testing note
- - The app may return `405 Method Not Allowed` for `HEAD` requests. Use `GET` when validating pages locally:
-
-```bash
-curl -v -H "Host: photohonor.coronasda.church" http://127.0.0.1/
-```
-
-- Systemd: quick reliability fix (temporary)
- - Symptom: service repeatedly restarts with `Failed with result 'timeout'` when using `Type=notify`.
- - Quick fix (applied during debugging): change systemd unit to avoid waiting on sd_notify:
-
-```ini
-# /etc/systemd/system/pathfinder-photography.service
-Type=simple
-TimeoutStartSec=120
-```
-
-Reload and restart:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart pathfinder-photography
-```
-
- - Recommended production fix: enable systemd notifications from the app and restore `Type=notify` in the unit. In .NET you can enable host support with `builder.Host.UseSystemd();` and use `Type=notify` again.
-
-- Fix HTTPS redirect warning (forwarded headers)
- - Symptom in logs: `Failed to determine the https port for redirect.` when the app is behind a reverse proxy.
- - Cause: the ASP.NET Core middleware can't see the original request scheme unless forwarded headers are used.
- - Fix: configure Forwarded Headers middleware before `UseHttpsRedirection()` in `Program.cs` (example given in repo):
-
-```csharp
-using Microsoft.AspNetCore.HttpOverrides;
-
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
- ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
-
-app.UseHttpsRedirection();
-```
-
-Ensure Nginx sets the header:
-
-```nginx
-proxy_set_header X-Forwarded-Proto $scheme;
-```
-
-- Persist DataProtection keys (important for cookies/auth across restarts)
- - Symptom: warnings about an *ephemeral* data protection repository; cookies/sessions break after app restarts.
- - Fix: persist the key ring to the filesystem and secure the folder. Example service registration (in `Program.cs`):
-
-```csharp
-using Microsoft.AspNetCore.DataProtection;
-using System.IO;
-
-services.AddDataProtection()
- .PersistKeysToFileSystem(new DirectoryInfo("/var/lib/pathfinder-keys"))
- .SetApplicationName("pathfinder-photography");
-```
-
-Create folder and set permissions:
-
-```bash
-sudo mkdir -p /var/lib/pathfinder-keys
-sudo chown -R pathfinder:pathfinder /var/lib/pathfinder-keys
-sudo chmod700 /var/lib/pathfinder-keys
-```
-
-- Useful troubleshooting commands
-
-```bash
-# Nginx
-sudo nginx -t
-sudo tail -f /var/log/nginx/pathfinder-photography-error.log
-
-# App service
-sudo systemctl status pathfinder-photography
-sudo journalctl -u pathfinder-photography -f
-
-# Verify Kestrel is listening
-sudo ss -tlnp | grep :5000
-```
-
-Add these notes to your deployment runbooks and the checklist (below) so future deployments include the fixes as standard steps.
-
-## Cloudflare & Tunnel troubleshooting (recent incident)
-
-This section documents a real incident and the concise troubleshooting steps and fixes you should follow when Cloudflare returns502 (Bad gateway) for a proxied site.
-
-Summary of the incident
-- Symptom: Cloudflare returned a502 "Bad gateway" while Cloudflare and browser showed "Working" but the Host showed "Error".
-- Root cause: Cloudflare Tunnel (`cloudflared`) ingress was pointed at the application port (5000) instead of the webserver port (80). Cloudflare tried to reach the wrong endpoint and received connection errors. Toggling DNS to "DNS only" (grey cloud) helped isolate the problem.
-- Result: Correcting the tunnel ingress to point to `http://127.0.0.1:80` (or the server IP:80) restored service while keeping Cloudflare proxied (orange cloud) is fine once the tunnel is correct.
-
-Checklist to reproduce and resolve a Cloudflare502
-
-1. Confirm the502 path is Cloudflare -> origin
- - From a public browser Cloudflare shows502. On the origin server, check Nginx access and error logs:
-
- ```bash
- sudo tail -n200 /var/log/nginx/pathfinder-photography-access.log
- sudo tail -n200 /var/log/nginx/pathfinder-photography-error.log
- ```
-
- - If logs show `connect() failed (111: Connection refused) while connecting to upstream` with upstream `::1:5000` or `127.0.0.1:5000`, the proxy/tunnel is attempting the wrong target.
-
-2. Check Kestrel and Nginx locally
- ```bash
- sudo ss -tlnp | grep ':80' || true
- sudo ss -tlnp | grep ':5000' || true
- curl -I -H "Host: photohonor.coronasda.church" http://127.0.0.1/
- curl -I http://127.0.0.1:5000/
- ```
- - Kestrel may respond with405 for HEAD, use GET when necessary. A local `GET /` returning200 from Nginx indicates the origin stack is healthy.
-
-3. Check DNS and IPv6
- ```bash
- dig +short A photohonor.coronasda.church
- dig +short AAAA photohonor.coronasda.church
- ```
- - If an AAAA exists but the origin does not properly accept IPv6 traffic, Cloudflare probing IPv6 addresses can cause failures. Remove the AAAA or ensure IPv6 works on the origin.
-
-4. If using Cloudflare Tunnel (cloudflared)
- - Check the tunnel service and recent logs:
-
- ```bash
- sudo systemctl status cloudflared --no-pager
- sudo journalctl -u cloudflared -n200 --no-pager
- ```
-
- - Confirm the `config.yml` ingress rule points to the Nginx HTTP port (80) — not the app port (5000). Example correct entry (hosted on the same server):
-
- ```yaml
- ingress:
- - hostname: photohonor.coronasda.church
- service: http://127.0.0.1:80
- - service: http_status:404
- ```
-
- - After editing `config.yml`, restart and check the tunnel:
-
- ```bash
- sudo systemctl restart cloudflared
- sudo systemctl status cloudflared --no-pager
- sudo journalctl -u cloudflared -f
- ```
-
-5. Use Cloudflare DNS proxy toggle for troubleshooting
- - Temporarily set DNS to "DNS only" (grey cloud) to point clients directly to your origin IP. If the site works when DNS-only, the issue is Cloudflare ↔ origin path (tunnel, firewall, IPv6, SSL mode).
- - Once tunnel/config is corrected, you can re-enable Cloudflare proxy (orange cloud). Leaving Cloudflare proxied is recommended for CDN/WAF benefits once origin is reachable.
-
-6. Firewall and network checks
- - If a firewall is active, ensure Cloudflare IPs (or the tunnel endpoint) are allowed. On systems using `ufw` you can check status:
-
- ```bash
- sudo ufw status verbose
- ```
-
- - If `ufw` is inactive and you're still blocked, check iptables rules and any external network filters.
-
-7. Quick validation sequence (recommended)
- - Check Nginx + app locally with curl (Host header)
- - Check Nginx access/error logs for502 or upstream connection errors
- - Dig A/AAAA; remove AAAA if not supported by origin
- - Check/repair cloudflared `ingress` to point to `http://127.0.0.1:80`
- - Restart cloudflared and re-test with Cloudflare proxied enabled
-
-Notes & recommendations
-- Prefer exposing services through Nginx on port80/443. Let Nginx talk to Kestrel on localhost:5000. Cloudflared (or direct Cloudflare proxy) should route to Nginx (http://127.0.0.1:80).
-- Do not point the tunnel at Kestrel's port unless you explicitly want Cloudflare to talk directly to the app and you have ensured proper scheme/headers and health.
-- Use `dig` and access logs to determine whether Cloudflare uses IPv6; remove AAAA records if your origin does not support IPv6.
-- Toggling Cloudflare to DNS-only is a useful isolation test; it is safe to toggle briefly for debugging.
-
-Example commands executed during the incident (for your runbook)
-
-```bash
-# Check listening sockets
-sudo ss -tlnp | egrep ':80|:5000'
-
-# Local checks
-curl -I -H "Host: photohonor.coronasda.church" http://127.0.0.1/
-curl -I http://127.0.0.1:5000/
-
-# Nginx logs
-sudo tail -n200 /var/log/nginx/pathfinder-photography-error.log
-sudo tail -n200 /var/log/nginx/pathfinder-photography-access.log
-
-# cloudflared status and logs
-sudo systemctl status cloudflared --no-pager
-sudo journalctl -u cloudflared -n200 --no-pager
-
-# DNS checks
-dig +short A photohonor.coronasda.church
-dig +short AAAA photohonor.coronasda.church
