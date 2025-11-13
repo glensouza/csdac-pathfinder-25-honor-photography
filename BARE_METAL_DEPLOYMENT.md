@@ -800,7 +800,7 @@ sudo systemctl status nginx
 1. Cloudflare handles SSL/TLS at their edge (between users and Cloudflare)
 2. Traffic from Cloudflare to your server can be HTTP (Flexible SSL mode) or HTTPS with Cloudflare Origin Certificate (Full/Strict mode)
 
-**Test the application** by visiting `http://your-server-ip` directly. After configuring Cloudflare DNS (see below), you'll access via `https://photohonor.coronasda.church`.
+**For most users, "Flexible" mode is sufficient** and works with the HTTP-only Nginx configuration above.
 
 #### Configure Cloudflare SSL/TLS
 
@@ -882,7 +882,7 @@ If you're using Cloudflare Tunnel, you need to configure your tunnel to route tr
    
    Replace `<YOUR_SERVER_IP>` with the IP address of this Pathfinder Photography server.
    
-   **Important**: Using single-level subdomains (e.g., `photohonorpgadmin.coronasda.church`) instead of multi-level subdomains (e.g., `pgadmin.photohonor.coronasda.church`) avoids SSL/TLS certificate issues with wildcard certificates that don't cover multi-level subdomains.
+   **Important**: Using single-level subdomains (e.g., `photohonorpgadmin.coronasda.church`) instead of multi-level subdomains (e.g., `pgadmin.photohonor.coronasda.church`) avoids SSL/TLS certificate issues with wildcard certificates.
 
    **Note**: All services are routed through Nginx on port 80. Nginx handles the routing to the appropriate backend services:
    - Main application runs on port 5000 (proxied by Nginx)
@@ -965,11 +965,13 @@ Proxy status: Proxied (orange cloud)
 
 #### Configure Firewall
 
-**Important**: Configure SSH access first to avoid being locked out:
+If using Cloudflare Tunnel, your firewall rules will depend on the tunnel configuration. Generally, you would allow Cloudflare IPs and the tunnel port.
+
+If not using Cloudflare Tunnel, configure your firewall to allow HTTP/HTTPS traffic and block everything else by default:
 
 ```bash
 # CRITICAL: Allow SSH first to prevent lockout
-sudo ufw allow 22/tcp comment 'SSH access'
+sudo ufw allow 22/tcp
 
 # Allow HTTP and HTTPS
 sudo ufw allow 80/tcp comment 'HTTP'
@@ -1377,6 +1379,7 @@ Verify the runner is online:
 
 ```bash
 # Create backup directories
+sudo mkdir -p /opt/backups/pathfinder
 sudo mkdir -p /opt/backups/pathfinder-photography/deployments
 
 # Set ownership to github-runner so backups can be created without sudo
@@ -1433,7 +1436,7 @@ To modify deployment behavior:
 2. Commit and push changes
 3. The workflow will automatically use the new configuration
 
-#### Runner Security Considerations
+### Runner Security Considerations
 
 **Isolation**: The runner runs as a dedicated user (`github-runner`) with limited sudo privileges.
 
@@ -1577,7 +1580,8 @@ Create a monitoring script:
 sudo nano /opt/scripts/check-runner-health.sh
 ```
 
-Add:
+Add the following content:
+
 ```bash
 #!/bin/bash
 
@@ -1695,7 +1699,6 @@ sudo -u github-runner bash
 cd ~/actions-runner
 ./run.sh  # Run in foreground to see errors
 # Press Ctrl+C to stop, then exit
-exit
 ```
 
 Re-register if needed:
@@ -1763,897 +1766,6 @@ export ASPNETCORE_ENVIRONMENT=Production
 dotnet ef database update PreviousMigrationName
 
 exit
-```
-
-#### Advanced Runner Configuration
-
-**Multiple Runners**
-
-For high availability or staging/production separation:
-
-1. **Create separate runner for staging:**
-   ```bash
-   # On staging server
-   sudo useradd -r -m -s /bin/bash github-runner-staging
-   # Follow installation steps with label: staging
-   ```
-
-2. **Update workflow to use specific runner:**
-   ```yaml
-   deploy-staging:
-     runs-on: [self-hosted, staging]
-   
-   deploy-production:
-     runs-on: [self-hosted, production]
-   ```
-
-**Custom Deployment Scripts**
-
-Create custom deployment scripts in `/opt/scripts/`:
-
-```bash
-sudo mkdir -p /opt/scripts
-sudo nano /opt/scripts/pre-deploy.sh
-```
-
-Example pre-deployment script:
-```bash
-#!/bin/bash
-# Pre-deployment health checks
-echo "Running pre-deployment checks..."
-
-# Check database connectivity
-if ! pg_isready -h localhost -U pathfinder; then
-    echo "Database is not ready"
-    exit 1
-fi
-
-# Check disk space (require at least 1GB free)
-FREE_SPACE=$(df /opt | tail -1 | awk '{print $4}')
-if [ $FREE_SPACE -lt 1048576 ]; then
-    echo "Insufficient disk space"
-    exit 1
-fi
-
-echo "Pre-deployment checks passed"
-```
-
-Reference in workflow:
-```yaml
-- name: Pre-deployment checks
-  run: sudo /opt/scripts/pre-deploy.sh
-```
-
-#### Automated Deployment Best Practices
-
-1. **Regular Updates**: Keep the runner software updated
-2. **Monitor Resources**: Set up monitoring for CPU, memory, and disk
-3. **Backup Strategy**: Maintain deployment backups and database backups
-4. **Security Patches**: Apply system security updates regularly
-5. **Access Control**: Limit who can trigger manual deployments
-6. **Logging**: Maintain deployment logs for audit trail
-7. **Testing**: Test deployments in staging before production
-8. **Documentation**: Keep deployment procedures documented
-
-#### Automated Deployment Summary
-
-After setting up the runner, every push to the `main` branch will automatically:
-1. Build the application
-2. Run tests
-3. **Verify artifact integrity** with SHA-256 checksum
-4. Create a backup of the current deployment
-5. Deploy the new version
-6. **Set proper file ownership and permissions** for security
-7. Apply database migrations
-8. Restart the service
-9. Verify the deployment with health checks
-10. Rollback automatically if anything fails
-
-**Security Features in Automated Deployment:**
-- ✅ Artifact integrity verification prevents corrupted deployments
-- ✅ Automatic backup before deployment enables safe rollback
-- ✅ File ownership set to `pathfinder:pathfinder` after extraction
-- ✅ Health check verification ensures application is responding
-- ✅ Automatic rollback restores from backup on any failure
-- ✅ All operations use sudo with restricted privileges from sudoers file
-
-**Manual Deployment Trigger:**
-You can also trigger deployments manually from GitHub:
-1. Go to your repository on GitHub
-2. Click **Actions** → **Deploy to Bare Metal Server**
-3. Click **Run workflow** → Select environment → **Run workflow**
-
-**Quick Reference for Runner Management:**
-
-```bash
-# Runner management
-sudo systemctl start github-runner
-sudo systemctl stop github-runner
-sudo systemctl restart github-runner
-sudo systemctl status github-runner
-sudo journalctl -u github-runner -f
-
-# View runner logs
-tail -f /var/log/github-runner/runner.log
-tail -f /var/log/github-runner/runner-error.log
-
-# Check runner on GitHub
-# Settings → Actions → Runners
-
-# Manual deployment
-# Go to repository → Actions → Deploy to Bare Metal Server → Run workflow
-
-# Check backups
-ls -lh /opt/backups/pathfinder-photography/deployments/
-
-# Test deployment locally
-sudo -u github-runner bash
-cd ~/actions-runner
-./run.sh  # Run in foreground
-```
-
-## Configuration
-
-### Google OAuth Redirect URIs
-
-Add these URIs to your Google Cloud Console OAuth credentials:
-- `https://photohonor.coronasda.church/signin-google`
-- `https://www.photohonor.coronasda.church/signin-google`
-
-### Email Configuration
-
-Email is optional but recommended for notifications. Configure in `appsettings.Production.json`:
-
-```json
-"Email": {
-  "SmtpHost": "smtp.gmail.com",
-  "SmtpPort": "587",
-  "SmtpUsername": "your-email@gmail.com",
-  "SmtpPassword": "your-16-character-app-password",
-  "UseSsl": "true",
-  "FromAddress": "your-email@gmail.com",
-  "FromName": "Pathfinder Photography"
-}
-```
-
-To disable email, set `SmtpHost` to empty string or remove the Email section.
-
-### First Admin User
-
-The first user to authenticate becomes Admin automatically. To promote additional admins:
-
-```bash
-sudo -u postgres psql pathfinder_photography
-UPDATE "Users" SET "Role" = 2 WHERE "Email" = 'admin@example.com';
-SELECT "Name", "Email", "Role" FROM "Users";
-\q
-```
-
-Roles:
-- 0 = Pathfinder
-- 1 = Instructor  
-- 2 = Admin
-
-## Maintenance
-
-### Update Application
-
-```bash
-# Stop the application
-sudo systemctl stop pathfinder-photography
-
-# Backup current version
-sudo cp -r /opt/pathfinder-photography /opt/pathfinder-photography.backup
-
-# Download and deploy new version
-cd /opt/pathfinder-photography
-# ... download and extract new version ...
-
-# Apply migrations if needed
-sudo -u pathfinder bash
-cd /opt/pathfinder-photography
-export ASPNETCORE_ENVIRONMENT=Production
-dotnet ef database update
-exit
-
-# Start the application
-sudo systemctl start pathfinder-photography
-sudo systemctl status pathfinder-photography
-```
-
-### Backup Database
-
-Create automated backup script:
-
-```bash
-sudo nano /opt/backups/backup-pathfinder-db.sh
-```
-
-Add:
-
-```bash
-#!/bin/bash
-BACKUP_DIR="/opt/backups/pathfinder"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-mkdir -p $BACKUP_DIR
-
-# Backup database (includes photo data stored in ImageData column)
-sudo -u postgres pg_dump pathfinder_photography | gzip > $BACKUP_DIR/db_backup_$TIMESTAMP.sql.gz
-
-# Keep only last 7 days of backups
-find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +7 -delete
-
-echo "Backup completed: $TIMESTAMP"
-```
-
-Make executable and schedule:
-
-```bash
-sudo chmod +x /opt/backups/backup-pathfinder-db.sh
-
-# Add to crontab (daily at 2 AM)
-sudo crontab -e
-# Add this line:
-0 2 * * * /opt/backups/backup-pathfinder-db.sh >> /var/log/pathfinder-backup.log 2>&1
-```
-
-### Restore Database
-
-```bash
-# Stop the application
-sudo systemctl stop pathfinder-photography
-
-# Restore database (includes all photo data)
-gunzip -c /opt/backups/pathfinder/db_backup_YYYYMMDD_HHMMSS.sql.gz | sudo -u postgres psql pathfinder_photography
-
-# Start the application
-sudo systemctl start pathfinder-photography
-```
-
-### Monitor Application
-
-```bash
-# View real-time logs
-sudo journalctl -u pathfinder-photography -f
-
-# View last 100 lines
-sudo journalctl -u pathfinder-photography -n 100
-
-# View logs for specific date
-sudo journalctl -u pathfinder-photography --since "2024-01-01" --until "2024-01-02"
-
-# Check application status
-sudo systemctl status pathfinder-photography
-
-# Check resource usage
-htop  # or 'top'
-```
-
-### Log Rotation
-
-Application logs are managed by systemd/journald. Configure retention:
-
-```bash
-sudo nano /etc/systemd/journald.conf
-```
-
-Set:
-```ini
-SystemMaxUse=500M
-MaxRetentionSec=7day
-```
-
-Restart journald:
-```bash
-sudo systemctl restart systemd-journald
-```
-
-## Troubleshooting
-
-### Application Won't Start
-
-Check logs:
-```bash
-sudo journalctl -u pathfinder-photography -n 50
-```
-
-Common issues:
-1. **Database connection failed**: Verify PostgreSQL is running and credentials are correct
-2. **Port already in use**: Check if another service is using port 5000
-3. **Permission denied**: Ensure pathfinder user has access to application files
-
-### Database Connection Errors
-
-```bash
-# Verify PostgreSQL is running
-sudo systemctl status postgresql
-
-# Test database connection
-sudo -u pathfinder psql -h localhost -U pathfinder -d pathfinder_photography
-
-# Check pg_hba.conf if connection refused
-sudo nano /etc/postgresql/16/main/pg_hba.conf
-```
-
-### PGAdmin 4 Won't Start
-
-If PGAdmin 4 fails to start or shows errors, try these troubleshooting steps:
-
-**Check service status and logs:**
-
-```bash
-# Check service status
-sudo systemctl status pgadmin4
-
-# View systemd logs
-sudo journalctl -u pgadmin4 -n 100
-
-# View pgAdmin application logs
-sudo tail -f /var/log/pgadmin/pgadmin4.log
-```
-
-**Common issues and solutions:**
-
-1. **"No module named 'pgadmin'" or "ImportError"**
-   
-   This usually means the wrong package was installed or the Python path is incorrect.
-   
-   ```bash
-   # Ensure you have the web package installed
-   sudo apt install -y pgadmin4-web
-   
-   # Verify the installation
-   ls -la /usr/pgadmin4/web/
-   ```
-
-2. **Permission denied errors**
-   
-   ```bash
-   # Fix directory ownership
-   sudo chown -R www-data:www-data /var/lib/pgadmin
-   sudo chown -R www-data:www-data /var/log/pgadmin
-   
-   # Fix directory permissions
-   sudo chmod 700 /var/lib/pgadmin
-   sudo chmod 700 /var/log/pgadmin
-   
-   # Restart service
-   sudo systemctl restart pgadmin4
-   ```
-
-3. **"Config database not found" or initialization errors**
-   
-   The setup script wasn't run or didn't complete successfully.
-   
-   ```bash
-   # Re-run the setup script
-   sudo /usr/pgadmin4/bin/setup-web.sh
-   
-   # Answer the prompts:
-   # - Email: your admin email
-   # - Password: choose a strong password
-   # - Apache configuration: y (Yes)
-   
-   # Restart Apache
-   sudo systemctl restart apache2
-   ```
-
-4. **Port 8080 already in use**
-   
-   ```bash
-   # Check what's using port 8080
-   sudo netstat -tlnp | grep 8080
-   # OR
-   sudo ss -tlnp | grep 8080
-   
-   # If another service is using it, either:
-   # a) Stop that service, or
-   # b) Change the port in /etc/apache2/ports.conf and pgadmin4.conf
-   ```
-
-5. **Service starts but web interface shows errors**
-   
-   ```bash
-   # Check if Apache is listening on port 8080
-   sudo netstat -tlnp | grep 8080
-   
-   # Test connection locally
-   curl http://localhost:8080/pgadmin4
-   
-   # Should return HTML content, not connection refused
-   ```
-
-6. **"ERROR: Failed to create the directory /var/lib/pgadmin/sessions"**
-   
-   ```bash
-   # Create missing directories
-   sudo mkdir -p /var/lib/pgadmin/sessions
-   sudo mkdir -p /var/lib/pgadmin/storage
-   sudo chown -R www-data:www-data /var/lib/pgadmin
-   
-   # Restart Apache
-   sudo systemctl restart apache2
-   ```
-
-7. **"Name duplicates previous WSGI daemon definition"**
-   
-   This error occurs when you add the VirtualHost wrapper to the configuration file without removing the original directives.
-   
-   ```bash
-   # The configuration file is in conf-available, not sites-available
-   sudo nano /etc/apache2/conf-available/pgadmin4.conf
-   
-   # Replace the ENTIRE file content with:
-   # <VirtualHost 127.0.0.1:8080>
-   #     WSGIDaemonProcess pgadmin processes=1 threads=25 python-home=/usr/pgadmin4/venv
-   #     WSGIScriptAlias /pgadmin4 /usr/pgadmin4/web/pgAdmin4.wsgi
-   #     
-   #     <Directory /usr/pgadmin4/web>
-   #         WSGIProcessGroup pgadmin
-   #         WSGIApplicationGroup %{GLOBAL}
-   #         Require all granted
-   #     </Directory>
-   # </VirtualHost>
-   
-   # Restart Apache
-   sudo systemctl restart apache2
-   ```
-
-8. **Configuration file not in expected location**
-   
-   The setup script creates `/etc/apache2/conf-available/pgadmin4.conf`, not `/etc/apache2/sites-available/pgadmin4.conf`.
-   
-   ```bash
-   # Find the actual configuration file
-   grep -r "pgadmin" /etc/apache2/
-   
-   # It should be in:
-   ls -la /etc/apache2/conf-available/pgadmin4.conf
-   ls -la /etc/apache2/conf-enabled/pgadmin4.conf
-   ```
-
-9. **Apache not listening on port 8080**
-   
-   ```bash
-   # Verify ports.conf has the Listen directive
-   grep 8080 /etc/apache2/ports.conf
-   
-   # If not found, add it
-   echo "Listen 127.0.0.1:8080" | sudo tee -a /etc/apache2/ports.conf
-   
-   # Restart Apache
-   sudo systemctl restart apache2
-   
-   # Verify it's listening
-   sudo ss -tlnp | grep 8080
-   ```
-
-10. **Apache specific issues**
-   
-   ```bash
-   # Check Apache error logs
-   sudo journalctl -u apache2 -n 50 --no-pager
-   sudo tail -f /var/log/apache2/error.log
-   
-   # Verify Apache is listening on correct port
-   grep 8080 /etc/apache2/ports.conf
-   # Should have: Listen 127.0.0.1:8080
-   
-   # Check Apache configuration
-   sudo apache2ctl configtest
-   ```
-
-11. **Complete reinstall if all else fails**
-   
-   ```bash
-   # Stop Apache
-   sudo systemctl stop apache2
-   
-   # Remove package
-   sudo apt remove --purge pgadmin4-web
-   
-   # Clean up directories
-   sudo rm -rf /var/lib/pgadmin
-   sudo rm -rf /var/log/pgadmin
-   
-   # Reinstall following the instructions in this guide
-   sudo apt update
-   sudo apt install -y pgadmin4-web
-   sudo /usr/pgadmin4/bin/setup-web.sh
-   # Answer 'y' to Apache configuration
-   # ... continue with Apache configuration steps
-   ```
-
-**Verify pgAdmin is working:**
-
-Once Apache is running, verify it's accessible:
-
-```bash
-# Check if Apache is listening on port 8080
-sudo ss -tlnp | grep 8080
-
-# Test with curl
-curl -I http://localhost:8080/pgadmin4
-# Should return HTTP 200 OK or 302 redirect
-```
-
-If you can access it locally but not through Nginx, check the Nginx configuration in section 5.
-
-### High Memory Usage
-
-```bash
-# Check memory usage
-free -h
-
-# Optimize PostgreSQL memory settings
-sudo nano /etc/postgresql/16/main/postgresql.conf
-
-# Adjust these based on available RAM:
-shared_buffers = 256MB          # 25% of RAM
-effective_cache_size = 1GB      # 50-75% of RAM
-work_mem = 16MB
-maintenance_work_mem = 128MB
-
-# Restart PostgreSQL
-sudo systemctl restart postgresql
-```
-
-### Cloudflare 502 Bad Gateway Error
-
-If you're getting a 502 Bad Gateway error when accessing through Cloudflare Tunnel, follow these systematic troubleshooting steps:
-
-**Step 1: Verify Nginx is running and listening on port 80**
-
-```bash
-# Check Nginx status
-sudo systemctl status nginx
-
-# Verify Nginx is listening on port 80
-sudo ss -tlnp | grep :80
-
-# Test Nginx locally
-curl -I http://localhost
-# Should return HTTP 200 OK (not 502)
-```
-
-**Step 2: Test the application backend**
-
-```bash
-# Test the main application directly
-curl -I http://localhost:5000
-# Should return HTTP 200 or 302
-
-# Test through Nginx
-curl -I http://localhost/
-# Should return HTTP 200 or 302
-
-# If you get 502 here, the issue is between Nginx and your application
-```
-
-**Step 3: Check application is running**
-
-```bash
-# Check application status
-sudo systemctl status pathfinder-photography
-
-# View recent logs
-sudo journalctl -u pathfinder-photography -n 50
-
-# Check if port 5000 is listening
-sudo ss -tlnp | grep :5000
-```
-
-**Step 4: Verify cloudflared configuration**
-
-```bash
-# If cloudflared is on this server:
-sudo systemctl status cloudflared
-
-# Check cloudflared logs
-sudo journalctl -u cloudflared -n 50
-
-# If cloudflared is on a different server, check from that server
-```
-
-**Step 5: Test connectivity from cloudflared server to application server**
-
-If cloudflared is on a different VM/server:
-
-```bash
-# From the cloudflared server, test connectivity:
-curl -I http://<YOUR_SERVER_IP>:80
-# Should return HTTP 200 OK
-
-# If this fails, check:
-# 1. Firewall rules on application server
-sudo ufw status
-# Port 80 should be allowed from cloudflared server
-
-# 2. Network connectivity
-ping <YOUR_SERVER_IP>
-
-# 3. Ensure Nginx is listening on all interfaces (not just localhost)
-# Check /etc/nginx/sites-available/pathfinder-photography
-# Should have: listen 80;
-# NOT: listen 127.0.0.1:80;
-```
-
-**Step 6: Check Nginx error logs**
-
-```bash
-# View Nginx error log
-sudo tail -f /var/log/nginx/error.log
-
-# View access log
-sudo tail -f /var/log/nginx/access.log
-
-# Common issues in error.log:
-# - "Connection refused" = backend service not running
-# - "Connection timed out" = backend service slow or firewall blocking
-# - "No such file or directory" = socket file missing (if using Unix socket)
-```
-
-**Step 7: Verify Nginx upstream configuration**
-
-```bash
-# Check Nginx config syntax
-sudo nginx -t
-
-# View the server block configuration
-sudo cat /etc/nginx/sites-available/pathfinder-photography | grep -A 10 "location /"
-
-# Ensure proxy_pass is correct:
-# Should be: proxy_pass http://localhost:5000;
-# NOT: http://localhost:80 (circular)
-```
-
-**Step 8: Check for SELinux or AppArmor blocking (if applicable)**
-
-```bash
-# Check if SELinux is enforcing (CentOS/RHEL)
-getenforce
-# If "Enforcing", may need to configure SELinux contexts
-
-# Check AppArmor (Ubuntu)
-sudo aa-status | grep nginx
-```
-
-**Step 9: Restart services in correct order**
-
-```bash
-# Restart application
-sudo systemctl restart pathfinder-photography
-
-# Wait for it to fully start (check logs)
-sudo journalctl -u pathfinder-photography -f &
-
-# Restart Nginx
-sudo systemctl restart nginx
-
-# Restart cloudflared (on the cloudflared server)
-sudo systemctl restart cloudflared
-
-# Test again
-curl -I http://localhost
-```
-
-**Step 10: Enable debug logging temporarily**
-
-```bash
-# Enable debug logging in Nginx
-sudo nano /etc/nginx/sites-available/pathfinder-photography
-
-# Add inside server block:
-error_log /var/log/nginx/debug.log debug;
-
-# Reload Nginx
-sudo systemctl reload nginx
-
-# Generate traffic and check debug log
-curl http://localhost
-sudo tail -50 /var/log/nginx/debug.log
-
-# Remember to remove debug logging after troubleshooting (it's verbose)
-```
-
-**Common 502 Error Causes and Solutions:**
-
-| Cause | Solution |
-|-------|----------|
-| Application not running | `sudo systemctl start pathfinder-photography` |
-| Application crashed | Check logs: `sudo journalctl -u pathfinder-photography -n 100` |
-| Port mismatch in Nginx config | Verify `proxy_pass http://localhost:5000;` |
-| Firewall blocking cloudflared→server | Allow port 80: `sudo ufw allow from <cloudflared_ip> to any port 80` |
-| Nginx not listening on all interfaces | Change `listen 80;` (remove 127.0.0.1) |
-| Database connection failing | Check PostgreSQL: `sudo systemctl status postgresql` |
-| Out of memory | Check: `free -h`, restart services |
-| Permissions issue | Check pathfinder user owns app files |
-
-**Custom Cloudflare Error Pages:**
-
-To replace Cloudflare's generic 502 error page with a custom one:
-
-1. **Create custom error page in your application** (recommended approach):
-   
-   Your application can serve custom error pages. Create a static HTML file:
-   
-   ```bash
-   sudo mkdir -p /var/www/errors
-   sudo nano /var/www/errors/502.html
-   ```
-   
-   Add custom HTML:
-   ```html
-   <!DOCTYPE html>
-   <html>
-   <head>
-       <title>Service Temporarily Unavailable</title>
-       <style>
-           body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-           h1 { color: #333; }
-           p { color: #666; }
-       </style>
-   </head>
-   <body>
-       <h1>Pathfinder Photography Honor</h1>
-       <h2>Service Temporarily Unavailable</h2>
-       <p>We're currently experiencing technical difficulties.</p>
-       <p>Please try again in a few moments.</p>
-       <p>If the problem persists, please contact your administrator.</p>
-   </body>
-   </html>
-   ```
-   
-   Configure Nginx to serve this error page:
-   ```bash
-   sudo nano /etc/nginx/sites-available/pathfinder-photography
-   ```
-   
-   Add in the server block:
-   ```nginx
-   error_page 502 503 504 /502.html;
-   location = /502.html {
-       root /var/www/errors;
-       internal;
-   }
-   ```
-   
-   Reload Nginx:
-   ```bash
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
-
-2. **Use Cloudflare Pages for custom error pages** (if Cloudflare sees the error):
-   
-   Note: This only works if the error is detected by Cloudflare (when your origin is completely unreachable). For 502 errors coming from your origin, use method 1.
-   
-   - Go to Cloudflare Dashboard → Custom Pages
-   - Upload custom HTML for 502 error page
-   - Customize branding, colors, and messaging
-
-3. **Serve a maintenance page during planned downtime:**
-   
-   ```bash
-   # Create maintenance page
-   sudo nano /var/www/errors/maintenance.html
-   ```
-   
-   When performing maintenance:
-   ```bash
-   # Temporarily redirect all traffic to maintenance page
-   sudo nano /etc/nginx/sites-available/pathfinder-photography
-   
-   # Add at the top of server block:
-   return 503;
-   
-   # And configure 503 page:
-   error_page 503 /maintenance.html;
-   location = /maintenance.html {
-       root /var/www/errors;
-       internal;
-   }
-   
-   # Reload
-   sudo systemctl reload nginx
-   
-   # After maintenance, remove the 'return 503;' line and reload again
-   ```
-
-**Testing custom error pages:**
-
-```bash
-# Stop application to trigger 502
-sudo systemctl stop pathfinder-photography
-
-# Test through browser or curl
-curl http://localhost
-
-# Should show your custom error page instead of generic Nginx 502
-
-# Restart application
-sudo systemctl start pathfinder-photography
-```
-
-### SSL Certificate Issues
-
-```bash
-# Renew certificate manually
-sudo certbot renew
-
-# Check certificate status
-sudo certbot certificates
-
-# Test automatic renewal
-sudo certbot renew --dry-run
-```
-
-### Photo Upload Failures
-
-Check disk space:
-```bash
-df -h
-```
-
-Check application logs for upload errors:
-```bash
-sudo journalctl -u pathfinder-photography -n 100 | grep -i "upload\|image\|photo"
-```
-
-Verify database connectivity and storage:
-```bash
-# Check PostgreSQL is running
-sudo systemctl status postgresql
-
-# Check database size and available space
-sudo -u postgres psql pathfinder_photography -c "SELECT pg_size_pretty(pg_database_size('pathfinder_photography'));"
-```
-
-Increase upload size limit in Nginx if needed (default is 10M):
-```bash
-sudo nano /etc/nginx/sites-available/pathfinder-photography
-# Adjust: client_max_body_size 20M;
-sudo systemctl reload nginx
-```
-
-### SigNoz Not Receiving Telemetry
-
-Check SigNoz services:
-```bash
-# Check all SigNoz services status
-sudo systemctl status signoz-otel-collector
-sudo systemctl status signoz-query-service
-sudo systemctl status clickhouse-server
-
-# Check collector logs
-sudo journalctl -u signoz-otel-collector -n 50
-
-# Verify endpoint in application service
-sudo systemctl cat pathfinder-photography | grep OTEL_EXPORTER
-```
-
-### Performance Issues
-
-Check system resources:
-```bash
-# CPU and memory
-htop
-
-# Disk I/O
-iostat -x 1
-
-# Network
-iftop
-```
-
-Optimize .NET application:
-```bash
-# Add to systemd service file
-Environment=DOTNET_gcServer=1
-Environment=DOTNET_GCDynamicAdaptationMode=1
-
-sudo systemctl daemon-reload
-sudo systemctl restart pathfinder-photography
 ```
 
 ## Security Best Practices
@@ -2752,423 +1864,221 @@ open_file_cache_valid 60s;
 open_file_cache_min_uses 2;
 ```
 
-## Support and Resources
+## Post-deployment fixes / gotchas
 
-- Application Repository: https://github.com/glensouza/csdac-pathfinder-25-honor-photography
-- .NET Documentation: https://docs.microsoft.com/dotnet/
-- PostgreSQL Documentation: https://www.postgresql.org/docs/
-- Nginx Documentation: https://nginx.org/en/docs/
-- SigNoz Documentation: https://signoz.io/docs/
+After initial deployment you may encounter a few environment-specific issues. Use these quick fixes and explanations to resolve them.
 
-## Deployment Checklist
-
-Use this checklist when deploying the Pathfinder Photography application on bare metal or virtual machine.
-
-### Pre-Deployment
-
-#### Required Information
-- [ ] Server/VM IP address or domain name
-- [ ] Google OAuth Client ID
-- [ ] Google OAuth Client Secret
-- [ ] PostgreSQL password (secure, random - generated with `openssl rand -base64 32`)
-- [ ] (Optional) Email SMTP settings for notifications
-- [ ] SSL certificate domain (if using Let's Encrypt)
-
-#### Prerequisites Verified
-- [ ] Ubuntu 22.04 LTS or later installed (physical server, VM, or cloud instance)
-- [ ] Root or sudo access available
-- [ ] At least 20GB free disk space (50GB+ recommended)
-- [ ] Server/VM has network connectivity
-- [ ] Public IP or domain name configured
-- [ ] Firewall rules planned (ports 22, 80, 443)
-- [ ] Internet connection available
-
-### Google OAuth Configuration
-
-- [ ] Created Google Cloud project
-- [ ] Enabled Google+ API
-- [ ] Created OAuth 2.0 credentials
-- [ ] Configured OAuth consent screen
-- [ ] Added authorized redirect URIs:
-  - [ ] `https://photohonor.coronasda.church/signin-google`
-  - [ ] `https://www.photohonor.coronasda.church/signin-google` (if using www)
-- [ ] Saved Client ID and Client Secret securely
-
-### Step 1: PostgreSQL Installation
-
-- [ ] Installed PostgreSQL 16: `sudo apt install postgresql-16`
-- [ ] PostgreSQL service started and enabled
-- [ ] Installed Cockpit: `sudo apt install cockpit`
-- [ ] Cockpit service started and enabled
-- [ ] Enabled root login in Cockpit (commented out root in `/etc/cockpit/disallowed-users`)
-- [ ] Cockpit accessible at `https://your-server-ip:9090`
-- [ ] Installed PGAdmin 4: `sudo apt install pgadmin4-web`
-- [ ] Ran PGAdmin setup script: `sudo /usr/pgadmin4/bin/setup-web.sh`
-- [ ] Created pgAdmin admin email and password during setup
-- [ ] Answered 'y' to Apache configuration during setup
-- [ ] Configured Apache to listen on 127.0.0.1:8080 in `/etc/apache2/ports.conf`
-- [ ] Located pgAdmin configuration file: `/etc/apache2/conf-available/pgadmin4.conf` (not sites-available)
-- [ ] **Replaced entire content** of pgadmin4.conf with VirtualHost wrapper (not appended)
-- [ ] Verified Apache configuration: `sudo apache2ctl configtest`
-- [ ] Restarted Apache service: `sudo systemctl restart apache2`
-- [ ] Verified Apache is running: `systemctl status apache2`
-- [ ] Verified Apache is listening on port 8080: `sudo ss -tlnp | grep 8080`
-- [ ] Verified pgAdmin accessible at `http://localhost:8080/pgadmin4`
-- [ ] Set proper ownership of pgAdmin directories: `chown -R www-data:www-data /var/lib/pgadmin /var/log/pgadmin`
-- [ ] Updated Nginx config to proxy to port 8080
-- [ ] (Optional) Updated login message in `/etc/profile.d/00_lxc-details.sh` with service URLs
-- [ ] Created database: `pathfinder_photography`
-- [ ] Created user: `pathfinder` with strong password
-- [ ] Granted all privileges to pathfinder user
-- [ ] Configured `postgresql.conf` to listen on localhost only
-- [ ] Updated `pg_hba.conf` with scram-sha-256 authentication
-- [ ] Restarted PostgreSQL service
-- [ ] Verified connection: `psql -h localhost -U pathfinder -d pathfinder_photography`
-
-### Step 2: .NET SDK and Runtime Installation
-
-- [ ] Added Microsoft package repository
-- [ ] Installed .NET SDK 9.0: `sudo apt install dotnet-sdk-9.0`
-- [ ] Verified SDK installation: `dotnet --list-sdks`
-- [ ] Verified runtime installation: `dotnet --list-runtimes`
-- [ ] Confirmed Microsoft.AspNetCore.App 9.0.x is listed
-- [ ] Confirmed .NET SDK 9.0.x is listed
-- [ ] Installed Entity Framework Core tools globally: `dotnet tool install --global dotnet-ef`
-- [ ] Verified EF tools installation: `dotnet ef --version`
-
-### Step 3: Application Installation
-
-- [ ] Created pathfinder system user
-- [ ] Added pathfinder to www-data group
-- [ ] Created application directory: `/opt/pathfinder-photography`
-- [ ] Downloaded/built application files
-- [ ] Set ownership: `chown -R pathfinder:pathfinder /opt/pathfinder-photography`
-- [ ] Created `appsettings.Production.json` with:
-  - [ ] PostgreSQL connection string
-  - [ ] Google OAuth credentials
-  - [ ] (Optional) Email SMTP settings
-- [ ] Set file permissions: `chmod 600 appsettings.Production.json`
-- [ ] Applied database migrations (if SDK installed) or verified they run on startup
-
-### Step 4: Systemd Service Configuration
-
-- [ ] Created service file: `/etc/systemd/system/pathfinder-photography.service`
-- [ ] Set User=pathfinder, Group=pathfinder
-- [ ] Set WorkingDirectory=/opt/pathfinder-photography
-- [ ] Configured environment variables (ASPNETCORE_ENVIRONMENT=Production)
-- [ ] Set security settings (NoNewPrivileges, PrivateTmp, etc.)
-- [ ] (Optional) Added SigNoz environment variables if using observability
-- [ ] Reloaded systemd: `systemctl daemon-reload`
-- [ ] Enabled service: `systemctl enable pathfinder-photography`
-- [ ] Started service: `systemctl start pathfinder-photography`
-- [ ] Verified service is running: `systemctl status pathfinder-photography`
-- [ ] Checked logs for errors: `journalctl -u pathfinder-photography -n 50`
-
-### Step 5: Nginx Configuration
-
-- [ ] Installed Nginx
-- [ ] Created site configuration: `/etc/nginx/sites-available/pathfinder-photography`
-- [ ] Configured HTTP server (port 80)
-- [ ] Configured HTTPS server (port 443)
-- [ ] Set proxy headers (X-Forwarded-For, X-Forwarded-Proto, etc.)
-- [ ] Set client_max_body_size to 10M (for photo uploads)
-- [ ] Added security headers (X-Frame-Options, X-Content-Type-Options, etc.)
-- [ ] Enabled site: `ln -s sites-available/pathfinder-photography sites-enabled/`
-- [ ] Tested configuration: `nginx -t`
-- [ ] Reloaded Nginx: `systemctl reload nginx`
-- [ ] Installed Certbot: `apt install certbot python3-certbot-nginx`
-- [ ] Obtained SSL certificate: `certbot --nginx -d photohonor.coronasda.church` (or using Cloudflare SSL/Tunnel)
-- [ ] Verified auto-renewal: `certbot renew --dry-run`
-- [ ] (Optional) If using Cloudflare Tunnel: Added service to cloudflared configuration and restarted container
-
-### Step 6: Firewall Configuration
-
-- [ ] Allowed SSH (CRITICAL - before enabling firewall): `ufw allow 22/tcp`
-- [ ] Allowed HTTP: `ufw allow 80/tcp`
-- [ ] Allowed HTTPS: `ufw allow 443/tcp`
-- [ ] Set default policies: `ufw default deny incoming`
-- [ ] Set default policies: `ufw default allow outgoing`
-- [ ] Enabled firewall: `ufw enable`
-- [ ] Verified firewall status: `ufw status verbose`
-
-### Step 7: Automated Deployments (Optional)
-
-#### GitHub Runner Setup
-- [ ] Created github-runner user (NOT in sudo group)
-- [ ] Added github-runner to pathfinder and www-data groups
-- [ ] Created sudoers file: `/etc/sudoers.d/github-runner`
-- [ ] Configured passwordless sudo with restricted commands
-- [ ] Validated sudoers syntax: `visudo -c`
-- [ ] Set sudoers file permissions: `chmod 0440`
-- [ ] Downloaded GitHub Actions runner
-- [ ] Extracted runner to `/home/github-runner/actions-runner`
-- [ ] Obtained registration token from GitHub
-- [ ] Configured runner with repository URL and token
-- [ ] Set runner labels: `self-hosted,linux,bare-metal,production`
-- [ ] Created systemd service: `/etc/systemd/system/github-runner.service`
-- [ ] Enabled and started runner service
-- [ ] Verified runner shows as "Idle" on GitHub
-- [ ] Created backup directories: `/opt/backups/pathfinder-photography/deployments`
-- [ ] Set ownership of backup directories to github-runner
-- [ ] Configured GitHub repository secrets (if needed)
-- [ ] Configured GitHub environment variables
-
-#### Workflow Verification
-- [ ] Verified workflow file exists: `.github/workflows/deploy-bare-metal.yml`
-- [ ] Made test commit to trigger deployment
-- [ ] Verified workflow runs successfully
-- [ ] Checked deployment creates backups
-- [ ] Verified file ownership set correctly
-- [ ] Confirmed health checks pass
-- [ ] Tested rollback on failure (optional)
-
-### Post-Deployment Verification
-
-#### Services Running
-- [ ] PostgreSQL service active: `systemctl is-active postgresql`
-- [ ] Application service active: `systemctl is-active pathfinder-photography`
-- [ ] Nginx service active: `systemctl is-active nginx`
-- [ ] (Optional) GitHub runner active: `systemctl is-active github-runner`
-- [ ] No errors in application logs: `journalctl -u pathfinder-photography -n 100`
-
-#### Application Access
-- [ ] Can access http://localhost:5000 from server
-- [ ] Can access https://photohonor.coronasda.church from browser
-- [ ] Home page loads correctly
-- [ ] Can see all 10 composition rules
-- [ ] SSL certificate is valid (no browser warnings)
-
-#### Google Authentication
-- [ ] "Sign in with Google" button appears
-- [ ] Clicking redirects to Google OAuth
-- [ ] After authentication, redirected back to app
-- [ ] Signed in with correct user name
-- [ ] User session persists across requests
-
-#### User Roles
-- [ ] First signed-in user automatically has Admin role
-- [ ] Admin can access `/admin/users` page
-- [ ] Admin can promote users to Instructor
-- [ ] Admin can delete unauthorized users
-- [ ] Verified ELO ratings recalculate when users are deleted
-- [ ] (Optional) Promoted additional admin via SQL if needed
-
-#### Photo Upload
-- [ ] Navigated to Submit page
-- [ ] Selected a composition rule
-- [ ] Uploaded a test photo (<10MB)
-- [ ] Added description
-- [ ] Submitted successfully
-- [ ] Photo appears in gallery
-- [ ] Photo displays correctly when clicked
-- [ ] Uploads persist after service restart
-
-#### Database
-- [ ] Database is accessible:
-  ```bash
-  sudo -u pathfinder psql -h localhost -U pathfinder -d pathfinder_photography -c "SELECT COUNT(*) FROM \"PhotoSubmissions\";"
-  ```
-- [ ] Data persists after service restart
-- [ ] Migrations applied successfully
-
-#### Health Endpoints
-- [ ] `/health` endpoint responds
-- [ ] `/alive` endpoint responds
-- [ ] `/ready` endpoint responds
-- [ ] `/metrics` endpoint responds (if enabled)
-
-### Optional Configuration
-
-#### SigNoz Observability (Optional)
-- [ ] Installed SigNoz natively using install-linux.sh script
-- [ ] SigNoz services running: `systemctl status signoz-otel-collector signoz-query-service clickhouse-server`
-- [ ] Services enabled to start on boot
-- [ ] Updated application systemd service with OTEL variables
-- [ ] Restarted application service
-- [ ] SigNoz UI accessible: `http://your-server-ip:3301`
-- [ ] Created Nginx reverse proxy for SigNoz UI
-- [ ] Obtained SSL certificate for SigNoz domain
-- [ ] Application sending telemetry to SigNoz
-
-#### Email Notifications
-- [ ] Configured SMTP settings in `appsettings.Production.json`
-- [ ] Tested email by submitting and grading a photo
-- [ ] Verified email delivery
-
-### Security Hardening
-
-- [ ] Changed default PostgreSQL password to strong random password
-- [ ] Firewall configured with default-deny policy
-- [ ] Using strong passwords for all services
-- [ ] Secrets not in version control
-- [ ] SSL/TLS enabled and working
-- [ ] `appsettings.Production.json` has 600 permissions
-- [ ] Application runs as non-root user (pathfinder)
-- [ ] Systemd security settings enabled (NoNewPrivileges, PrivateTmp)
-- [ ] PostgreSQL only listens on localhost
-- [ ] Nginx security headers configured
-- [ ] SSH key-based authentication enabled (optional)
-- [ ] Root login disabled (optional)
-
-### Backup Strategy
-
-- [ ] Created backup script: `/opt/backups/backup-pathfinder-db.sh`
-- [ ] Script backs up database (includes all photo data)
-- [ ] Script keeps last 7 days of backups
-- [ ] Made script executable: `chmod +x`
-- [ ] Scheduled backup script in crontab (daily at 2 AM)
-- [ ] Test backup created successfully
-- [ ] Test restore successful
-- [ ] Backup location has sufficient space
-- [ ] (Optional) Backups copied to remote location
-
-### Monitoring Setup
-
-- [ ] Configured log rotation in journald
-- [ ] Set SystemMaxUse and MaxRetentionSec
-- [ ] (Optional) Set up external monitoring/alerting
-- [ ] (Optional) Configured health check script
-- [ ] (Optional) Scheduled health check in crontab
-- [ ] Know where to find logs: `journalctl -u pathfinder-photography`
-
-### Troubleshooting Completed
-
-If issues occurred, verify resolved:
-
-- [ ] Service logs checked: `journalctl -u pathfinder-photography`
-- [ ] Database connection working
-- [ ] Google OAuth redirect URI matches exactly
-- [ ] File permissions correct for uploads
-- [ ] Nginx configuration valid: `nginx -t`
-- [ ] SSL certificate valid and not expired
-- [ ] Firewall not blocking required ports
-- [ ] Disk space available: `df -h`
-
-### Performance Tuning
-
-- [ ] PostgreSQL tuned for available RAM
-- [ ] Nginx gzip compression enabled
-- [ ] Nginx file caching configured
-- [ ] Application resource limits set in systemd
-- [ ] Performance acceptable under expected load
-- [ ] Response times measured and documented
-
-### Documentation
-
-- [ ] Read complete BARE_METAL_DEPLOYMENT.md
-- [ ] Read SETUP.md (for development setup if needed)
-- [ ] Bookmarked useful commands
-- [ ] Know where to find logs
-- [ ] Documented server-specific configuration
-- [ ] Documented custom modifications (if any)
-
-### Maintenance Plan
-
-- [ ] Update schedule determined (monthly recommended)
-- [ ] Backup schedule set (daily recommended)
-- [ ] Monitoring in place
-- [ ] Disaster recovery plan created
-- [ ] Contact information for support documented
-- [ ] Security update policy established
-
-### Final Verification
-
-- [ ] Application accessible from all intended devices
-- [ ] Multiple users can sign in
-- [ ] Photos upload and display correctly
-- [ ] Gallery filtering works
-- [ ] Performance acceptable
-- [ ] No errors in logs
-- [ ] SSL certificate valid
-- [ ] Automated deployments working (if configured)
-- [ ] Backups working
-- [ ] Ready for users
-
-### Production Readiness
-
-#### For Church/Organization Use
-- [ ] Announced to pathfinders
-- [ ] Instructions provided to users
-- [ ] Support contact available
-- [ ] Deadline for submissions set
-- [ ] Storage capacity verified for expected photos
-
-#### Performance Baseline
-- [ ] Noted current resource usage (CPU, RAM, disk)
-- [ ] Response time acceptable (<2s for page loads)
-- [ ] Can handle expected concurrent users
-- [ ] Database queries performing well
-
-## Sign-Off
-
-- **Deployed by**: ________________
-- **Date**: ________________
-- **Server/VM**: ________________
-- **Domain**: ________________
-- **Application Version**: ________________
-- **Deployment Type**: ☐ Physical Server ☐ Virtual Machine ☐ Cloud Instance
-- **Status**: ☐ Development ☐ Staging ☐ Production
-
-## Deployment Notes
-
-```
-Add any deployment-specific notes, customizations, or issues encountered:
-
-
-
-
-```
-
----
-
-**Next Steps After Deployment:**
-1. Monitor logs for first 24-48 hours: `journalctl -u pathfinder-photography -f`
-2. Test with small group before full rollout
-3. Ensure backup is working: check `/opt/backups/pathfinder-photography/`
-4. Share access information with pathfinders
-5. Set submission deadline
-6. Plan for photo review and grading
-
-**Support Resources:**
-- This deployment guide (BARE_METAL_DEPLOYMENT.md)
-- Application repository: https://github.com/glensouza/csdac-pathfinder-25-honor-photography
-- GitHub Issues: Report problems
-- Server logs: `journalctl -u pathfinder-photography -f`
-
-## Quick Command Reference
+- Fix duplicate `server_name` warning in Nginx
+ - Symptom: `conflicting server name "photohonor.coronasda.church" on0.0.0.0:80, ignored` in `nginx -T` output.
+ - Fix:
 
 ```bash
-# Application management
-sudo systemctl start pathfinder-photography
-sudo systemctl stop pathfinder-photography
+sudo sed -i 's/server_name photohonor.coronasda.church photohonor.coronasda.church;/server_name photohonor.coronasda.church www.photohonor.coronasda.church;/' /etc/nginx/sites-available/pathfinder-photography
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+- Prefer IPv4 upstream in Nginx to avoid IPv6 connect() refused
+ - Symptom: `connect() failed (111: Connection refused) while connecting to upstream` referencing `::1:5000`.
+ - Fix: use `127.0.0.1` in `proxy_pass` so Nginx uses IPv4 when Kestrel is listening on IPv4:
+
+```nginx
+# inside the server/location block
+proxy_pass http://127.0.0.1:5000;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+- HEAD vs GET testing note
+ - The app may return `405 Method Not Allowed` for `HEAD` requests. Use `GET` when validating pages locally:
+
+```bash
+curl -v -H "Host: photohonor.coronasda.church" http://127.0.0.1/
+```
+
+- Systemd: quick reliability fix (temporary)
+ - Symptom: service repeatedly restarts with `Failed with result 'timeout'` when using `Type=notify`.
+ - Quick fix (applied during debugging): change systemd unit to avoid waiting on sd_notify:
+
+```ini
+# /etc/systemd/system/pathfinder-photography.service
+Type=simple
+TimeoutStartSec=120
+```
+
+Reload and restart:
+
+```bash
+sudo systemctl daemon-reload
 sudo systemctl restart pathfinder-photography
+```
+
+ - Recommended production fix: enable systemd notifications from the app and restore `Type=notify` in the unit. In .NET you can enable host support with `builder.Host.UseSystemd();` and use `Type=notify` again.
+
+- Fix HTTPS redirect warning (forwarded headers)
+ - Symptom in logs: `Failed to determine the https port for redirect.` when the app is behind a reverse proxy.
+ - Cause: the ASP.NET Core middleware can't see the original request scheme unless forwarded headers are used.
+ - Fix: configure Forwarded Headers middleware before `UseHttpsRedirection()` in `Program.cs` (example given in repo):
+
+```csharp
+using Microsoft.AspNetCore.HttpOverrides;
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+ ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+app.UseHttpsRedirection();
+```
+
+Ensure Nginx sets the header:
+
+```nginx
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+- Persist DataProtection keys (important for cookies/auth across restarts)
+ - Symptom: warnings about an *ephemeral* data protection repository; cookies/sessions break after app restarts.
+ - Fix: persist the key ring to the filesystem and secure the folder. Example service registration (in `Program.cs`):
+
+```csharp
+using Microsoft.AspNetCore.DataProtection;
+using System.IO;
+
+services.AddDataProtection()
+ .PersistKeysToFileSystem(new DirectoryInfo("/var/lib/pathfinder-keys"))
+ .SetApplicationName("pathfinder-photography");
+```
+
+Create folder and set permissions:
+
+```bash
+sudo mkdir -p /var/lib/pathfinder-keys
+sudo chown -R pathfinder:pathfinder /var/lib/pathfinder-keys
+sudo chmod700 /var/lib/pathfinder-keys
+```
+
+- Useful troubleshooting commands
+
+```bash
+# Nginx
+sudo nginx -t
+sudo tail -f /var/log/nginx/pathfinder-photography-error.log
+
+# App service
 sudo systemctl status pathfinder-photography
 sudo journalctl -u pathfinder-photography -f
 
-# Database management
-sudo -u postgres psql pathfinder_photography
-sudo systemctl restart postgresql
-
-# Nginx management
-sudo nginx -t
-sudo systemctl reload nginx
-sudo systemctl restart nginx
-
-# View logs
-sudo journalctl -u pathfinder-photography -n 100
-sudo tail -f /var/log/nginx/pathfinder-photography-access.log
-sudo tail -f /var/log/nginx/pathfinder-photography-error.log
-
-# SigNoz management (if installed)
-cd /opt/signoz/signoz/deploy/
-docker compose up -d
-docker compose down
-docker compose logs -f
-
-# Backups
-/opt/backups/backup-pathfinder-db.sh
+# Verify Kestrel is listening
+sudo ss -tlnp | grep :5000
 ```
 
----
+Add these notes to your deployment runbooks and the checklist (below) so future deployments include the fixes as standard steps.
 
-**Note**: This deployment guide is for installing directly on a server or VM. For local development setup, see [SETUP.md](SETUP.md).
+## Cloudflare & Tunnel troubleshooting (recent incident)
+
+This section documents a real incident and the concise troubleshooting steps and fixes you should follow when Cloudflare returns502 (Bad gateway) for a proxied site.
+
+Summary of the incident
+- Symptom: Cloudflare returned a502 "Bad gateway" while Cloudflare and browser showed "Working" but the Host showed "Error".
+- Root cause: Cloudflare Tunnel (`cloudflared`) ingress was pointed at the application port (5000) instead of the webserver port (80). Cloudflare tried to reach the wrong endpoint and received connection errors. Toggling DNS to "DNS only" (grey cloud) helped isolate the problem.
+- Result: Correcting the tunnel ingress to point to `http://127.0.0.1:80` (or the server IP:80) restored service while keeping Cloudflare proxied (orange cloud) is fine once the tunnel is correct.
+
+Checklist to reproduce and resolve a Cloudflare502
+
+1. Confirm the502 path is Cloudflare -> origin
+ - From a public browser Cloudflare shows502. On the origin server, check Nginx access and error logs:
+
+ ```bash
+ sudo tail -n200 /var/log/nginx/pathfinder-photography-access.log
+ sudo tail -n200 /var/log/nginx/pathfinder-photography-error.log
+ ```
+
+ - If logs show `connect() failed (111: Connection refused) while connecting to upstream` with upstream `::1:5000` or `127.0.0.1:5000`, the proxy/tunnel is attempting the wrong target.
+
+2. Check Kestrel and Nginx locally
+ ```bash
+ sudo ss -tlnp | grep ':80' || true
+ sudo ss -tlnp | grep ':5000' || true
+ curl -I -H "Host: photohonor.coronasda.church" http://127.0.0.1/
+ curl -I http://127.0.0.1:5000/
+ ```
+ - Kestrel may respond with405 for HEAD, use GET when necessary. A local `GET /` returning200 from Nginx indicates the origin stack is healthy.
+
+3. Check DNS and IPv6
+ ```bash
+ dig +short A photohonor.coronasda.church
+ dig +short AAAA photohonor.coronasda.church
+ ```
+ - If an AAAA exists but the origin does not properly accept IPv6 traffic, Cloudflare probing IPv6 addresses can cause failures. Remove the AAAA or ensure IPv6 works on the origin.
+
+4. If using Cloudflare Tunnel (cloudflared)
+ - Check the tunnel service and recent logs:
+
+ ```bash
+ sudo systemctl status cloudflared --no-pager
+ sudo journalctl -u cloudflared -n200 --no-pager
+ ```
+
+ - Confirm the `config.yml` ingress rule points to the Nginx HTTP port (80) — not the app port (5000). Example correct entry (hosted on the same server):
+
+ ```yaml
+ ingress:
+ - hostname: photohonor.coronasda.church
+ service: http://127.0.0.1:80
+ - service: http_status:404
+ ```
+
+ - After editing `config.yml`, restart and check the tunnel:
+
+ ```bash
+ sudo systemctl restart cloudflared
+ sudo systemctl status cloudflared --no-pager
+ sudo journalctl -u cloudflared -f
+ ```
+
+5. Use Cloudflare DNS proxy toggle for troubleshooting
+ - Temporarily set DNS to "DNS only" (grey cloud) to point clients directly to your origin IP. If the site works when DNS-only, the issue is Cloudflare ↔ origin path (tunnel, firewall, IPv6, SSL mode).
+ - Once tunnel/config is corrected, you can re-enable Cloudflare proxy (orange cloud). Leaving Cloudflare proxied is recommended for CDN/WAF benefits once origin is reachable.
+
+6. Firewall and network checks
+ - If a firewall is active, ensure Cloudflare IPs (or the tunnel endpoint) are allowed. On systems using `ufw` you can check status:
+
+ ```bash
+ sudo ufw status verbose
+ ```
+
+ - If `ufw` is inactive and you're still blocked, check iptables rules and any external network filters.
+
+7. Quick validation sequence (recommended)
+ - Check Nginx + app locally with curl (Host header)
+ - Check Nginx access/error logs for502 or upstream connection errors
+ - Dig A/AAAA; remove AAAA if not supported by origin
+ - Check/repair cloudflared `ingress` to point to `http://127.0.0.1:80`
+ - Restart cloudflared and re-test with Cloudflare proxied enabled
+
+Notes & recommendations
+- Prefer exposing services through Nginx on port80/443. Let Nginx talk to Kestrel on localhost:5000. Cloudflared (or direct Cloudflare proxy) should route to Nginx (http://127.0.0.1:80).
+- Do not point the tunnel at Kestrel's port unless you explicitly want Cloudflare to talk directly to the app and you have ensured proper scheme/headers and health.
+- Use `dig` and access logs to determine whether Cloudflare uses IPv6; remove AAAA records if your origin does not support IPv6.
+- Toggling Cloudflare to DNS-only is a useful isolation test; it is safe to toggle briefly for debugging.
+
+Example commands executed during the incident (for your runbook)
+
+```bash
+# Check listening sockets
+sudo ss -tlnp | egrep ':80|:5000'
+
+# Local checks
+curl -I -H "Host: photohonor.coronasda.church" http://127.0.0.1/
+curl -I http://127.0.0.1:5000/
+
+# Nginx logs
+sudo tail -n200 /var/log/nginx/pathfinder-photography-error.log
+sudo tail -n200 /var/log/nginx/pathfinder-photography-access.log
+
+# cloudflared status and logs
+sudo systemctl status cloudflared --no-pager
+sudo journalctl -u cloudflared -n200 --no-pager
+
+# DNS checks
+dig +short A photohonor.coronasda.church
+dig +short AAAA photohonor.coronasda.church

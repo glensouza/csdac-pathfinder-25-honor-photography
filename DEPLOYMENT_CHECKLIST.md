@@ -52,11 +52,20 @@ Follow [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for detailed instruc
 - [ ] Created uploads directory with correct permissions
 - [ ] Configured `appsettings.Production.json` with proper permissions (600)
 
+> Production-specific configuration to add/check:
+> - [ ] Forwarded Headers middleware added before `UseHttpsRedirection()` in `Program.cs`.
+> - [ ] DataProtection keys persisted to `/var/lib/pathfinder-keys` and directory owned by `pathfinder`.
+
 #### Step 4: Systemd Service
 - [ ] Created service file: `/etc/systemd/system/pathfinder-photography.service`
 - [ ] Enabled and started service
 - [ ] Verified service is running
 - [ ] Checked logs for errors
+
+> Troubleshooting note:
+> - If the service repeatedly times out with `Type=notify`, use this temporary fix to stabilize the service:
+> - Change unit to `Type=simple` and add `TimeoutStartSec=120` then `systemctl daemon-reload && systemctl restart pathfinder-photography`.
+> - Recommended: enable systemd notifications in the app (`builder.Host.UseSystemd();`) and revert to `Type=notify` for proper readiness handling.
 
 #### Step 5: Nginx
 - [ ] Installed and configured Nginx
@@ -64,6 +73,10 @@ Follow [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for detailed instruc
 - [ ] Obtained SSL certificate (Let's Encrypt)
 - [ ] Verified HTTPS working
 - [ ] Added security headers
+
+> Nginx gotchas:
+> - Prefer `proxy_pass http://127.0.0.1:5000;` to avoid IPv6/localhost bind mismatch.
+> - Ensure `proxy_set_header X-Forwarded-Proto $scheme;` is present to allow HTTPS redirects to work.
 
 #### Step 6: Firewall
 - [ ] Allowed SSH (port 22) BEFORE enabling firewall
@@ -293,3 +306,40 @@ For local development with .NET Aspire or local .NET, see [SETUP.md](SETUP.md).
 - [ ] Verified all services running in Aspire Dashboard
 
 See [SETUP.md](SETUP.md) for complete local development instructions with .NET Aspire or local .NET.
+
+## Cloudflare / Tunnel Troubleshooting
+
+- [ ] If users see `502 Bad Gateway` from Cloudflare, follow these steps to isolate and fix the Cloudflare ↔ origin path:
+ - [ ] Check Nginx access & error logs for upstream connection errors:
+ ```bash
+ sudo tail -n200 /var/log/nginx/pathfinder-photography-access.log
+ sudo tail -n200 /var/log/nginx/pathfinder-photography-error.log
+ ```
+ - [ ] Verify local services and listening ports:
+ ```bash
+ sudo ss -tlnp | egrep ':80|:5000'
+ curl -I -H "Host: photohonor.coronasda.church" http://127.0.0.1/
+ curl -I http://127.0.0.1:5000/
+ ```
+ - [ ] Check DNS A/AAAA records. If you do not support IPv6 on origin, remove AAAA records or ensure IPv6 works:
+ ```bash
+ dig +short A photohonor.coronasda.church
+ dig +short AAAA photohonor.coronasda.church
+ ```
+ - [ ] If using Cloudflare Tunnel (cloudflared):
+ - Confirm `config.yml` ingress points to Nginx (http://127.0.0.1:80), not Kestrel (5000).
+ - Example:
+ ```yaml
+ ingress:
+ - hostname: photohonor.coronasda.church
+ service: http://127.0.0.1:80
+ - service: http_status:404
+ ```
+ - Restart & check tunnel logs:
+ ```bash
+ sudo systemctl restart cloudflared
+ sudo systemctl status cloudflared --no-pager
+ sudo journalctl -u cloudflared -f
+ ```
+ - [ ] Use Cloudflare DNS toggle (DNS-only / grey cloud) to isolate: if DNS-only works, problem is Cloudflare↔origin (tunnel, firewall, IPv6, or SSL mode).
+ - [ ] After fixing tunnel/config, re-enable Cloudflare proxy (orange cloud) for CDN/WAF benefits.

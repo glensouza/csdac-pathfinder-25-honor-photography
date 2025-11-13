@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.DataProtection;
+using System.IO;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +17,22 @@ builder.AddServiceDefaults();
     
 // Register Npgsql DataSource from Aspire PostgreSQL resource "pathfinder-photography"
 builder.AddNpgsqlDbContext<ApplicationDbContext>(connectionName: "pathfinder-photography");
+
+// Configure HTTPS redirection options via DI (fixes UseHttpsRedirection overload error)
+builder.Services.Configure<HttpsRedirectionOptions>(options =>
+{
+    options.HttpsPort = 443;
+});
+
+// Persist DataProtection keys to the filesystem in production so auth cookies remain valid across restarts
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/var/lib/pathfinder-keys"))
+    .SetApplicationName("pathfinder-photography");
+
+builder.Services.Configure<HttpsRedirectionOptions>(options =>
+{
+    options.HttpsPort =443;
+});
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -78,6 +98,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+// UseHttpsRedirection has no overload that accepts options here.
+// The middleware reads configured HttpsRedirectionOptions from DI.
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
