@@ -4,6 +4,8 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 
 [![Docker Build](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/docker-build.yml)
 
+[![Deploy to Bare Metal Server](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/deploy-bare-metal.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/deploy-bare-metal.yml)
+
 ## Features
 
 - **.NET Aspire**: Modern cloud-native application with built-in observability, service discovery, and health checks

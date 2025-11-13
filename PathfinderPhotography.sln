@@ -31,6 +31,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IssueTemplates", "IssueTemp
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{DF477BFB-9D5A-4E55-93A8-364FB1E2FC63}"
 	ProjectSection(SolutionItems) = preProject
+		.github\workflows\deploy-bare-metal.yml = .github\workflows\deploy-bare-metal.yml
 		.github\workflows\docker-build.yml = .github\workflows\docker-build.yml
 	EndProjectSection
 EndProject
