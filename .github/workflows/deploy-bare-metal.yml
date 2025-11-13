@@ -128,9 +128,9 @@ jobs:
         run: |
           echo "Stopping ${{ env.SERVICE_NAME }} service..."
           # Try to stop without sudo first (runner might already run as root or have permissions)
-          if systemctl stop ${{ env.SERVICE_NAME }}2>/dev/null; then
+          if systemctl stop ${{ env.SERVICE_NAME }} 2>/dev/null; then
             echo "Stopped service without sudo"
-          elif sudo -n systemctl stop ${{ env.SERVICE_NAME }}2>/dev/null; then
+          elif sudo -n systemctl stop ${{ env.SERVICE_NAME }} 2>/dev/null; then
             echo "Stopped service with passwordless sudo"
           else
             echo "Could not stop service - sudo requires a password or systemctl is unavailable."
