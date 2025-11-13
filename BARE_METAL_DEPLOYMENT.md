@@ -1399,7 +1399,7 @@ Configure environment variables in GitHub repository:
 
 | Variable Name | Description | Example |
 |---------------|-------------|---------|
-| `APP_URL` | Application URL | `https://pathfinder.yourdomain.com` |
+| `APP_URL` | Application URL | `https://pathfinder.coronasda.church` |
 | `DEPLOY_SERVER` | Server hostname or IP | `pathfinder-prod-01` |
 
 #### 7.11. Workflow Customization

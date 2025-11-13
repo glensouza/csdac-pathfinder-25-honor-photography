@@ -76,7 +76,7 @@ jobs:
     runs-on: self-hosted
     environment: 
       name: ${{ github.event.inputs.environment || 'production' }}
-      url: ${{ vars.APP_URL || 'https://pathfinder.yourdomain.com' }}
+      url: ${{ vars.APP_URL || 'https://pathfinder.coronasda.church' }}
     
     steps:
       - name: Download build artifact
