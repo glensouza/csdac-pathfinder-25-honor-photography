@@ -1,9 +1,9 @@
-# Step 5: Install Nginx Reverse Proxy
+# Step 6: Install Nginx Reverse Proxy
 
 ## 📋 Quick Navigation
 
-| [← Systemd Service](04-configure-systemd.md) | [Home](../DEPLOY.md) | [Next: SigNoz (Optional) →](06-install-signoz.md) |
-|:---------------------------------------------|:--------------------:|---------------------------------------------------:|
+| [← SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments (Optional) →](07-automated-deployments.md) |
+|:----------------------------------|:--------------------:|-------------------------------------------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
@@ -12,8 +12,8 @@
 - [Step 2: Install .NET Runtime](02-install-dotnet.md)
 - [Step 3: Install Application](03-install-application.md)
 - [Step 4: Configure Systemd Service](04-configure-systemd.md)
-- **Step 5: Install Nginx Reverse Proxy** ← You are here
-- [Step 6: Install SigNoz *(Optional)*](06-install-signoz.md)
+- [Step 5: Install SigNoz](05-install-signoz.md)
+- **Step 6: Install Nginx Reverse Proxy** ← You are here
 - [Step 7: Setup Automated Deployments *(Optional)*](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
 
@@ -23,7 +23,7 @@
 
 In this step, you'll:
 - Install Nginx as a reverse proxy
-- Configure Nginx for the main application and PGAdmin
+- Configure Nginx for the main application, PGAdmin, and SigNoz
 - Configure SSL/TLS with Cloudflare
 - Set up DNS and firewall
 
@@ -47,7 +47,7 @@ sudo nano /etc/nginx/sites-available/pathfinder-photography
 
 Since you're using Cloudflare for SSL/TLS, start with a simple HTTP configuration. Cloudflare will handle the SSL termination at their edge.
 
-Add the following configuration:
+Add the following configuration for all three services (main app, PGAdmin, and SigNoz):
 
 ```nginx
 # Main application server
@@ -123,9 +123,44 @@ server {
     access_log /var/log/nginx/pgadmin-access.log;
     error_log /var/log/nginx/pgadmin-error.log;
 }
+
+# SigNoz subdomain server (observability platform)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name photohonorsignoz.coronasda.church;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Proxy to SigNoz on port 3301
+    location / {
+        proxy_pass http://localhost:3301;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Access and error logs
+    access_log /var/log/nginx/signoz-access.log;
+    error_log /var/log/nginx/signoz-error.log;
+}
 ```
 
-**Note**: Using single-level subdomains (e.g., `photohonorpgadmin`) instead of multi-level subdomains (e.g., `pgadmin.photohonor`) avoids SSL/TLS certificate issues with wildcard certificates.
+**Note**: Using single-level subdomains (e.g., `photohonorpgadmin`, `photohonorsignoz`) instead of multi-level subdomains (e.g., `pgadmin.photohonor`, `signoz.photohonor`) avoids SSL/TLS certificate issues with wildcard certificates.
 
 ## Enable and Test Nginx
 
@@ -397,9 +432,9 @@ Before moving to the next step, verify:
 
 ## Next Steps
 
-Nginx is now configured and your application should be accessible via your domain! 
+Nginx is now configured and all services (main app, PGAdmin, and SigNoz) should be accessible via your domains! 
 
-**Optional**: Continue with [Step 6: Install SigNoz](06-install-signoz.md) for observability, or skip to [Step 7: Automated Deployments](07-automated-deployments.md) if you want to set up GitHub Actions for automated deployments.
+**Optional**: Continue with [Step 7: Automated Deployments](07-automated-deployments.md) if you want to set up GitHub Actions for automated deployments, or proceed to [Security & Performance](08-security-performance.md).
 
-| [← Systemd Service](04-configure-systemd.md) | [Home](../DEPLOY.md) | [Next: SigNoz (Optional) →](06-install-signoz.md) |
-|:---------------------------------------------|:--------------------:|---------------------------------------------------:|
+| [← SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments (Optional) →](07-automated-deployments.md) |
+|:----------------------------------|:--------------------:|-------------------------------------------------------------------------:|

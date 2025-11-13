@@ -11,8 +11,8 @@ Welcome to the Pathfinder Photography application deployment wizard! This guide 
 | [**Step 2: .NET Runtime**](deploy/02-install-dotnet.md) | Install .NET 9.0 SDK and runtime | ⬜ |
 | [**Step 3: Application**](deploy/03-install-application.md) | Deploy the application | ⬜ |
 | [**Step 4: Systemd Service**](deploy/04-configure-systemd.md) | Configure service and autostart | ⬜ |
-| [**Step 5: Nginx**](deploy/05-install-nginx.md) | Install and configure reverse proxy | ⬜ |
-| [**Step 6: SigNoz** *(Optional)*](deploy/06-install-signoz.md) | Install observability platform | ⬜ |
+| [**Step 5: SigNoz**](deploy/05-install-signoz.md) | Install observability platform | ⬜ |
+| [**Step 6: Nginx**](deploy/06-install-nginx.md) | Install and configure reverse proxy | ⬜ |
 | [**Step 7: Automation** *(Optional)*](deploy/07-automated-deployments.md) | Setup GitHub Actions deployments | ⬜ |
 | [**Security & Performance**](deploy/08-security-performance.md) | Best practices and optimization | ⬜ |
 

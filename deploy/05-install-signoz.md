@@ -1,9 +1,9 @@
-# Step 6: Install SigNoz (Optional)
+# Step 5: Install SigNoz
 
 ## 📋 Quick Navigation
 
-| [← Nginx](05-install-nginx.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments →](07-automated-deployments.md) |
-|:-------------------------------|:--------------------:|--------------------------------------------------------------:|
+| [← Systemd Service](04-configure-systemd.md) | [Home](../DEPLOY.md) | [Next: Nginx →](06-install-nginx.md) |
+|:---------------------------------------------|:--------------------:|--------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
@@ -12,8 +12,8 @@
 - [Step 2: Install .NET Runtime](02-install-dotnet.md)
 - [Step 3: Install Application](03-install-application.md)
 - [Step 4: Configure Systemd Service](04-configure-systemd.md)
-- [Step 5: Install Nginx Reverse Proxy](05-install-nginx.md)
-- **Step 6: Install SigNoz** ← You are here
+- **Step 5: Install SigNoz** ← You are here
+- [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
 - [Step 7: Setup Automated Deployments *(Optional)*](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
 
@@ -21,9 +21,7 @@
 
 ## Overview
 
-SigNoz provides observability (traces, metrics, logs). Install it only if you need application monitoring.
-
-This step is **optional**. Skip to [Step 7](07-automated-deployments.md) if you don't need observability.
+SigNoz provides observability (traces, metrics, logs) for monitoring your application performance and troubleshooting issues.
 
 **Estimated time**: 20-30 minutes
 
@@ -106,48 +104,6 @@ sudo systemctl daemon-reload
 sudo systemctl restart pathfinder-photography
 ```
 
-## Access SigNoz UI
-
-SigNoz UI is available at `http://your-server-ip:3301`. To expose it securely, create an Nginx configuration:
-
-```bash
-sudo nano /etc/nginx/sites-available/signoz
-```
-
-Add:
-
-```nginx
-server {
-    listen 80;
-    server_name photohonorsignoz.coronasda.church;
-
-    location / {
-        proxy_pass http://localhost:3301;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-Enable and test:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/signoz /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-If using Let's Encrypt, secure with SSL:
-
-```bash
-sudo certbot --nginx -d photohonorsignoz.coronasda.church
-```
-
-If using Cloudflare, add the subdomain to your Cloudflare Tunnel configuration or DNS records as described in [Step 5](05-install-nginx.md).
-
 ## Verification Checklist
 
 Before moving to the next step, verify:
@@ -156,8 +112,8 @@ Before moving to the next step, verify:
 - [ ] SigNoz UI is accessible at `http://localhost:3301`
 - [ ] Application service is configured with OTEL environment variables
 - [ ] Application is sending telemetry to SigNoz
-- [ ] Nginx is configured for SigNoz subdomain
-- [ ] SigNoz is accessible via your domain (e.g., `https://photohonorsignoz.coronasda.church`)
+
+**Note**: The Nginx configuration for SigNoz will be added in [Step 6: Nginx](06-install-nginx.md).
 
 ## Troubleshooting
 
@@ -184,7 +140,7 @@ sudo journalctl -u clickhouse-server -n 100 --no-pager
 
 ## Next Steps
 
-SigNoz is now installed and configured! Continue with [Step 7: Automated Deployments](07-automated-deployments.md) if you want to set up GitHub Actions for automated deployments, or skip to [Security & Performance](08-security-performance.md).
+SigNoz is now installed and configured! Continue with [Step 6: Nginx](06-install-nginx.md) to configure the reverse proxy for all services including SigNoz.
 
-| [← Nginx](05-install-nginx.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments →](07-automated-deployments.md) |
-|:-------------------------------|:--------------------:|--------------------------------------------------------------:|
+| [← Systemd Service](04-configure-systemd.md) | [Home](../DEPLOY.md) | [Next: Nginx →](06-install-nginx.md) |
+|:---------------------------------------------|:--------------------:|--------------------------------------:|

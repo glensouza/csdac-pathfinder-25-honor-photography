@@ -18,8 +18,8 @@ For detailed step-by-step instructions, see:
 - [Step 2: .NET Runtime](deploy/02-install-dotnet.md)
 - [Step 3: Application](deploy/03-install-application.md)
 - [Step 4: Systemd Service](deploy/04-configure-systemd.md)
-- [Step 5: Nginx](deploy/05-install-nginx.md)
-- [Step 6: SigNoz (Optional)](deploy/06-install-signoz.md)
+- [Step 5: SigNoz](deploy/05-install-signoz.md)
+- [Step 6: Nginx](deploy/06-install-nginx.md)
 - [Step 7: Automated Deployments (Optional)](deploy/07-automated-deployments.md)
 - [Security & Performance](deploy/08-security-performance.md)
 

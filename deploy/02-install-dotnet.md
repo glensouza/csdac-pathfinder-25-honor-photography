@@ -12,8 +12,8 @@
 - **Step 2: Install .NET Runtime** ← You are here
 - [Step 3: Install Application](03-install-application.md)
 - [Step 4: Configure Systemd Service](04-configure-systemd.md)
-- [Step 5: Install Nginx Reverse Proxy](05-install-nginx.md)
-- [Step 6: Install SigNoz *(Optional)*](06-install-signoz.md)
+- [Step 5: Install SigNoz](05-install-signoz.md)
+- [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
 - [Step 7: Setup Automated Deployments *(Optional)*](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
 

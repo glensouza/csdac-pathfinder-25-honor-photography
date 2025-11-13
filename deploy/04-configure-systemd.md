@@ -2,8 +2,8 @@
 
 ## 📋 Quick Navigation
 
-| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: Nginx →](05-install-nginx.md) |
-|:---------------------------------------------------|:--------------------:|--------------------------------------:|
+| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: SigNoz →](05-install-signoz.md) |
+|:---------------------------------------------------|:--------------------:|----------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
@@ -12,8 +12,8 @@
 - [Step 2: Install .NET Runtime](02-install-dotnet.md)
 - [Step 3: Install Application](03-install-application.md)
 - **Step 4: Configure Systemd Service** ← You are here
-- [Step 5: Install Nginx Reverse Proxy](05-install-nginx.md)
-- [Step 6: Install SigNoz *(Optional)*](06-install-signoz.md)
+- [Step 5: Install SigNoz](05-install-signoz.md)
+- [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
 - [Step 7: Setup Automated Deployments *(Optional)*](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
 
@@ -229,5 +229,5 @@ Before moving to the next step, verify:
 
 The application service is now running! Continue with installing and configuring Nginx as a reverse proxy to make the application accessible via your domain.
 
-| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: Nginx →](05-install-nginx.md) |
+| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: SigNoz →](05-install-signoz.md) |
 |:---------------------------------------------------|:--------------------:|--------------------------------------:|
