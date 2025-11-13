@@ -4,13 +4,24 @@ This checklist helps ensure successful deployment of the Pathfinder Photography 
 
 **Choose your deployment type:**
 - **Local Development**: .NET Aspire (recommended) or Docker Compose (see SETUP.md)
-- **Production Deployment**: Ubuntu VM/Bare Metal (use this checklist with BARE_METAL_DEPLOYMENT.md)
+- **Production Deployment**: Ubuntu VM/Bare Metal (use this checklist with [DEPLOY.md](DEPLOY.md))
 
 ---
 
 ## Production Deployment Checklist (Ubuntu VM/Bare Metal)
 
-Use this checklist with the comprehensive [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) guide.
+Use this checklist with the wizard-style deployment guide: **[DEPLOY.md](DEPLOY.md)**
+
+For detailed step-by-step instructions, see:
+- [Prerequisites](deploy/00-prerequisites.md)
+- [Step 1: PostgreSQL](deploy/01-install-postgresql.md)
+- [Step 2: .NET Runtime](deploy/02-install-dotnet.md)
+- [Step 3: Application](deploy/03-install-application.md)
+- [Step 4: Systemd Service](deploy/04-configure-systemd.md)
+- [Step 5: SigNoz](deploy/05-install-signoz.md)
+- [Step 6: Nginx](deploy/06-install-nginx.md)
+- [Step 7: Automated Deployments](deploy/07-automated-deployments.md)
+- [Security & Performance](deploy/08-security-performance.md)
 
 ### Pre-Deployment
 
@@ -33,7 +44,7 @@ Use this checklist with the comprehensive [BARE_METAL_DEPLOYMENT.md](BARE_METAL_
 
 ### Installation Steps
 
-Follow [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for detailed instructions.
+See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step pages linked in the checklist above.
 
 #### Step 1: PostgreSQL
 - [ ] Installed PostgreSQL 16
@@ -84,7 +95,7 @@ Follow [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for detailed instruc
 - [ ] Set default-deny policy
 - [ ] Enabled and verified firewall
 
-#### Step 7: Automated Deployments (Optional)
+#### Step 7: Automated Deployments
 - [ ] Created github-runner user (NOT in sudo group)
 - [ ] Configured passwordless sudo via `/etc/sudoers.d/github-runner`
 - [ ] Downloaded and configured GitHub Actions runner
@@ -194,7 +205,7 @@ If issues occurred, verify resolved:
 
 ## Documentation Reviewed
 
-- [ ] Read [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) - Complete production deployment guide
+- [ ] Read [DEPLOY.md](DEPLOY.md) - Wizard-style production deployment guide
 - [ ] Read [SETUP.md](SETUP.md) - If doing development
 - [ ] Bookmarked useful commands
 - [ ] Know where to find logs
@@ -263,7 +274,7 @@ Add any deployment-specific notes, customizations, or issues encountered:
 
 ## Support Resources
 
-- **Production Deployment**: [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md)
+- **Production Deployment**: [DEPLOY.md](DEPLOY.md)
 - **Local Development**: [SETUP.md](SETUP.md)
 - **Repository**: https://github.com/glensouza/csdac-pathfinder-25-honor-photography
 - **GitHub Issues**: Report problems
