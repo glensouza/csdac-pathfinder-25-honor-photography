@@ -6,7 +6,6 @@ namespace PathfinderPhotography.Services;
 
 public class PhotoSubmissionService(
     IDbContextFactory<ApplicationDbContext> contextFactory, 
-    IWebHostEnvironment env,
     EmailNotificationService emailService,
     UserService userService,
     ILogger<PhotoSubmissionService> logger)
@@ -79,23 +78,6 @@ public class PhotoSubmissionService(
             // Email notifications are non-critical, log and continue
             logger.LogWarning(ex, "Failed to send new submission email notification for rule {Rule}", submission.CompositionRuleName);
         }
-    }
-
-    public async Task<string> SaveUploadedFileAsync(Stream fileStream, string fileName)
-    {
-        string uniqueFileName = $"{Guid.CreateVersion7()}_{fileName}";
-        string uploadsPath = Path.Combine(env.WebRootPath, "uploads");
-        string filePath = Path.Combine(uploadsPath, uniqueFileName);
-        
-        if (!Directory.Exists(uploadsPath))
-        {
-            Directory.CreateDirectory(uploadsPath);
-        }
-
-        await using FileStream fileStreamOutput = new(filePath, FileMode.Create);
-        await fileStream.CopyToAsync(fileStreamOutput);
-
-        return uniqueFileName;
     }
 
     public async Task<(byte[] imageData, string contentType)> SaveImageDataAsync(Stream fileStream, string fileName)

@@ -86,18 +86,39 @@ jobs:
       
       - name: Verify artifact checksum
         run: |
-          sha256sum -c pathfinder-photography-${{ github.sha }}.tar.gz.sha256
+          echo "Verifying deployment artifact integrity..."
+          if sha256sum -c pathfinder-photography-${{ github.sha }}.tar.gz.sha256; then
+            echo "✅ Checksum verified - artifact integrity confirmed"
+          else
+            echo "❌ Checksum verification failed - artifact may be corrupted"
+            exit 1
+          fi
       
       - name: Create backup of current deployment
         run: |
           if [ -d "${{ env.DEPLOY_DIR }}" ]; then
             BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            
+            # Create backup directory
             sudo mkdir -p $BACKUP_DIR
+            
             echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
+            
+            # Create backup with sudo (root can read all files)
             sudo tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
-            # Keep only last 5 backups
-            sudo ls -t $BACKUP_DIR/backup_*.tar.gz | tail -n +6 | xargs -r sudo rm
+            
+            # Set ownership of the backup file to pathfinder for consistency
+            sudo chown pathfinder:pathfinder $BACKUP_DIR/backup_$TIMESTAMP.tar.gz
+            
+            # Keep only last 5 backups using find for safer sudo access
+            OLD_BACKUPS=$(sudo find $BACKUP_DIR -name 'backup_*.tar.gz' -type f -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2-)
+            if [ -n "$OLD_BACKUPS" ]; then
+              echo "$OLD_BACKUPS" | while read backup_file; do
+                sudo rm -f "$backup_file"
+              done
+            fi
+            
             echo "Backup created successfully"
           else
             echo "No existing deployment to backup"
@@ -116,19 +137,9 @@ jobs:
           # Extract new version
           sudo tar -xzf pathfinder-photography-${{ github.sha }}.tar.gz -C ${{ env.DEPLOY_DIR }}
           
-          # Preserve uploads directory if it exists
-          if [ -d "/opt/backups/pathfinder-photography/uploads" ]; then
-            sudo rsync -av /opt/backups/pathfinder-photography/uploads/ ${{ env.DEPLOY_DIR }}/wwwroot/uploads/
-          fi
-          
-          # Ensure uploads directory exists
-          sudo mkdir -p ${{ env.DEPLOY_DIR }}/wwwroot/uploads
-          
-          # Set ownership and permissions
+          # Set correct ownership for deployed files
           sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
-          sudo chmod -R 755 ${{ env.DEPLOY_DIR }}
-          sudo chmod 755 ${{ env.DEPLOY_DIR }}/wwwroot/uploads
-          
+                    
           echo "Deployment completed successfully"
       
       - name: Apply database migrations
@@ -137,9 +148,9 @@ jobs:
           cd ${{ env.DEPLOY_DIR }}
           
           # Check if EF migrations exist
-          if sudo -u pathfinder dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
+          if dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
             echo "Applying database migrations..."
-            sudo -u pathfinder bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
+            bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
             echo "Database migrations applied successfully"
           else
             echo "No migrations found or migrations will be applied on startup"
@@ -184,7 +195,7 @@ jobs:
           else
             echo "❌ Deployment verification failed"
             echo "Application is not responding on health endpoint"
-            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 100 --no-pager
+            journalctl -u ${{ env.SERVICE_NAME }} -n 100 --no-pager
             exit 1
           fi
       
@@ -228,7 +239,7 @@ jobs:
         id: find_backup
         run: |
           BACKUP_DIR="/opt/backups/pathfinder-photography/deployments"
-          LATEST_BACKUP=$(sudo ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | head -n 1)
+          LATEST_BACKUP=$(ls -t $BACKUP_DIR/backup_*.tar.gz 2>/dev/null | head -n 1)
           if [ -n "$LATEST_BACKUP" ]; then
             echo "backup_file=$LATEST_BACKUP" >> $GITHUB_OUTPUT
             echo "Found backup: $LATEST_BACKUP"
@@ -248,7 +259,7 @@ jobs:
           # Restore backup
           sudo tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
           
-          # Set permissions
+          # Set correct ownership after restore
           sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
           
           # Start service

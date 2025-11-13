@@ -95,7 +95,7 @@ All10 rules implemented with detailed descriptions and explanations:
 - Distributed tracing via OpenTelemetry
 - Structured logging and runtime metrics
 - Database migrations
-- Persistent uploads via volume mount
+- Photo storage directly in PostgreSQL database (ImageData byte array)
 
 ## Database Schema (high level)
 
@@ -208,7 +208,7 @@ Health & Metrics
 
 - Stateless web tier (horizontal scale capable)
 - PostgreSQL vertical scale; externalize to managed DB if needed
-- Uploads directory can be moved to network or blob storage
+- Photos stored in database (can migrate to blob storage if needed for extreme scale)
 
 ## Maintenance
 
@@ -243,9 +243,9 @@ dotnet build
 
 ## Documentation
 
-- `README.md`: Main documentation
-- `SETUP.md`: Detailed setup guide
-- `HOMELAB_DEPLOYMENT.md`: Homelab deployment
+- `README.md`: Main documentation (in .github folder)
+- `SETUP.md`: Detailed local development setup guide
+- `BARE_METAL_DEPLOYMENT.md`: Production deployment on Ubuntu server/VM
 - `CODE_SUMMARY.md`: This document
 
 ## Testing
