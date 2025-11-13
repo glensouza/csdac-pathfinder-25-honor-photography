@@ -54,7 +54,7 @@ Follow [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for detailed instruc
 
 > Production-specific configuration to add/check:
 > - [ ] Forwarded Headers middleware added before `UseHttpsRedirection()` in `Program.cs`.
-> - [ ] DataProtection keys persisted to `/var/lib/pathfinder-keys` and directory owned by `pathfinder`.
+> - [ ] DataProtection keys directory configured via `StateDirectory=pathfinder-keys` in systemd service file (creates `/var/lib/pathfinder-keys` automatically with proper permissions).
 
 #### Step 4: Systemd Service
 - [ ] Created service file: `/etc/systemd/system/pathfinder-photography.service`

@@ -623,6 +623,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
+StateDirectory=pathfinder-keys
 
 # Resource limits
 LimitNOFILE=65536
@@ -637,6 +638,8 @@ WantedBy=multi-user.target
 Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 Environment=OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
 ```
+
+**Important**: The `StateDirectory=pathfinder-keys` directive automatically creates `/var/lib/pathfinder-keys` with proper ownership (pathfinder:pathfinder) and permissions. This directory is used for ASP.NET Core Data Protection keys, which are required for authentication cookies to persist across application restarts. With `ProtectSystem=strict`, the filesystem is read-only except for explicitly allowed paths, so `StateDirectory` is essential.
 
 Enable and start the service:
 
