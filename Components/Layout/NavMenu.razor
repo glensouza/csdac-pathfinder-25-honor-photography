@@ -90,7 +90,7 @@
 @code {
     private bool isInstructor = false;
     private bool isAdmin = false;
-    private readonly SemaphoreSlim statusLock = new SemaphoreSlim(1, 1);
+    private readonly SemaphoreSlim statusLock = new(1, 1);
 
     protected override async Task OnInitializedAsync()
     {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PathfinderPhotography.Data;
 using PathfinderPhotography.Models;
+#pragma warning disable CA1862
 
 namespace PathfinderPhotography.Services;
 
@@ -67,10 +68,15 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
 
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         User? user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
-        if (user == null) return;
+        if (user == null)
+        {
+            return;
+        }
 
         if (user.Role == UserRole.Admin)
+        {
             throw new InvalidOperationException("Cannot modify admin user roles through API. Use direct database updates.");
+        }
 
         user.Role = role;
         await context.SaveChangesAsync();
@@ -80,12 +86,16 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         User? user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
-        
+
         if (user == null)
+        {
             throw new InvalidOperationException($"User with email {email} not found.");
+        }
 
         if (user.Role == UserRole.Admin)
+        {
             throw new InvalidOperationException("Cannot delete admin users through API. Use direct database updates.");
+        }
 
         // Get all photo submissions by this user (to be deleted)
         List<PhotoSubmission> submissions = await context.PhotoSubmissions
@@ -112,13 +122,14 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
             .ToList();
 
         // Any remaining photo that appears in a vote that is about to be removed must be recalculated.
-        HashSet<int> photosNeedingRecalculation = new HashSet<int>();
+        HashSet<int> photosNeedingRecalculation = [];
         foreach (PhotoVote vote in allVotesToDelete)
         {
             if (!photoIdsBeingDeleted.Contains(vote.WinnerPhotoId))
             {
                 photosNeedingRecalculation.Add(vote.WinnerPhotoId);
             }
+            
             if (!photoIdsBeingDeleted.Contains(vote.LoserPhotoId))
             {
                 photosNeedingRecalculation.Add(vote.LoserPhotoId);

@@ -1,6 +1,7 @@
 using PathfinderPhotography.Models;
 using PathfinderPhotography.Data;
 using Microsoft.EntityFrameworkCore;
+#pragma warning disable CA1862
 
 namespace PathfinderPhotography.Services;
 
@@ -31,7 +32,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             .Where(v => v.VoterEmail.ToLower() == currentUserEmail.ToLower())
             .ToListAsync();
 
-        HashSet<string> votedPairs = new HashSet<string>();
+        HashSet<string> votedPairs = [];
         foreach (PhotoVote vote in userVotes)
         {
             int a = Math.Min(vote.WinnerPhotoId, vote.LoserPhotoId);
@@ -40,7 +41,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         }
 
         // Generate all possible unseen pairs
-        List<(PhotoSubmission first, PhotoSubmission second)> candidatePairs = new List<(PhotoSubmission, PhotoSubmission)>();
+        List<(PhotoSubmission first, PhotoSubmission second)> candidatePairs = [];
         for (int i = 0; i < submissions.Count - 1; i++)
         {
             for (int j = i + 1; j < submissions.Count; j++)
@@ -103,7 +104,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         winnerPhoto.EloRating = newWinnerRating;
         loserPhoto.EloRating = newLoserRating;
 
-        PhotoVote vote = new PhotoVote
+        PhotoVote vote = new()
         {
             VoterEmail = voterEmail,
             WinnerPhotoId = winnerPhotoId,
@@ -184,7 +185,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             return;
         }
 
-        voteIdsToExclude ??= new List<int>();
+        voteIdsToExclude ??= [];
 
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
 
@@ -194,7 +195,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             .OrderBy(v => v.VoteDate)
             .ToListAsync();
 
-        HashSet<int> allPhotoIdsInVotes = new HashSet<int>(photoIds);
+        HashSet<int> allPhotoIdsInVotes = new(photoIds);
         foreach (PhotoVote vote in votes)
         {
             allPhotoIdsInVotes.Add(vote.WinnerPhotoId);
@@ -215,17 +216,19 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
         foreach (PhotoVote vote in votes)
         {
-            if (photosDict.TryGetValue(vote.WinnerPhotoId, out PhotoSubmission? winnerPhoto) &&
-                photosDict.TryGetValue(vote.LoserPhotoId, out PhotoSubmission? loserPhoto))
+            if (!photosDict.TryGetValue(vote.WinnerPhotoId, out PhotoSubmission? winnerPhoto) ||
+                !photosDict.TryGetValue(vote.LoserPhotoId, out PhotoSubmission? loserPhoto))
             {
-                (double newWinnerRating, double newLoserRating) = CalculateEloRatings(
-                    winnerPhoto.EloRating,
-                    loserPhoto.EloRating
-                );
-
-                winnerPhoto.EloRating = newWinnerRating;
-                loserPhoto.EloRating = newLoserRating;
+                continue;
             }
+
+            (double newWinnerRating, double newLoserRating) = CalculateEloRatings(
+                winnerPhoto.EloRating,
+                loserPhoto.EloRating
+            );
+
+            winnerPhoto.EloRating = newWinnerRating;
+            loserPhoto.EloRating = newLoserRating;
         }
 
         await context.SaveChangesAsync();
