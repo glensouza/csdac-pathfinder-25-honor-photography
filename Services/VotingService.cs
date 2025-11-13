@@ -11,6 +11,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
     /// <summary>
     /// Get two random photos for comparison that the user has NOT already voted on.
+    /// Only compares photos with the same composition rule.
     /// Excludes the current user's own submissions. Returns (null,null) when no new pairs remain.
     /// </summary>
     public async Task<(PhotoSubmission?, PhotoSubmission?)> GetRandomPhotoPairAsync(string currentUserEmail)
@@ -40,7 +41,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             votedPairs.Add($"{a}-{b}");
         }
 
-        // Generate all possible unseen pairs
+        // Generate all possible unseen pairs (only within same composition rule)
         List<(PhotoSubmission first, PhotoSubmission second)> candidatePairs = [];
         for (int i = 0; i < submissions.Count - 1; i++)
         {
@@ -48,6 +49,13 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             {
                 PhotoSubmission first = submissions[i];
                 PhotoSubmission second = submissions[j];
+                
+                // Only pair photos with the same composition rule
+                if (first.CompositionRuleId != second.CompositionRuleId)
+                {
+                    continue;
+                }
+                
                 int a = Math.Min(first.Id, second.Id);
                 int b = Math.Max(first.Id, second.Id);
                 string key = $"{a}-{b}";
@@ -149,6 +157,21 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         
         return await context.PhotoSubmissions
             .Where(s => s.GradeStatus == gradeStatus)
+            .OrderByDescending(s => s.EloRating)
+            .ThenByDescending(s => s.SubmissionDate)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Get top photos by ELO rating filtered by composition rule and grade status
+    /// </summary>
+    public async Task<List<PhotoSubmission>> GetTopPhotosByCompositionRuleAndGradeStatusAsync(int compositionRuleId, GradeStatus gradeStatus, int count = 10)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        
+        return await context.PhotoSubmissions
+            .Where(s => s.CompositionRuleId == compositionRuleId && s.GradeStatus == gradeStatus)
             .OrderByDescending(s => s.EloRating)
             .ThenByDescending(s => s.SubmissionDate)
             .Take(count)
