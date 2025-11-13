@@ -1,5 +1,26 @@
 # Bare Metal / VM Deployment Guide
 
+> **⚠️ This file has been reorganized for easier navigation!**
+> 
+> **Please use the new wizard-style deployment guide**: [DEPLOY.md](DEPLOY.md)
+>
+> The deployment steps have been split into separate files for easier navigation:
+> - [Prerequisites](deploy/00-prerequisites.md)
+> - [Step 1: PostgreSQL](deploy/01-install-postgresql.md)
+> - [Step 2: .NET Runtime](deploy/02-install-dotnet.md)
+> - [Step 3: Application](deploy/03-install-application.md)
+> - [Step 4: Systemd Service](deploy/04-configure-systemd.md)
+> - [Step 5: Nginx](deploy/05-install-nginx.md)
+> - [Step 6: SigNoz (Optional)](deploy/06-install-signoz.md)
+> - [Step 7: Automated Deployments (Optional)](deploy/07-automated-deployments.md)
+> - [Security & Performance](deploy/08-security-performance.md)
+>
+> This file is kept for reference but may not be updated. Use [DEPLOY.md](DEPLOY.md) for the latest wizard-style guide.
+
+---
+
+# Original Content (For Reference)
+
 This guide provides instructions for deploying the Pathfinder Photography application on a single server or virtual machine without Docker. All components (PostgreSQL, .NET application, and optionally SigNoz) will be installed directly on the host system.
 
 > 💡 **Want Automated Deployments?** After completing the initial setup below, see [section 7](#7-setup-automated-deployments-optional) to configure automatic deployments via GitHub Actions. Every push to the `main` branch will automatically deploy to your server.

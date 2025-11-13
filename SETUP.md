@@ -77,7 +77,7 @@ Choose your preferred local development setup:
 }
 ```
 
-**For production deployment**, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for configuration instructions.
+**For production deployment**, see [DEPLOY.md](DEPLOY.md) for configuration instructions ([Step 3: Install Application](deploy/03-install-application.md)).
 
 ## Email Notifications (Optional)
 
@@ -105,7 +105,7 @@ Used to notify instructors/admins of new submissions and pathfinders of grading 
 }
 ```
 
-**For production deployment**, see [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) for secure configuration.
+**For production deployment**, see [DEPLOY.md](DEPLOY.md) for secure configuration ([Step 3: Install Application](deploy/03-install-application.md)).
 
 ### Disable Email
 Leave `SmtpHost` blank or omit the Email section entirely.
@@ -170,21 +170,22 @@ dotnet ef migrations add MeaningfulName --project PathfinderPhotography.csproj
 
 ## Production Deployment
 
-For production deployment on Ubuntu servers or VMs, see the comprehensive [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) guide which includes:
-- PostgreSQL installation and security
-- .NET runtime installation
-- Application deployment
-- Nginx reverse proxy with SSL
-- Automated deployments via GitHub Actions
-- Security hardening
-- Backup strategies
-- Monitoring and maintenance
+For production deployment on Ubuntu servers or VMs, see the wizard-style deployment guide [DEPLOY.md](DEPLOY.md) which includes:
+- [Prerequisites](deploy/00-prerequisites.md) - System requirements and preparation
+- [Step 1: PostgreSQL](deploy/01-install-postgresql.md) - Database installation and security
+- [Step 2: .NET Runtime](deploy/02-install-dotnet.md) - .NET SDK installation
+- [Step 3: Application](deploy/03-install-application.md) - Application deployment
+- [Step 4: Systemd Service](deploy/04-configure-systemd.md) - Service configuration
+- [Step 5: Nginx](deploy/05-install-nginx.md) - Reverse proxy with SSL
+- [Step 6: SigNoz (Optional)](deploy/06-install-signoz.md) - Observability platform
+- [Step 7: Automated Deployments (Optional)](deploy/07-automated-deployments.md) - GitHub Actions automation
+- [Security & Performance](deploy/08-security-performance.md) - Security hardening and optimization
 
 ### Important Notes
 - Use HTTPS for Google OAuth in production
 - Keep PostgreSQL credentials secure
 - Back up database regularly (photos are stored in database)
-- Follow the deployment checklist in BARE_METAL_DEPLOYMENT.md
+- Follow the deployment checklist in [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)
 
 ## Observability & Health
 
@@ -321,7 +322,8 @@ SELECT * FROM "PhotoSubmissions" LIMIT 5;
 
 ## Quick Links
 - README overview: `./.github/README.md`
-- Production deployment: [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md)
+- Production deployment: [DEPLOY.md](DEPLOY.md) (wizard-style guide)
+- Production deployment (original): [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md)
 - SigNoz details: `signoz/README.md`
 
 ## Support
