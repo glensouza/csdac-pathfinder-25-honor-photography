@@ -14,7 +14,7 @@
 - [Step 4: Configure Systemd Service](04-configure-systemd.md)
 - [Step 5: Install SigNoz](05-install-signoz.md)
 - [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
-- [Step 7: Setup Automated Deployments *(Optional)*](07-automated-deployments.md)
+- [Step 7: Setup Automated Deployments](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
 
 ---

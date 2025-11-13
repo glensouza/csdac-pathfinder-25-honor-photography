@@ -2,7 +2,7 @@
 
 ## 📋 Quick Navigation
 
-| [← SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments (Optional) →](07-automated-deployments.md) |
+| [← SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments →](07-automated-deployments.md) |
 |:----------------------------------|:--------------------:|-------------------------------------------------------------------------:|
 
 ## 📑 Deployment Steps Index
@@ -14,7 +14,7 @@
 - [Step 4: Configure Systemd Service](04-configure-systemd.md)
 - [Step 5: Install SigNoz](05-install-signoz.md)
 - **Step 6: Install Nginx Reverse Proxy** ← You are here
-- [Step 7: Setup Automated Deployments *(Optional)*](07-automated-deployments.md)
+- [Step 7: Setup Automated Deployments](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
 
 ---
@@ -434,7 +434,7 @@ Before moving to the next step, verify:
 
 Nginx is now configured and all services (main app, PGAdmin, and SigNoz) should be accessible via your domains! 
 
-**Optional**: Continue with [Step 7: Automated Deployments](07-automated-deployments.md) if you want to set up GitHub Actions for automated deployments, or proceed to [Security & Performance](08-security-performance.md).
+Continue with [Step 7: Automated Deployments](07-automated-deployments.md) to set up GitHub Actions for automated deployments.
 
-| [← SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments (Optional) →](07-automated-deployments.md) |
-|:----------------------------------|:--------------------:|-------------------------------------------------------------------------:|
+| [← SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments →](07-automated-deployments.md) |
+|:----------------------------------|:--------------------:|--------------------------------------------------------------:|

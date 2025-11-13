@@ -1,9 +1,9 @@
-# Step 7: Setup Automated Deployments (Optional)
+# Step 7: Setup Automated Deployments
 
 ## 📋 Quick Navigation
 
-| [← SigNoz](06-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Security & Performance →](08-security-performance.md) |
-|:----------------------------------|:--------------------:|--------------------------------------------------------------:|
+| [← Nginx](06-install-nginx.md) | [Home](../DEPLOY.md) | [Next: Security & Performance →](08-security-performance.md) |
+|:--------------------------------|:--------------------:|--------------------------------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
@@ -22,8 +22,6 @@
 ## Overview
 
 For automatic deployments on every code push to `main` branch, you can set up a self-hosted GitHub Actions runner on your server.
-
-This step is **optional**. Skip to [Security & Performance](08-security-performance.md) if you don't need automated deployments.
 
 **Estimated time**: 45-60 minutes
 

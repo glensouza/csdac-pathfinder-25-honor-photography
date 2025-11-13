@@ -12,7 +12,7 @@
 > - [Step 4: Systemd Service](deploy/04-configure-systemd.md)
 > - [Step 5: SigNoz](deploy/05-install-signoz.md)
 > - [Step 6: Nginx](deploy/06-install-nginx.md)
-> - [Step 7: Automated Deployments (Optional)](deploy/07-automated-deployments.md)
+> - [Step 7: Automated Deployments](deploy/07-automated-deployments.md)
 > - [Security & Performance](deploy/08-security-performance.md)
 >
 > This file is kept for reference but may not be updated. Use [DEPLOY.md](DEPLOY.md) for the latest wizard-style guide.
@@ -23,7 +23,7 @@
 
 This guide provides instructions for deploying the Pathfinder Photography application on a single server or virtual machine without Docker. All components (PostgreSQL, .NET application, and optionally SigNoz) will be installed directly on the host system.
 
-> 💡 **Want Automated Deployments?** After completing the initial setup below, see [section 7](#7-setup-automated-deployments-optional) to configure automatic deployments via GitHub Actions. Every push to the `main` branch will automatically deploy to your server.
+> 💡 **Want Automated Deployments?** After completing the initial setup below, see [section 7](#7-setup-automated-deployments) to configure automatic deployments via GitHub Actions. Every push to the `main` branch will automatically deploy to your server.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
@@ -36,7 +36,7 @@ This guide provides instructions for deploying the Pathfinder Photography applic
   - [4. Configure Systemd Service](#4-configure-systemd-service)
   - [5. Install Nginx Reverse Proxy](#5-install-nginx-reverse-proxy)
   - [6. Install SigNoz (Optional)](#6-install-signoz-optional)
-  - [7. Setup Automated Deployments (Optional)](#7-setup-automated-deployments-optional)
+  - [7. Setup Automated Deployments](#7-setup-automated-deployments)
 - [Configuration](#configuration)
 - [Maintenance](#maintenance)
 - [Troubleshooting](#troubleshooting)
@@ -1131,7 +1131,7 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d photohonorsignoz.coronasda.church
 ```
 
-### 7. Setup Automated Deployments (Optional)
+### 7. Setup Automated Deployments
 
 For automatic deployments on every code push to `main` branch, you can set up a self-hosted GitHub Actions runner on your server.
 

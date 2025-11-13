@@ -20,7 +20,7 @@ For detailed step-by-step instructions, see:
 - [Step 4: Systemd Service](deploy/04-configure-systemd.md)
 - [Step 5: SigNoz](deploy/05-install-signoz.md)
 - [Step 6: Nginx](deploy/06-install-nginx.md)
-- [Step 7: Automated Deployments (Optional)](deploy/07-automated-deployments.md)
+- [Step 7: Automated Deployments](deploy/07-automated-deployments.md)
 - [Security & Performance](deploy/08-security-performance.md)
 
 ### Pre-Deployment
@@ -95,7 +95,7 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] Set default-deny policy
 - [ ] Enabled and verified firewall
 
-#### Step 7: Automated Deployments (Optional)
+#### Step 7: Automated Deployments
 - [ ] Created github-runner user (NOT in sudo group)
 - [ ] Configured passwordless sudo via `/etc/sudoers.d/github-runner`
 - [ ] Downloaded and configured GitHub Actions runner

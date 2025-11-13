@@ -176,9 +176,9 @@ For production deployment on Ubuntu servers or VMs, see the wizard-style deploym
 - [Step 2: .NET Runtime](deploy/02-install-dotnet.md) - .NET SDK installation
 - [Step 3: Application](deploy/03-install-application.md) - Application deployment
 - [Step 4: Systemd Service](deploy/04-configure-systemd.md) - Service configuration
-- [Step 5: Nginx](deploy/05-install-nginx.md) - Reverse proxy with SSL
-- [Step 6: SigNoz (Optional)](deploy/06-install-signoz.md) - Observability platform
-- [Step 7: Automated Deployments (Optional)](deploy/07-automated-deployments.md) - GitHub Actions automation
+- [Step 5: SigNoz](deploy/05-install-signoz.md) - Observability platform
+- [Step 6: Nginx](deploy/06-install-nginx.md) - Reverse proxy with SSL
+- [Step 7: Automated Deployments](deploy/07-automated-deployments.md) - GitHub Actions automation
 - [Security & Performance](deploy/08-security-performance.md) - Security hardening and optimization
 
 ### Important Notes
