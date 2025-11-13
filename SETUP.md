@@ -322,8 +322,7 @@ SELECT * FROM "PhotoSubmissions" LIMIT 5;
 
 ## Quick Links
 - README overview: `./.github/README.md`
-- Production deployment: [DEPLOY.md](DEPLOY.md) (wizard-style guide)
-- Production deployment (original): [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md)
+- Production deployment: [DEPLOY.md](DEPLOY.md)
 - SigNoz details: `signoz/README.md`
 
 ## Support

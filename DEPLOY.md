@@ -37,7 +37,6 @@ After completing the initial manual setup, you can configure automated deploymen
 
 - **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Verification checklist for each step
 - **[Local Setup](SETUP.md)** - For development environment setup
-- **[Original Guide](BARE_METAL_DEPLOYMENT.md)** - Single-page version (deprecated)
 
 ## 💡 Helpful Tips
 

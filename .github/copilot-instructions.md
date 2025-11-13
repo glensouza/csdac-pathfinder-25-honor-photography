@@ -23,7 +23,7 @@ This repository contains the Pathfinder Photography Honor application for Pathfi
 - Ubuntu 22.04 LTS (VM, bare metal, or cloud instance)
 - No Docker - native installation
 - Automated deployments via GitHub Actions (optional)
-- See [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md)
+- See [DEPLOY.md](../DEPLOY.md)
 
 ## Code of Conduct
 
@@ -69,7 +69,8 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 
 **Important Files:**
 - `SETUP.md` - Local development setup (Docker Compose, Aspire, local .NET)
-- `BARE_METAL_DEPLOYMENT.md` - Production deployment guide (comprehensive, 2,158 lines)
+- `DEPLOY.md` - Production deployment guide (wizard-style with step-by-step files in deploy/ directory)
+- `deploy/*.md` - Individual deployment step files
 - `DEPLOYMENT_CHECKLIST.md` - Deployment verification checklist
 - `.github/workflows/deploy-bare-metal.yml` - Automated deployment workflow
 
@@ -164,7 +165,7 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 3. Local .NET: `dotnet run` (manual PostgreSQL setup)
 
 **Production Deployment:**
-1. Manual: Follow [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md) step-by-step
+1. Manual: Follow [DEPLOY.md](../DEPLOY.md) step-by-step
 2. Automated: Set up GitHub Actions runner on server (section 7 of deployment guide)
    - Every push to `main` triggers automated deployment
    - Includes backup, health checks, and automatic rollback
@@ -200,7 +201,7 @@ sudo journalctl -u pathfinder-photography -f
 If you have questions or need help:
 - Check existing issues and discussions
 - Review [SETUP.md](../SETUP.md) for development setup
-- Review [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md) for production
+- Review [DEPLOY.md](../DEPLOY.md) for production
 - Open an issue with your question
 - Reach out to the project maintainers
 

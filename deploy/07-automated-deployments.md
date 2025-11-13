@@ -282,8 +282,6 @@ The runner security model includes:
 - ✅ Automatic rollback on failures
 - ✅ Health checks after deployment
 
-For more details, see the **Runner Security Considerations** section in the [original deployment guide](../BARE_METAL_DEPLOYMENT.md#runner-security-considerations).
-
 ## Verification Checklist
 
 Before moving to the next step, verify:

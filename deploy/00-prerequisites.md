@@ -27,8 +27,8 @@ Before beginning the deployment, ensure you have the following:
 - **Physical server, virtual machine (VM), or cloud instance**
 - **Root or sudo access** to the server
 - **Domain name** configured (example: `photohonor.coronasda.church`)
-- **Cloudflare account** (if using Cloudflare for DNS and SSL/CDN)
-- *(Optional)* **Cloudflare Tunnel** (cloudflared) if already running - see Cloudflare configuration section in [Step 5](05-install-nginx.md)
+- **Cloudflare account** (required for DNS and SSL/CDN)
+- **Cloudflare Tunnel** (cloudflared) - see Cloudflare configuration section in [Step 6](06-install-nginx.md)
 - **Google OAuth credentials** - see [SETUP.md](../SETUP.md#google-oauth20-setup) for setup instructions
 
 ## System Requirements

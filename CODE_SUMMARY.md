@@ -245,7 +245,8 @@ dotnet build
 
 - `README.md`: Main documentation (in .github folder)
 - `SETUP.md`: Detailed local development setup guide
-- `BARE_METAL_DEPLOYMENT.md`: Production deployment on Ubuntu server/VM
+- `DEPLOY.md`: Production deployment guide (wizard-style)
+- `deploy/`: Step-by-step deployment instructions
 - `CODE_SUMMARY.md`: This document
 
 ## Testing

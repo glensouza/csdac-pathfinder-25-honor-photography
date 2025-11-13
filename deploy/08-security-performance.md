@@ -334,13 +334,11 @@ If you encounter issues:
 3. Check application logs: `sudo journalctl -u pathfinder-photography -n 100`
 4. Verify all services are running
 5. Review the [Deployment Checklist](../DEPLOYMENT_CHECKLIST.md)
-6. Consult the [original deployment guide](../BARE_METAL_DEPLOYMENT.md) for additional details
 
 ## Additional Resources
 
 - **[DEPLOYMENT_CHECKLIST.md](../DEPLOYMENT_CHECKLIST.md)** - Complete verification checklist
 - **[SETUP.md](../SETUP.md)** - Local development setup guide
-- **[BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md)** - Original comprehensive guide
 - **GitHub Repository Issues** - Report issues or ask questions
 
 ---

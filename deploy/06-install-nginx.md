@@ -187,9 +187,7 @@ sudo systemctl status nginx
 
 ## Configure SSL/TLS with Cloudflare
 
-**Important**: When using Cloudflare, you typically don't need to configure SSL certificates on your server because:
-1. Cloudflare handles SSL/TLS at their edge (between users and Cloudflare)
-2. Traffic from Cloudflare to your server can be HTTP (Flexible SSL mode) or HTTPS with Cloudflare Origin Certificate (Full/Strict mode)
+Cloudflare is the required method for SSL/TLS in this deployment. Cloudflare handles SSL/TLS at their edge (between users and Cloudflare), and you don't need to configure SSL certificates on your server.
 
 **For most users, "Flexible" mode is sufficient** and works with the HTTP-only Nginx configuration above.
 
@@ -197,39 +195,15 @@ sudo systemctl status nginx
 
 1. **Go to SSL/TLS → Overview in Cloudflare Dashboard**
 2. **Set encryption mode:**
-   - **Flexible**: Cloudflare ↔ User (HTTPS), Your Server ↔ Cloudflare (HTTP) - Easiest, works with HTTP-only Nginx config above
+   - **Flexible**: Cloudflare ↔ User (HTTPS), Your Server ↔ Cloudflare (HTTP) - Recommended, works with HTTP-only Nginx config above
    - **Full**: Cloudflare ↔ User (HTTPS), Your Server ↔ Cloudflare (HTTPS with self-signed cert)
    - **Full (strict)**: Requires valid certificate on your server (Let's Encrypt or Cloudflare Origin Certificate)
 
-**For most users, "Flexible" mode is sufficient** and works with the HTTP-only Nginx configuration above.
-
-### Optional: Let's Encrypt SSL (Only if NOT using Cloudflare)
-
-**Skip this section if using Cloudflare** - it handles SSL automatically.
-
-If you're NOT using Cloudflare and want to use Let's Encrypt directly:
-
-```bash
-# Install Certbot
-sudo apt install -y certbot python3-certbot-nginx
-
-# Obtain and install certificate
-# Certbot will automatically modify your Nginx configuration to add SSL
-sudo certbot --nginx -d photohonor.coronasda.church -d www.photohonor.coronasda.church
-
-# Test automatic renewal
-sudo certbot renew --dry-run
-```
-
-Certbot will automatically:
-- Obtain SSL certificate
-- Update Nginx configuration to add HTTPS server block
-- Add HTTP to HTTPS redirect
-- Set up automatic renewal
+**Recommended: Use "Flexible" mode** - it works with the HTTP-only Nginx configuration above.
 
 ## Configure Cloudflare DNS
 
-If you're using Cloudflare for DNS management (recommended for `photohonor.coronasda.church`), choose one of the following options:
+Cloudflare for DNS management is required for `photohonor.coronasda.church`. Choose one of the following options:
 
 ### Option A: Using Cloudflare Tunnel (cloudflared)
 
@@ -248,7 +222,7 @@ ingress:
     service: http://localhost:80
   - hostname: photohonorpgadmin.coronasda.church  # Note: Single-level subdomain to avoid certificate issues
     service: http://localhost:80
-  - hostname: photohonorsignoz.coronasda.church  # Optional: if using SigNoz for observability
+  - hostname: photohonorsignoz.coronasda.church  # SigNoz observability platform
     service: http://localhost:80
   # ... your other services ...
   - service: http_status:404  # catch-all rule
@@ -261,7 +235,7 @@ ingress:
     service: http://<YOUR_SERVER_IP>:80
   - hostname: photohonorpgadmin.coronasda.church  # Note: Single-level subdomain to avoid certificate issues
     service: http://<YOUR_SERVER_IP>:80
-  - hostname: photohonorsignoz.coronasda.church  # Optional: if using SigNoz for observability
+  - hostname: photohonorsignoz.coronasda.church  # SigNoz observability platform
     service: http://<YOUR_SERVER_IP>:80
   # ... your other services ...
   - service: http_status:404  # catch-all rule
@@ -325,7 +299,7 @@ Proxy status: Proxied (orange cloud)
 - Set encryption mode to **Full (strict)** or **Full**
 - This ensures end-to-end encryption between Cloudflare and your server
 
-**3. Configure Cloudflare SSL Certificate (Optional):**
+**3. Configure Cloudflare SSL Certificate (for Full/Strict mode):**
 - Go to SSL/TLS → Origin Server
 - Create Origin Certificate
 - Copy the certificate and private key
@@ -336,14 +310,14 @@ Proxy status: Proxied (orange cloud)
   sudo nano /etc/ssl/cloudflare/key.pem     # Paste private key
   sudo chmod 600 /etc/ssl/cloudflare/*.pem
   ```
-- Update Nginx configuration to use these certificates instead of Let's Encrypt
+- Update Nginx configuration to use these certificates
 
-**4. Enable Cloudflare Features (Optional):**
+**4. Enable Cloudflare Features:**
 - Under Speed → Optimization: Enable Auto Minify (JS, CSS, HTML)
 - Under Security → Settings: Set Security Level to Medium
 - Under Firewall: Configure rules as needed
 
-**Benefits of Using Cloudflare:**
+**Benefits of Cloudflare:**
 - ✅ Free SSL/TLS certificates
 - ✅ DDoS protection
 - ✅ CDN for faster content delivery

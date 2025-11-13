@@ -206,7 +206,6 @@ If issues occurred, verify resolved:
 ## Documentation Reviewed
 
 - [ ] Read [DEPLOY.md](DEPLOY.md) - Wizard-style production deployment guide
-- [ ] Or: [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md) - Original single-page guide (for reference)
 - [ ] Read [SETUP.md](SETUP.md) - If doing development
 - [ ] Bookmarked useful commands
 - [ ] Know where to find logs
@@ -275,8 +274,7 @@ Add any deployment-specific notes, customizations, or issues encountered:
 
 ## Support Resources
 
-- **Production Deployment (Wizard)**: [DEPLOY.md](DEPLOY.md)
-- **Production Deployment (Original)**: [BARE_METAL_DEPLOYMENT.md](BARE_METAL_DEPLOYMENT.md)
+- **Production Deployment**: [DEPLOY.md](DEPLOY.md)
 - **Local Development**: [SETUP.md](SETUP.md)
 - **Repository**: https://github.com/glensouza/csdac-pathfinder-25-honor-photography
 - **GitHub Issues**: Report problems

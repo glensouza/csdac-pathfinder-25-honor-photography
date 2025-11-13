@@ -48,7 +48,7 @@ The Aspire Dashboard will auto-open showing all services including PostgreSQL, t
 
 ### Production Deployment
 
-For production, deploy to **bare metal Ubuntu server or VM**. All components (PostgreSQL, .NET application, Nginx) are installed directly on the host system. See **[BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md)** for comprehensive production deployment instructions.
+For production, deploy to **bare metal Ubuntu server or VM**. All components (PostgreSQL, .NET application, Nginx) are installed directly on the host system. See **[DEPLOY.md](../DEPLOY.md)** for comprehensive production deployment instructions.
 
 ## Prerequisites
 
@@ -75,11 +75,12 @@ First user to sign in automatically becomes Admin.
   - Database migrations
   - Observability with SigNoz
 
-- **[BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md)** - Production deployment on Ubuntu server/VM
-  - PostgreSQL installation and security
-  - .NET runtime installation
-  - Application deployment
+- **[DEPLOY.md](../DEPLOY.md)** - Production deployment guide (wizard-style)
+  - Step-by-step deployment instructions
+  - PostgreSQL, .NET, application setup
+  - SigNoz observability platform
   - Nginx reverse proxy with SSL
+  - Automated deployments via GitHub Actions
   - Automated deployments via GitHub Actions
   - Security hardening
   - Backup strategies
@@ -150,7 +151,7 @@ sudo journalctl -u pathfinder-photography -f
 sudo -u postgres pg_dump pathfinder_photography > backup.sql
 ```
 
-See [BARE_METAL_DEPLOYMENT.md](../BARE_METAL_DEPLOYMENT.md) for complete production deployment commands.
+See [DEPLOY.md](../DEPLOY.md) for complete production deployment guide.
 
 ## Support
 
