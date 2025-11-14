@@ -25,6 +25,10 @@ public class PhotoSubmission
     public string? AiMarketingCopy { get; set; }
     public decimal? AiSuggestedPrice { get; set; }
     public string? AiSocialMediaText { get; set; }
+    public AiProcessingStatus AiProcessingStatus { get; set; } = AiProcessingStatus.NotStarted;
+    public string? AiProcessingError { get; set; }
+    public DateTime? AiProcessingStartTime { get; set; }
+    public DateTime? AiProcessingCompletedTime { get; set; }
 }
 
 public enum GradeStatus
@@ -32,4 +36,13 @@ public enum GradeStatus
     NotGraded = 0,
     Pass = 1,
     Fail = 2
+}
+
+public enum AiProcessingStatus
+{
+    NotStarted = 0,
+    Queued = 1,
+    Processing = 2,
+    Completed = 3,
+    Failed = 4
 }

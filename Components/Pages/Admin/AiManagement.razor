@@ -89,9 +89,12 @@
                         <label class="form-label">Filter</label>
                         <select class="form-select" @onchange="OnFilterChanged">
                             <option value="all">All Submissions</option>
-                            <option value="with-ai">With AI Analysis</option>
+                            <option value="with-ai">With AI Analysis (Completed)</option>
                             <option value="without-ai">Without AI Analysis</option>
                             <option value="low-rating">Low AI Rating (&lt; 5)</option>
+                            <option value="queued">Queued for Processing</option>
+                            <option value="processing">Currently Processing</option>
+                            <option value="failed">Failed Analysis</option>
                         </select>
                     </div>
                     <div class="col-md-6">
@@ -118,9 +121,8 @@
                                 <th>Pathfinder</th>
                                 <th>Rule</th>
                                 <th>Submitted</th>
-                                <th>AI Title</th>
+                                <th>AI Status</th>
                                 <th>AI Rating</th>
-                                <th>Marketing</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -137,13 +139,15 @@
                                         <small>@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
                                     </td>
                                     <td>
-                                        @if (!string.IsNullOrEmpty(submission.AiTitle))
-                                        {
-                                            <span class="badge bg-success" title="@submission.AiTitle">✓</span>
+                                        @{
+                                            var statusInfo = GetAiStatusInfo(submission.AiProcessingStatus);
                                         }
-                                        else
+                                        <span class="badge @statusInfo.BadgeClass" title="@statusInfo.Tooltip">
+                                            @statusInfo.Icon @statusInfo.Text
+                                        </span>
+                                        @if (submission.AiProcessingStatus == AiProcessingStatus.Failed && !string.IsNullOrEmpty(submission.AiProcessingError))
                                         {
-                                            <span class="badge bg-secondary">—</span>
+                                            <br /><small class="text-danger" title="@submission.AiProcessingError">@(submission.AiProcessingError.Length > 30 ? submission.AiProcessingError.Substring(0, 30) + "..." : submission.AiProcessingError)</small>
                                         }
                                     </td>
                                     <td>
@@ -152,16 +156,6 @@
                                             <span class="badge @GetRatingBadgeClass(submission.AiRating.Value)">
                                                 @submission.AiRating/10
                                             </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-secondary">—</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (!string.IsNullOrEmpty(submission.AiMarketingHeadline))
-                                        {
-                                            <span class="badge bg-success">✓</span>
                                         }
                                         else
                                         {
@@ -250,8 +244,8 @@
     private void CalculateStatistics()
     {
         totalSubmissions = allSubmissions.Count;
-        submissionsWithAi = allSubmissions.Count(s => !string.IsNullOrEmpty(s.AiTitle) || s.AiRating.HasValue);
-        submissionsWithoutAi = totalSubmissions - submissionsWithAi;
+        submissionsWithAi = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Completed);
+        submissionsWithoutAi = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.NotStarted || s.AiProcessingStatus == AiProcessingStatus.Failed);
         
         List<int> ratings = allSubmissions
             .Where(s => s.AiRating.HasValue)
@@ -265,9 +259,12 @@
     {
         filteredSubmissions = currentFilter switch
         {
-            "with-ai" => allSubmissions.Where(s => !string.IsNullOrEmpty(s.AiTitle) || s.AiRating.HasValue).ToList(),
-            "without-ai" => allSubmissions.Where(s => string.IsNullOrEmpty(s.AiTitle) && !s.AiRating.HasValue).ToList(),
+            "with-ai" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Completed).ToList(),
+            "without-ai" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.NotStarted || s.AiProcessingStatus == AiProcessingStatus.Failed).ToList(),
             "low-rating" => allSubmissions.Where(s => s.AiRating.HasValue && s.AiRating.Value < 5).ToList(),
+            "queued" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Queued).ToList(),
+            "processing" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Processing).ToList(),
+            "failed" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Failed).ToList(),
             _ => allSubmissions.ToList()
         };
 
@@ -323,6 +320,19 @@
             >= 6 => "bg-info",
             >= 4 => "bg-warning",
             _ => "bg-danger"
+        };
+    }
+
+    private (string Icon, string Text, string BadgeClass, string Tooltip) GetAiStatusInfo(AiProcessingStatus status)
+    {
+        return status switch
+        {
+            AiProcessingStatus.NotStarted => ("", "Not Started", "bg-secondary", "AI analysis not initiated"),
+            AiProcessingStatus.Queued => ("⏳", "Queued", "bg-info", "Waiting for AI analysis to begin"),
+            AiProcessingStatus.Processing => ("⚙️", "Processing", "bg-primary", "AI analysis currently in progress"),
+            AiProcessingStatus.Completed => ("✓", "Completed", "bg-success", "AI analysis completed successfully"),
+            AiProcessingStatus.Failed => ("✗", "Failed", "bg-danger", "AI analysis failed - see error message"),
+            _ => ("", "Unknown", "bg-secondary", "Unknown status")
         };
     }
 }

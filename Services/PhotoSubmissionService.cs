@@ -42,6 +42,13 @@ public class PhotoSubmissionService(
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         submission.SubmissionDate = DateTime.UtcNow;
+        
+        // Set initial AI processing status
+        if (submission.ImageData != null && submission.ImageData.Length > 0)
+        {
+            submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+        }
+        
         context.PhotoSubmissions.Add(submission);
         await context.SaveChangesAsync();
 
@@ -243,6 +250,9 @@ public class PhotoSubmissionService(
 
     private async Task PerformAiAnalysisAsync(int submissionId, byte[] imageData, string imagePath, string compositionRule)
     {
+        // Update status to Processing
+        await UpdateAiProcessingStatusAsync(submissionId, Models.AiProcessingStatus.Processing, startTime: DateTime.UtcNow);
+        
         try
         {
             logger.LogInformation("Starting AI analysis for submission {Id}", submissionId);
@@ -265,6 +275,9 @@ public class PhotoSubmissionService(
                 submission.AiMarketingCopy = result.MarketingCopy;
                 submission.AiSuggestedPrice = result.SuggestedPrice;
                 submission.AiSocialMediaText = result.SocialMediaText;
+                submission.AiProcessingStatus = Models.AiProcessingStatus.Completed;
+                submission.AiProcessingCompletedTime = DateTime.UtcNow;
+                submission.AiProcessingError = null; // Clear any previous error
                 
                 await context.SaveChangesAsync();
                 
@@ -274,11 +287,51 @@ public class PhotoSubmissionService(
             else
             {
                 logger.LogWarning("Submission {Id} not found for AI analysis update", submissionId);
+                await UpdateAiProcessingStatusAsync(submissionId, Models.AiProcessingStatus.Failed, 
+                    error: "Submission not found", completedTime: DateTime.UtcNow);
             }
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
         {
             logger.LogError(ex, "AI analysis failed for submission {Id}", submissionId);
+            await UpdateAiProcessingStatusAsync(submissionId, Models.AiProcessingStatus.Failed, 
+                error: ex.Message, completedTime: DateTime.UtcNow);
+        }
+    }
+
+    private async Task UpdateAiProcessingStatusAsync(int submissionId, Models.AiProcessingStatus status, 
+        string? error = null, DateTime? startTime = null, DateTime? completedTime = null)
+    {
+        try
+        {
+            await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+            PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
+            
+            if (submission != null)
+            {
+                submission.AiProcessingStatus = status;
+                
+                if (error != null)
+                {
+                    submission.AiProcessingError = error;
+                }
+                
+                if (startTime.HasValue)
+                {
+                    submission.AiProcessingStartTime = startTime.Value;
+                }
+                
+                if (completedTime.HasValue)
+                {
+                    submission.AiProcessingCompletedTime = completedTime.Value;
+                }
+                
+                await context.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to update AI processing status for submission {Id}", submissionId);
         }
     }
 }
