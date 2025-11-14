@@ -154,7 +154,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                     logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
                     column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
                 {
                     logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
                     column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
@@ -547,7 +547,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                     {
                         column.Item().PaddingTop(5).MaxWidth(300).Image(photo.ImageData).FitArea();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
                     {
                         logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", photo.Id);
                         column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);

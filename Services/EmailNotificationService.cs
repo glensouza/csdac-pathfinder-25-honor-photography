@@ -100,7 +100,7 @@ Pathfinder Photography Team"
         {
             this._logger.LogError(ex, "IO error while sending grading notification for {Rule}", compositionRuleName);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Failed to send grading notification for {Rule}", compositionRuleName);
         }
@@ -183,7 +183,7 @@ Pathfinder Photography System"
         {
             this._logger.LogError(ex, "IO error while sending new submission notification");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Failed to send new submission notification");
         }
@@ -227,7 +227,7 @@ Pathfinder Photography System"
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Error sending email via SMTP");
             throw;
@@ -353,7 +353,7 @@ Pathfinder Photography Team"
         {
             this._logger.LogError(ex, "IO error while sending completion certificate");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Failed to send completion certificate");
         }
@@ -444,7 +444,7 @@ Pathfinder Photography Team"
         {
             this._logger.LogError(ex, "IO error while sending top photos report");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Failed to send top photos report");
         }

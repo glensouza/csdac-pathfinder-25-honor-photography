@@ -172,7 +172,7 @@ public class CertificateService(
                 await this.SendCertificateEmailAsync(pathfinderEmail);
                 logger.LogInformation("Processed new completion for {Email}", pathfinderEmail);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
             {
                 logger.LogError(ex, "Failed to process completion for {Email}", pathfinderEmail);
             }
@@ -226,7 +226,7 @@ public class CertificateService(
 
                 logger.LogInformation("Top photos report sent to {Email}", pathfinderEmail);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
             {
                 logger.LogError(ex, "Failed to send top photos report to {Email}", pathfinderEmail);
             }
