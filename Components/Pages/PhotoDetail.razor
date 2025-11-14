@@ -160,7 +160,7 @@ else
                             
                             @if (!string.IsNullOrEmpty(submission.AiSocialMediaText))
                             {
-                                <div>
+                                <div class="mb-3">
                                     <strong class="text-success">Social Media Post:</strong>
                                     <div class="alert alert-light border mt-2">
                                         <p class="mb-2 small">@submission.AiSocialMediaText</p>
@@ -170,6 +170,10 @@ else
                                     </div>
                                 </div>
                             }
+                            
+                            <div class="mt-4">
+                                <ProductMockup ImageSrc="@($"/api/images/{submission.Id}")" />
+                            </div>
                         </div>
                     </div>
                 }
