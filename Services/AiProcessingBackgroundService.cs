@@ -168,9 +168,13 @@ public class AiProcessingBackgroundService : BackgroundService
                 await context.SaveChangesAsync();
             }
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Failed to update AI processing status for submission {SubmissionId}", submissionId);
+            _logger.LogWarning(ex, "Database update failed while updating AI processing status for submission {SubmissionId}", submissionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation while updating AI processing status for submission {SubmissionId}", submissionId);
         }
     }
 
