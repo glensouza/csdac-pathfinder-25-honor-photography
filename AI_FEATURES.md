@@ -121,6 +121,28 @@ The AI analysis happens in two steps:
    - **AI Analysis Panel** (blue): Title, rating with progress bar, and insights
    - **Marketing Ideas Panel** (green): Headline, price, copy, and social media post
 
+### Admin AI Management
+
+Admins have access to an AI Management page at `/admin/ai-management` to:
+
+1. **View AI Statistics**: See how many submissions have AI analysis and average ratings
+2. **Filter Submissions**: View all, only with AI, only without AI, or low-rated photos
+3. **Retry AI Analysis**: Manually trigger or retry AI analysis for any photo
+4. **Monitor Progress**: See which photos need AI analysis
+
+**To Retry AI Analysis**:
+1. Go to `/admin/ai-management`
+2. Find the submission in the table
+3. Click the retry button (🔄) next to the photo
+4. Wait 30-60 seconds for analysis to complete
+5. Results will update automatically
+
+This is useful when:
+- AI analysis failed during initial submission
+- You want to regenerate analysis with updated prompts
+- A photo was submitted before AI features were enabled
+- You want better quality analysis (after upgrading models)
+
 ## Educational Value
 
 ### For Pathfinders (Students)

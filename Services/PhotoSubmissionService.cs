@@ -220,6 +220,27 @@ public class PhotoSubmissionService(
         return await context.PhotoSubmissions.FindAsync(id);
     }
 
+    public async Task RetryAiAnalysisAsync(int submissionId)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
+        
+        if (submission == null)
+        {
+            throw new InvalidOperationException($"Submission with ID {submissionId} not found.");
+        }
+
+        if (submission.ImageData == null || submission.ImageData.Length == 0)
+        {
+            throw new InvalidOperationException($"Submission {submissionId} has no image data.");
+        }
+
+        logger.LogInformation("Manually retrying AI analysis for submission {Id}", submissionId);
+
+        // Perform AI analysis synchronously for manual retry (so admin sees immediate feedback)
+        await PerformAiAnalysisAsync(submissionId, submission.ImageData, submission.ImagePath, submission.CompositionRuleName);
+    }
+
     private async Task PerformAiAnalysisAsync(int submissionId, byte[] imageData, string imagePath, string compositionRule)
     {
         try
