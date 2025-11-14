@@ -1,8 +1,10 @@
 @page "/photo/{id:int}"
 @using PathfinderPhotography.Services
 @using PathfinderPhotography.Models
+@using Microsoft.JSInterop
 @inject PhotoSubmissionService SubmissionService
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
 
 <PageTitle>Photo Details</PageTitle>
@@ -212,9 +214,15 @@ else
     {
         if (!string.IsNullOrEmpty(submission?.AiSocialMediaText))
         {
-            // In a real implementation, you'd use JSInterop to copy to clipboard
-            // For now, this is a placeholder
-            await Task.CompletedTask;
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", submission.AiSocialMediaText);
+            }
+            catch (JSException)
+            {
+                // Clipboard API not available or user denied permission
+                // Silently fail - could show a message to user in production
+            }
         }
     }
 }

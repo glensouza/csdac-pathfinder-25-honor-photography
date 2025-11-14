@@ -157,14 +157,17 @@
                                     </td>
                                     <td>
                                         @{
-                                            var statusInfo = GetAiStatusInfo(submission.AiProcessingStatus);
+                                            (string Icon, string Text, string BadgeClass, string Tooltip) statusInfo = GetAiStatusInfo(submission.AiProcessingStatus);
                                         }
                                         <span class="badge @statusInfo.BadgeClass" title="@statusInfo.Tooltip">
                                             @statusInfo.Icon @statusInfo.Text
                                         </span>
                                         @if (submission.AiProcessingStatus == AiProcessingStatus.Failed && !string.IsNullOrEmpty(submission.AiProcessingError))
                                         {
-                                            <br /><small class="text-danger" title="@submission.AiProcessingError">@(submission.AiProcessingError.Length > 30 ? submission.AiProcessingError.Substring(0, 30) + "..." : submission.AiProcessingError)</small>
+                                            string errorText = submission.AiProcessingError.Length > 30 
+                                                ? submission.AiProcessingError.Substring(0, 30) + "..." 
+                                                : submission.AiProcessingError;
+                                            <br /><small class="text-danger" title="@submission.AiProcessingError">@errorText</small>
                                         }
                                     </td>
                                     <td>
@@ -315,15 +318,20 @@
         {
             await SubmissionService.RetryAiAnalysisAsync(submissionId);
             
-            // Reload the data to show updated AI analysis
+            // Reload the data to show updated status
             await LoadData();
             
-            statusMessage = $"AI analysis completed successfully for submission #{submissionId}.";
+            statusMessage = $"AI analysis queued for submission #{submissionId}. Processing in background...";
             statusMessageType = "success";
+        }
+        catch (InvalidOperationException ex)
+        {
+            statusMessage = $"Cannot retry submission #{submissionId}: {ex.Message}";
+            statusMessageType = "error";
         }
         catch (Exception ex)
         {
-            statusMessage = $"Failed to analyze submission #{submissionId}: {ex.Message}";
+            statusMessage = $"Failed to queue analysis for submission #{submissionId}: {ex.Message}";
             statusMessageType = "error";
         }
         finally

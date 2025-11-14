@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Threading.Channels;
 using PathfinderPhotography.Data;
 using PathfinderPhotography.Models;
@@ -10,6 +11,8 @@ public class AiProcessingBackgroundService : BackgroundService
     private readonly Channel<AiAnalysisRequest> _queue;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AiProcessingBackgroundService> _logger;
+    private int _queuedCount = 0;
+    private readonly object _countLock = new object();
 
     public AiProcessingBackgroundService(
         IServiceProvider serviceProvider,
@@ -29,12 +32,19 @@ public class AiProcessingBackgroundService : BackgroundService
     public async Task QueueAnalysisAsync(AiAnalysisRequest request)
     {
         await _queue.Writer.WriteAsync(request);
+        lock (_countLock)
+        {
+            _queuedCount++;
+        }
         _logger.LogInformation("Queued AI analysis for submission {SubmissionId}", request.SubmissionId);
     }
 
     public int GetQueuedCount()
     {
-        return _queue.Reader.Count;
+        lock (_countLock)
+        {
+            return _queuedCount;
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -65,8 +75,45 @@ public class AiProcessingBackgroundService : BackgroundService
                     // Save results
                     await SaveResultsAsync(contextFactory, request.SubmissionId, result);
                     
+                    lock (_countLock)
+                    {
+                        _queuedCount--;
+                    }
+                    
                     _logger.LogInformation("Completed AI analysis for submission {SubmissionId}: Title='{Title}', Rating={Rating}",
                         request.SubmissionId, result.Title, result.Rating);
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Network error while analyzing submission {SubmissionId}: Ollama may be unavailable", request.SubmissionId);
+                
+                using (IServiceScope scope = _serviceProvider.CreateScope())
+                {
+                    IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+                    await UpdateStatusAsync(contextFactory, request.SubmissionId,
+                        AiProcessingStatus.Failed, error: "Ollama service unavailable", completedTime: DateTime.UtcNow);
+                }
+                
+                lock (_countLock)
+                {
+                    _queuedCount--;
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to parse AI response for submission {SubmissionId}", request.SubmissionId);
+                
+                using (IServiceScope scope = _serviceProvider.CreateScope())
+                {
+                    IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+                    await UpdateStatusAsync(contextFactory, request.SubmissionId,
+                        AiProcessingStatus.Failed, error: "AI response parsing failed", completedTime: DateTime.UtcNow);
+                }
+                
+                lock (_countLock)
+                {
+                    _queuedCount--;
                 }
             }
             catch (Exception ex)
@@ -78,6 +125,11 @@ public class AiProcessingBackgroundService : BackgroundService
                     IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
                     await UpdateStatusAsync(contextFactory, request.SubmissionId,
                         AiProcessingStatus.Failed, error: ex.Message, completedTime: DateTime.UtcNow);
+                }
+                
+                lock (_countLock)
+                {
+                    _queuedCount--;
                 }
             }
         }
