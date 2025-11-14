@@ -46,15 +46,24 @@ public class CompositionRuleService
         new()
         {
             Id = 5,
-            Name = "Symmetry & Asymmetry",
-            Description = "Create balance through symmetrical compositions or add interest with deliberate asymmetry.",
-            SampleImagePath = "/samples/symmetry-asymmetry.jpg",
-            DetailedExplanation = "Symmetry in photography can create a sense of balance, harmony, and often evokes a feeling of calm. Asymmetrical compositions can be more dynamic and interesting, creating tension and visual interest. Both approaches are valid - symmetry for formal, structured shots, and asymmetry for more creative, energetic images."
+            Name = "Symmetry",
+            Description = "Create balance through symmetrical compositions.",
+            SampleImagePath = "/samples/symmetry.jpg",
+            DetailedExplanation = "Symmetry in photography can create a sense of balance, harmony, and often evokes a feeling of calm. Symmetrical compositions place visual elements so that both sides of the frame mirror each other, producing a formal and restful image."
         },
 
         new()
         {
             Id = 6,
+            Name = "Asymmetry",
+            Description = "Add interest with deliberate asymmetry.",
+            SampleImagePath = "/samples/asymmetry.jpg",
+            DetailedExplanation = "Asymmetrical compositions are dynamic and interesting, creating tension and visual interest by placing elements off-center. They can produce energy and movement in a photograph while still maintaining visual balance through contrast, color, or negative space."
+        },
+
+        new()
+        {
+            Id = 7,
             Name = "Patterns & Repetition",
             Description = "Find and photograph repeating patterns, shapes, or colors that create visual rhythm.",
             SampleImagePath = "/samples/patterns-repetition.jpg",
@@ -63,7 +72,7 @@ public class CompositionRuleService
 
         new()
         {
-            Id = 7,
+            Id = 8,
             Name = "Golden Ratio",
             Description = "Use the Golden Ratio (approximately 1.618:1) to create naturally pleasing compositions based on mathematical proportions found in nature.",
             SampleImagePath = "/samples/golden-ratio.jpg",
@@ -72,7 +81,7 @@ public class CompositionRuleService
 
         new()
         {
-            Id = 8,
+            Id = 9,
             Name = "Diagonals",
             Description = "Use diagonal lines to add dynamic energy and movement to your photographs.",
             SampleImagePath = "/samples/diagonals.jpg",
@@ -81,7 +90,7 @@ public class CompositionRuleService
 
         new()
         {
-            Id = 9,
+            Id = 10,
             Name = "Center Dominant Eye",
             Description = "Place the most important element or subject at the center of the frame to create impact and draw immediate attention.",
             SampleImagePath = "/samples/center-dominant-eye.jpg",
@@ -90,7 +99,7 @@ public class CompositionRuleService
 
         new()
         {
-            Id = 10,
+            Id = 11,
             Name = "Picture to Ground",
             Description = "Consider the relationship between the subject (figure) and the background (ground), ensuring clear separation and contrast.",
             SampleImagePath = "/samples/picture-to-ground.jpg",

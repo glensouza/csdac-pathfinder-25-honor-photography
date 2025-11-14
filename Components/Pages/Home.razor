@@ -10,38 +10,20 @@
     <div class="text-center mb-5">
         <h1 class="display-4">Photography Honor</h1>
         <p class="lead">CSDAC Pathfinders - 2025</p>
-        <p class="text-muted">Learn the 10 essential photography composition rules</p>
+        <p class="text-muted">Learn the composition rules</p>
     </div>
 
     <div class="alert alert-info mb-4">
         <h4>📸 Your Mission</h4>
-        <p class="mb-0">Submit 10 photos, one for each composition rule below. Describe how you applied each rule in your photo. 
+        <p class="mb-0">Submit one photo for each composition rule below. Describe how you applied each rule in your photo. 
         Use the <a href="/submit" class="alert-link">Submit Photos</a> page to upload your work!</p>
     </div>
 
-    <h2 class="mb-4">10 Composition Rules</h2>
+    <h2 class="mb-4">11 Composition Rules</h2>
 
-    @foreach (CompositionRule rule in rules)
+    @foreach (var rule in rules)
     {
-        <div class="card mb-4">
-            <div class="row g-0">
-                <div class="col-md-4">
-                    <div class="sample-image-placeholder">
-                        <img src="@rule.SampleImagePath" 
-                             alt="@rule.Name example" 
-                             class="img-fluid rounded-start"
-                             onerror="this.src='/placeholder.svg?text=Sample+Photo&height=300&width=400'" />
-                    </div>
-                </div>
-                <div class="col-md-8">
-                    <div class="card-body">
-                        <h5 class="card-title">@rule.Id. @rule.Name</h5>
-                        <p class="card-text"><strong>@rule.Description</strong></p>
-                        <p class="card-text text-muted">@rule.DetailedExplanation</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <RuleCard Rule="rule" />
     }
 
     <div class="text-center mt-5 mb-4">
@@ -67,7 +49,7 @@
 </style>
 
 @code {
-    private List<CompositionRule> rules = [];
+    private List<CompositionRule> rules = new();
 
     protected override void OnInitialized()
     {

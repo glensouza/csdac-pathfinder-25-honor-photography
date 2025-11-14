@@ -156,6 +156,28 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
     }
 
     /// <summary>
+    /// Get top photos for a specific composition rule, optionally filtered by grade status
+    /// </summary>
+    public async Task<List<PhotoSubmission>> GetTopPhotosByRuleAsync(int compositionRuleId, GradeStatus? gradeStatus = null, int count = 20)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+
+        IQueryable<PhotoSubmission> query = context.PhotoSubmissions
+            .Where(s => s.CompositionRuleId == compositionRuleId);
+
+        if (gradeStatus != null)
+        {
+            query = query.Where(s => s.GradeStatus == gradeStatus.Value);
+        }
+
+        return await query
+            .OrderByDescending(s => s.EloRating)
+            .ThenByDescending(s => s.SubmissionDate)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    /// <summary>
     /// Get vote count for a specific photo
     /// </summary>
     public async Task<int> GetVoteCountForPhotoAsync(int photoId)
@@ -232,5 +254,42 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         }
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Get top photos for many rules in a single query using a window function.
+    /// Returns a dictionary keyed by CompositionRuleId with up to perRuleCount items each.
+    /// If gradeStatus is null, no grade filtering is applied (All).
+    /// </summary>
+    public async Task<Dictionary<int, List<PhotoSubmission>>> GetTopPhotosByRuleBulkAsync(GradeStatus? gradeStatus, int perRuleCount = 3)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+
+        // Use a CTE with ROW_NUMBER() partitioned by CompositionRuleId to select top N per rule
+        List<PhotoSubmission> results = await context.PhotoSubmissions
+            .FromSqlInterpolated($@"
+                WITH ranked AS (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY ""CompositionRuleId"" ORDER BY ""EloRating"" DESC, ""SubmissionDate"" DESC) AS rn
+                    FROM ""PhotoSubmissions""
+                    WHERE ({(gradeStatus == null)} OR ""GradeStatus"" = {(int?)gradeStatus})
+                )
+                SELECT * FROM ranked WHERE rn <= {perRuleCount}")
+            .AsNoTracking()
+            .ToListAsync();
+
+        Dictionary<int, List<PhotoSubmission>> grouped = new Dictionary<int, List<PhotoSubmission>>();
+
+        foreach (PhotoSubmission photo in results)
+        {
+            int key = photo.CompositionRuleId;
+            if (!grouped.ContainsKey(key))
+            {
+                grouped[key] = new List<PhotoSubmission>();
+            }
+
+            grouped[key].Add(photo);
+        }
+
+        return grouped;
     }
 }

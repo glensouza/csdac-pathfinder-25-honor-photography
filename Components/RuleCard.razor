@@ -1,0 +1,25 @@
+@using PathfinderPhotography.Models
+@inherits Microsoft.AspNetCore.Components.ComponentBase
+
+@code {
+    [Parameter]
+    public CompositionRule Rule { get; set; } = new();
+}
+
+<div class="card mb-4">
+    <div class="row g-0">
+        <div class="col-md-4">
+            <div class="sample-image-placeholder">
+                <img src="@Rule.SampleImagePath" alt="@Rule.Name example" class="img-fluid rounded-start"
+                     onerror="this.src='/placeholder.svg?text=Sample+Photo&height=300&width=400'" />
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card-body">
+                <h5 class="card-title">@Rule.Id. @Rule.Name</h5>
+                <p class="card-text"><strong>@Rule.Description</strong></p>
+                <p class="card-text text-muted">@Rule.DetailedExplanation</p>
+            </div>
+        </div>
+    </div>
+</div>
