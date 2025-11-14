@@ -196,6 +196,36 @@
                     }
                     <p><strong>Description:</strong></p>
                     <p>@selectedSubmission.Description</p>
+                    
+                    @if (!string.IsNullOrEmpty(selectedSubmission.AiTitle) || 
+                         !string.IsNullOrEmpty(selectedSubmission.AiDescription) || 
+                         selectedSubmission.AiRating.HasValue)
+                    {
+                        <hr />
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">🤖 AI Analysis (for reference)</h6>
+                            
+                            @if (!string.IsNullOrEmpty(selectedSubmission.AiTitle))
+                            {
+                                <p class="mb-1"><strong>AI Title:</strong> @selectedSubmission.AiTitle</p>
+                            }
+                            
+                            @if (selectedSubmission.AiRating.HasValue)
+                            {
+                                <p class="mb-1">
+                                    <strong>AI Composition Rating:</strong> 
+                                    <span class="badge @GetAiRatingBadgeClass(selectedSubmission.AiRating.Value)">
+                                        @selectedSubmission.AiRating/10
+                                    </span>
+                                </p>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(selectedSubmission.AiDescription))
+                            {
+                                <p class="mb-0"><strong>AI Insights:</strong> @selectedSubmission.AiDescription</p>
+                            }
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     @if (selectedSubmission.GradeStatus == GradeStatus.NotGraded)
@@ -312,5 +342,16 @@
     private void CloseModal()
     {
         selectedSubmission = null;
+    }
+
+    private string GetAiRatingBadgeClass(int rating)
+    {
+        return rating switch
+        {
+            >= 8 => "bg-success",
+            >= 6 => "bg-info",
+            >= 4 => "bg-warning",
+            _ => "bg-danger"
+        };
     }
 }
