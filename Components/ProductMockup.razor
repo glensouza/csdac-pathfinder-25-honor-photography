@@ -34,20 +34,32 @@
         else if (selectedProduct == "Coffee Mug")
         {
             <div class="mug-mockup">
-                <div class="mug-body">
-                    <div class="mug-photo-wrap">
-                        <img src="@ImageSrc" alt="Photo on mug" class="product-photo" />
+                <div class="mug-surface">
+                    <div class="mug-body-left"></div>
+                    <div class="mug-body-center">
+                        <div class="mug-photo-wrap">
+                            <img src="@ImageSrc" alt="Photo on mug" class="product-photo mug-photo" />
+                        </div>
                     </div>
+                    <div class="mug-body-right"></div>
                     <div class="mug-handle"></div>
+                    <div class="mug-rim"></div>
+                    <div class="mug-base"></div>
                 </div>
             </div>
         }
         else if (selectedProduct == "T-Shirt")
         {
             <div class="tshirt-mockup">
+                <div class="tshirt-background"></div>
                 <div class="tshirt-body">
-                    <div class="tshirt-print">
-                        <img src="@ImageSrc" alt="Photo on t-shirt" class="product-photo" />
+                    <div class="tshirt-collar"></div>
+                    <div class="tshirt-sleeve-left"></div>
+                    <div class="tshirt-sleeve-right"></div>
+                    <div class="tshirt-torso">
+                        <div class="tshirt-print">
+                            <img src="@ImageSrc" alt="Photo on t-shirt" class="product-photo" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -144,66 +156,204 @@
         overflow: hidden;
     }
 
-    /* Coffee Mug Mockup */
+    /* Coffee Mug Mockup - Improved 3D */
     .mug-mockup {
         position: relative;
-        width: 250px;
-        height: 200px;
+        width: 280px;
+        height: 240px;
+        perspective: 1000px;
     }
 
-    .mug-body {
+    .mug-surface {
         position: relative;
-        width: 180px;
-        height: 180px;
-        background: linear-gradient(90deg, #fff 0%, #f0f0f0 50%, #fff 100%);
-        border-radius: 20px;
-        box-shadow: 5px 5px 20px rgba(0,0,0,0.2);
+        width: 100%;
+        height: 100%;
+        transform-style: preserve-3d;
+    }
+
+    .mug-body-left {
+        position: absolute;
+        left: 0;
+        top: 20px;
+        width: 30px;
+        height: 160px;
+        background: linear-gradient(90deg, #d0d0d0 0%, #e8e8e8 100%);
+        border-radius: 15px 0 0 15px;
+        box-shadow: inset -3px 0 5px rgba(0,0,0,0.1);
+    }
+
+    .mug-body-center {
+        position: absolute;
+        left: 30px;
+        top: 20px;
+        width: 160px;
+        height: 160px;
+        background: linear-gradient(180deg, #f8f8f8 0%, #ffffff 50%, #f0f0f0 100%);
+        border-radius: 8px;
+        overflow: visible;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .mug-body-right {
+        position: absolute;
+        right: 40px;
+        top: 20px;
+        width: 30px;
+        height: 160px;
+        background: linear-gradient(90deg, #e8e8e8 0%, #d0d0d0 100%);
+        border-radius: 0 15px 15px 0;
+        box-shadow: inset 3px 0 5px rgba(0,0,0,0.1);
     }
 
     .mug-photo-wrap {
         position: absolute;
-        top: 20px;
-        left: 20px;
-        right: 40px;
-        bottom: 20px;
-        border-radius: 15px;
+        top: 15px;
+        left: 10px;
+        right: 10px;
+        bottom: 15px;
+        border-radius: 5px;
         overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .mug-photo {
+        transform: perspective(800px) rotateY(-2deg);
     }
 
     .mug-handle {
         position: absolute;
-        right: -40px;
-        top: 40px;
-        width: 60px;
-        height: 100px;
-        border: 15px solid #e0e0e0;
+        right: -5px;
+        top: 50px;
+        width: 50px;
+        height: 80px;
+        border: 12px solid #e0e0e0;
         border-left: none;
-        border-radius: 0 50px 50px 0;
+        border-radius: 0 40px 40px 0;
+        box-shadow: inset -2px 0 5px rgba(0,0,0,0.15), 3px 3px 8px rgba(0,0,0,0.2);
     }
 
-    /* T-Shirt Mockup */
+    .mug-rim {
+        position: absolute;
+        left: 30px;
+        top: 15px;
+        width: 160px;
+        height: 10px;
+        background: linear-gradient(180deg, #f5f5f5 0%, #e0e0e0 100%);
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .mug-base {
+        position: absolute;
+        left: 35px;
+        bottom: 55px;
+        width: 150px;
+        height: 8px;
+        background: linear-gradient(180deg, #d0d0d0 0%, #e8e8e8 100%);
+        border-radius: 50%;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    }
+
+    /* T-Shirt Mockup - Improved Realism */
     .tshirt-mockup {
-        width: 300px;
-        height: 350px;
+        width: 320px;
+        height: 380px;
         position: relative;
     }
 
-    .tshirt-body {
+    .tshirt-background {
+        position: absolute;
         width: 100%;
         height: 100%;
-        background: #4a90e2;
-        clip-path: polygon(20% 0%, 80% 0%, 100% 15%, 100% 100%, 0% 100%, 0% 15%);
+        background: linear-gradient(135deg, #f0f0f0 0%, #ffffff 100%);
+        border-radius: 8px;
+    }
+
+    .tshirt-body {
+        position: relative;
+        width: 100%;
+        height: 100%;
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 3rem 2rem;
+    }
+
+    .tshirt-collar {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 30px;
+        background: #3a7bc8;
+        border-radius: 50% 50% 0 0;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+
+    .tshirt-collar::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 20px;
+        background: #2d5fa0;
+        border-radius: 0 0 20px 20px;
+    }
+
+    .tshirt-sleeve-left {
+        position: absolute;
+        top: 40px;
+        left: 20px;
+        width: 80px;
+        height: 100px;
+        background: linear-gradient(135deg, #4a90e2 0%, #3a7bc8 100%);
+        border-radius: 40px 40px 20px 40px;
+        transform: rotate(-20deg);
+        box-shadow: -3px 3px 10px rgba(0,0,0,0.2);
+    }
+
+    .tshirt-sleeve-right {
+        position: absolute;
+        top: 40px;
+        right: 20px;
+        width: 80px;
+        height: 100px;
+        background: linear-gradient(225deg, #4a90e2 0%, #3a7bc8 100%);
+        border-radius: 40px 40px 40px 20px;
+        transform: rotate(20deg);
+        box-shadow: 3px 3px 10px rgba(0,0,0,0.2);
+    }
+
+    .tshirt-torso {
+        position: absolute;
+        top: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 220px;
+        height: 300px;
+        background: linear-gradient(180deg, #4a90e2 0%, #3675c9 50%, #2d5fa0 100%);
+        border-radius: 20px 20px 30px 30px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3), inset 0 -10px 20px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding-top: 40px;
     }
 
     .tshirt-print {
-        width: 150px;
-        height: 150px;
+        width: 140px;
+        height: 140px;
         border-radius: 8px;
         overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        background: white;
+        padding: 8px;
+    }
+
+    .tshirt-print img {
+        border-radius: 4px;
     }
 
     /* Greeting Card Mockup */
