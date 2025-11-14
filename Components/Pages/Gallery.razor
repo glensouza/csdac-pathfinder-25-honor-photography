@@ -58,26 +58,33 @@
                                 {
                                     <span class="badge bg-warning">v@submission.SubmissionVersion</span>
                                 }
+                                @if (submission.AiRating.HasValue)
+                                {
+                                    <span class="badge bg-info">AI: @submission.AiRating/10</span>
+                                }
                             </h6>
                             <p class="card-text">
                                 <strong>By:</strong> @submission.PathfinderName<br />
                                 <small class="text-muted">@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
                             </p>
-                            <div>
-                                @switch (submission.GradeStatus)
-                                {
-                                    case GradeStatus.NotGraded:
-                                        <span class="badge bg-secondary">Not Graded</span>
-                                        break;
-                                    case GradeStatus.Pass:
-                                        <span class="badge bg-success">✓ Pass</span>
-                                        break;
-                                    case GradeStatus.Fail:
-                                        <span class="badge bg-danger">✗ Fail</span>
-                                        break;
-                                    default:
-                                        throw new ArgumentOutOfRangeException();
-                                }
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    @switch (submission.GradeStatus)
+                                    {
+                                        case GradeStatus.NotGraded:
+                                            <span class="badge bg-secondary">Not Graded</span>
+                                            break;
+                                        case GradeStatus.Pass:
+                                            <span class="badge bg-success">✓ Pass</span>
+                                            break;
+                                        case GradeStatus.Fail:
+                                            <span class="badge bg-danger">✗ Fail</span>
+                                            break;
+                                        default:
+                                            throw new ArgumentOutOfRangeException();
+                                    }
+                                </div>
+                                <a href="/photo/@submission.Id" class="btn btn-sm btn-outline-primary">Details</a>
                             </div>
                         </div>
                     </div>
