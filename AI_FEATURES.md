@@ -220,18 +220,81 @@ Check logs for specific error messages.
 - **Background Processing**: Analysis runs in a separate task
 - **Fault Tolerant**: Failures don't prevent photo submission
 - **Database Stored**: Results are cached in the database (not regenerated on view)
+- **No Automatic Retry**: Failed analyses must be manually retried via admin page
+
+### Current Architecture
+
+The current implementation processes each photo individually:
+1. Photo submitted → saved to database immediately
+2. Background task starts AI analysis for that photo
+3. Vision model analyzes image (generates title, description, rating)
+4. Text model generates marketing content
+5. Results saved to database
+
+**Processing Time**: 30-60 seconds per photo depending on:
+- Model size (smaller = faster)
+- Hardware (GPU = much faster)
+- Image size
+- Ollama server load
+
+### Performance Optimization Considerations
+
+**Model Switching Overhead**
+
+The current architecture calls the vision model, then switches to the text model for each photo. In high-volume scenarios (many photos submitted in short time), this causes frequent model switching which has overhead.
+
+**Potential Batch Processing Approach** (Future Enhancement)
+
+For production environments with high submission volume, consider implementing batch processing:
+
+```
+Option 1: Time-based batching (e.g., every 5 minutes)
+- Collect all new submissions
+- Process all vision analysis together (one model load)
+- Process all text generation together (one model load)
+- Reduces model switching, improves throughput
+
+Option 2: Queue-based batching
+- Queue submissions needing AI analysis
+- Process in batches when queue reaches threshold (e.g., 5 photos)
+- Trade-off: slightly longer wait for individual photos, but better overall throughput
+```
+
+**Current Trade-offs**
+
+The current per-photo approach prioritizes:
+- ✅ Simplicity - Easy to understand and maintain
+- ✅ Immediate processing - Each photo analyzed as soon as submitted
+- ✅ Independent failures - One photo failure doesn't affect others
+- ❌ Model switching overhead - May be inefficient at high volume
+
+**When to Consider Batching**
+
+Consider implementing batch processing if:
+- Receiving > 10 photo submissions per minute
+- Model switching delays are measurable (> 5 seconds per switch)
+- Running on hardware where model loading is expensive (CPU-only)
+- Acceptable to delay AI analysis by a few minutes for efficiency
+
+**Current Recommendation**
+
+For typical Pathfinder class sizes (10-30 students), the current architecture is sufficient. Students submit photos at different times, so the overhead is minimal. Batch processing would add complexity without significant benefit for this use case.
 
 ## Future Enhancements
 
 Potential improvements for future versions:
 
+- [ ] Batch processing for high-volume scenarios
 - [ ] Support for cloud AI providers (Azure OpenAI, OpenAI, Anthropic) as alternatives
 - [ ] Batch re-analysis of existing photos
-- [ ] Admin UI to trigger AI analysis manually
+- [x] Admin UI to trigger AI analysis manually ✅
 - [ ] Model selection per photo
 - [ ] AI-powered photo comparison for voting
 - [ ] Automatic composition rule detection
 - [ ] Photo editing suggestions
+- [ ] Automatic retry on transient failures
+- [ ] Queue monitoring dashboard
+- [ ] AI analysis progress tracking
 
 ## Model Recommendations
 
