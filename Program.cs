@@ -83,6 +83,7 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<VotingService>();
 builder.Services.AddScoped<PdfExportService>();
 builder.Services.AddScoped<EmailNotificationService>();
+builder.Services.AddScoped<CertificateService>();
 
 WebApplication app = builder.Build();
 

@@ -1,0 +1,225 @@
+@page "/my-certificate"
+@using System.Security.Claims
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@inject CertificateService CertificateService
+@inject UserService UserService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>My Certificate</PageTitle>
+
+<div class="container mt-4">
+    <h1>🎓 My Completion Certificate</h1>
+    <p class="lead">View and download your Photography Honor completion certificate</p>
+
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading certificate information...</p>
+        </div>
+    }
+    else if (certificate != null)
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">🎉 Congratulations!</h4>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">You have completed all composition requirements!</h5>
+                        <p class="card-text">
+                            You have successfully demonstrated mastery of all 11 composition rules and earned your 
+                            <strong>Pathfinder Photography Honor</strong>.
+                        </p>
+                        
+                        <div class="row mt-3">
+                            <div class="col-sm-6">
+                                <p><strong>Completion Date:</strong><br/>@certificate.CompletionDate.ToString("MMMM dd, yyyy")</p>
+                            </div>
+                            <div class="col-sm-6">
+                                <p><strong>Certificate Issued:</strong><br/>@certificate.IssuedDate.ToString("MMMM dd, yyyy")</p>
+                            </div>
+                        </div>
+
+                        @if (certificate.EmailSent && certificate.EmailSentDate.HasValue)
+                        {
+                            <div class="alert alert-info mt-3">
+                                <small>
+                                    <i class="bi bi-envelope-check"></i> 
+                                    Certificate was emailed to you on @certificate.EmailSentDate.Value.ToString("MMMM dd, yyyy")
+                                </small>
+                            </div>
+                        }
+
+                        <div class="mt-4">
+                            <button class="btn btn-success btn-lg" @onclick="DownloadCertificate" disabled="@isDownloading">
+                                @if (isDownloading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span>Downloading...</span>
+                                }
+                                else
+                                {
+                                    <span>📄 Download Certificate</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (hasCompleted)
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning">
+                        <h4 class="mb-0">🎉 Congratulations!</h4>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">You have completed all composition requirements!</h5>
+                        <p class="card-text">
+                            Your certificate is being generated. Please check back in a moment or contact an instructor 
+                            to issue your certificate.
+                        </p>
+                        
+                        <div class="mt-4">
+                            <button class="btn btn-primary" @onclick="RefreshPage">
+                                <span>🔄 Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Keep Working!</h5>
+                        <p class="card-text">
+                            You haven't completed all composition requirements yet. Keep submitting photos and 
+                            getting them graded to earn your certificate!
+                        </p>
+                        
+                        @if (passedRulesCount > 0)
+                        {
+                            <div class="progress mt-3" style="height: 30px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: @progressPercentage%;" 
+                                     aria-valuenow="@passedRulesCount" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="@totalRulesCount">
+                                    @passedRulesCount / @totalRulesCount Rules Passed
+                                </div>
+                            </div>
+                            <p class="mt-2 text-center">
+                                <strong>@progressPercentage%</strong> Complete
+                            </p>
+                        }
+                        
+                        <div class="mt-4">
+                            <a href="/submit" class="btn btn-primary me-2">📷 Submit Photos</a>
+                            <a href="/gallery" class="btn btn-outline-secondary">🖼️ View Gallery</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a href="/" class="btn btn-outline-secondary">← Back to Home</a>
+    </div>
+</div>
+
+@code {
+    private bool isLoading = true;
+    private bool isDownloading = false;
+    private bool hasCompleted = false;
+    private CompletionCertificate? certificate = null;
+    private int passedRulesCount = 0;
+    private int totalRulesCount = 11;
+    private int progressPercentage = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            string currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+            string currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
+            
+            if (!string.IsNullOrEmpty(currentUserEmail))
+            {
+                await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
+                
+                // Check if certificate exists
+                certificate = await CertificateService.GetCertificateAsync(currentUserEmail);
+                
+                // Check if user has completed all rules
+                hasCompleted = await CertificateService.HasCompletedAllRulesAsync(currentUserEmail);
+                
+                // Calculate progress (this is a simple implementation - you may want to add this to CertificateService)
+                // For now, we'll just set it based on completion
+                if (certificate != null || hasCompleted)
+                {
+                    passedRulesCount = totalRulesCount;
+                    progressPercentage = 100;
+                }
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private async Task DownloadCertificate()
+    {
+        if (certificate == null || certificate.CertificatePdfData == null)
+        {
+            return;
+        }
+
+        isDownloading = true;
+        StateHasChanged();
+
+        try
+        {
+            string fileName = $"Photography_Honor_Certificate_{certificate.PathfinderName.Replace(" ", "_")}_{certificate.CompletionDate:yyyyMMdd}.pdf";
+            string base64 = Convert.ToBase64String(certificate.CertificatePdfData);
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error downloading certificate: {ex.Message}");
+        }
+        finally
+        {
+            isDownloading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshPage()
+    {
+        isLoading = true;
+        StateHasChanged();
+        await OnInitializedAsync();
+    }
+}
