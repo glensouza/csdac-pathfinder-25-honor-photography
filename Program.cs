@@ -43,20 +43,20 @@ builder.Services.AddServerSideBlazor()
 
 // Add authentication services
 builder.Services.AddAuthentication(options =>
-{
- options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
- options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
-})
-.AddCookie(options =>
-{
- options.LoginPath = "/login";
- options.LogoutPath = "/logout";
-})
-.AddGoogle(options =>
-{
- options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "";
- options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
-});
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+    })
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+        options.LogoutPath = "/logout";
+    })
+    .AddGoogle(options =>
+    {
+        options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "";
+        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
+    });
 
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
@@ -64,13 +64,16 @@ builder.Services.AddCascadingAuthenticationState();
 // Add database context
 builder.Services.AddDbContextFactory<ApplicationDbContext>((sp, options) =>
 {
- string? cs = builder.Configuration.GetConnectionString("pathfinder-photography");
- if (string.IsNullOrWhiteSpace(cs))
- {
- throw new InvalidOperationException("Missing connection string 'pathfinder-photography'.");
- }
+    string? cs = builder.Configuration.GetConnectionString("pathfinder-photography");
+    if (string.IsNullOrWhiteSpace(cs))
+    {
+        throw new InvalidOperationException("Missing connection string 'pathfinder-photography'.");
+    }
 
- options.UseNpgsql(cs);
+    options.UseNpgsql(cs, npgsqlOptions =>
+    {
+        npgsqlOptions.CommandTimeout(60); // seconds
+    });
 });
 
 // Add custom services
