@@ -9,6 +9,7 @@
 @inject UserService UserService
 @inject CompositionRuleService RuleService
 @inject PdfExportService PdfExportService
+@inject CertificateService CertificateService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JSRuntime
 @attribute [Authorize]
@@ -89,6 +90,48 @@
                             else
                             {
                                 <span>📄 Generate Progress Report</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Completion Certificates</h5>
+                        <p class="card-text">Send completion certificates to eligible pathfinders.</p>
+                        
+                        <button class="btn btn-info" @onclick="ProcessCompletionCertificates" disabled="@isExporting">
+                            @if (isExporting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Processing...</span>
+                            }
+                            else
+                            {
+                                <span>🎓 Process & Send Certificates</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Top Photos Reports</h5>
+                        <p class="card-text">Send personalized top photos reports to pathfinders with ranked photos.</p>
+                        
+                        <button class="btn btn-warning" @onclick="SendTopPhotosReports" disabled="@isExporting">
+                            @if (isExporting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Processing...</span>
+                            }
+                            else
+                            {
+                                <span>🏆 Send Top Photos Reports</span>
                             }
                         </button>
                     </div>
@@ -235,5 +278,53 @@
     {
         string base64 = Convert.ToBase64String(data);
         await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private async Task ProcessCompletionCertificates()
+    {
+        isExporting = true;
+        isError = false;
+        statusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            await CertificateService.ProcessNewCompletionsAsync();
+            statusMessage = "Completion certificates processed and sent successfully!";
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            statusMessage = $"Error processing certificates: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendTopPhotosReports()
+    {
+        isExporting = true;
+        isError = false;
+        statusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            await CertificateService.SendTopPhotosReportsAsync();
+            statusMessage = "Top photos reports sent successfully!";
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            statusMessage = $"Error sending top photos reports: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
     }
 }

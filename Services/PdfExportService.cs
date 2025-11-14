@@ -154,7 +154,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                     logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
                     column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
                 {
                     logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
                     column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
@@ -262,5 +262,297 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
             column.Item().Text($"Failed: {failedRules} submissions").FontColor(Colors.Red.Medium);
             column.Item().Text($"Not Started: {notStarted} rules");
         });
+    }
+
+    public async Task<byte[]> GenerateCompletionCertificateAsync(string pathfinderEmail)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        
+        List<PhotoSubmission> submissions = await context.PhotoSubmissions
+            .Where(s => s.PathfinderEmail == pathfinderEmail)
+            .ToListAsync();
+
+        if (submissions.Count == 0)
+        {
+            throw new InvalidOperationException("No submissions found for this pathfinder.");
+        }
+
+        string pathfinderName = submissions.First().PathfinderName;
+        List<CompositionRule> allRules = ruleService.GetAllRules();
+
+        // Check if all rules are passed
+        HashSet<int> passedRuleIds = submissions
+            .Where(s => s.GradeStatus == GradeStatus.Pass)
+            .Select(s => s.CompositionRuleId)
+            .ToHashSet();
+
+        if (passedRuleIds.Count < allRules.Count)
+        {
+            throw new InvalidOperationException($"Not all composition rules have been passed. Passed: {passedRuleIds.Count}/{allRules.Count}");
+        }
+
+        DateTime completionDate = submissions
+            .Where(s => s.GradeStatus == GradeStatus.Pass)
+            .Max(s => s.GradedDate ?? s.SubmissionDate);
+
+        Document document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(2, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(14));
+
+                page.Content()
+                    .PaddingVertical(2, Unit.Centimetre)
+                    .Column(column =>
+                    {
+                        column.Spacing(20);
+
+                        // Certificate border
+                        column.Item().Border(3).BorderColor(Colors.Blue.Darken2).Padding(30).Column(innerColumn =>
+                        {
+                            innerColumn.Spacing(25);
+
+                            // Title
+                            innerColumn.Item().AlignCenter().Text("Certificate of Completion")
+                                .FontSize(36)
+                                .SemiBold()
+                                .FontColor(Colors.Blue.Darken2);
+
+                            innerColumn.Item().AlignCenter().Text("Pathfinder Photography Honor")
+                                .FontSize(24)
+                                .FontColor(Colors.Blue.Medium);
+
+                            // Decorative line
+                            innerColumn.Item().PaddingVertical(10).AlignCenter()
+                                .Width(400).Height(2).Background(Colors.Blue.Lighten2);
+
+                            // Main text
+                            innerColumn.Item().PaddingTop(20).AlignCenter().Text("This certifies that")
+                                .FontSize(18);
+
+                            innerColumn.Item().AlignCenter().Text(pathfinderName)
+                                .FontSize(32)
+                                .Bold()
+                                .FontColor(Colors.Blue.Darken3);
+
+                            innerColumn.Item().PaddingTop(10).AlignCenter()
+                                .Text("has successfully completed all composition requirements")
+                                .FontSize(18);
+
+                            innerColumn.Item().AlignCenter()
+                                .Text("for the Pathfinder Photography Honor")
+                                .FontSize(18);
+
+                            // Composition rules completed
+                            innerColumn.Item().PaddingTop(20).AlignCenter().Text($"All {allRules.Count} Composition Rules Mastered:")
+                                .FontSize(14)
+                                .SemiBold();
+
+                            innerColumn.Item().AlignCenter().PaddingHorizontal(40)
+                                .DefaultTextStyle(x => x.FontSize(11).FontColor(Colors.Grey.Darken2))
+                                .Text(text =>
+                                {
+                                    foreach (CompositionRule rule in allRules)
+                                    {
+                                        text.Span($"{rule.Name}");
+                                        if (rule.Id < allRules.Count)
+                                        {
+                                            text.Span(" • ");
+                                        }
+                                    }
+                                });
+
+                            // Date
+                            innerColumn.Item().PaddingTop(30).AlignCenter()
+                                .Text($"Date of Completion: {completionDate:MMMM dd, yyyy}")
+                                .FontSize(16)
+                                .FontColor(Colors.Grey.Darken1);
+
+                            // Footer
+                            innerColumn.Item().PaddingTop(20).AlignCenter()
+                                .Text("Congratulations on your achievement!")
+                                .FontSize(14)
+                                .Italic()
+                                .FontColor(Colors.Blue.Medium);
+                        });
+                    });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    public async Task<byte[]> GenerateTopPhotosReportAsync(string pathfinderEmail)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        
+        List<CompositionRule> allRules = ruleService.GetAllRules();
+        
+        // Get top 3 photos for each rule (passed and failed)
+        Dictionary<int, List<PhotoSubmission>> topPhotosByRule = new Dictionary<int, List<PhotoSubmission>>();
+        
+        foreach (CompositionRule rule in allRules)
+        {
+            List<PhotoSubmission> topPhotos = await context.PhotoSubmissions
+                .Where(s => s.CompositionRuleId == rule.Id)
+                .OrderByDescending(s => s.EloRating)
+                .ThenByDescending(s => s.SubmissionDate)
+                .Take(3)
+                .ToListAsync();
+            
+            if (topPhotos.Any())
+            {
+                topPhotosByRule[rule.Id] = topPhotos;
+            }
+        }
+
+        // Check if pathfinder has any photos in the top lists
+        bool hasPhotosInList = topPhotosByRule.Values
+            .Any(photos => photos.Any(p => p.PathfinderEmail.Equals(pathfinderEmail, StringComparison.OrdinalIgnoreCase)));
+
+        if (!hasPhotosInList)
+        {
+            throw new InvalidOperationException("Pathfinder has no photos in the top 3 for any composition rule.");
+        }
+
+        string pathfinderName = await context.PhotoSubmissions
+            .Where(s => s.PathfinderEmail == pathfinderEmail)
+            .Select(s => s.PathfinderName)
+            .FirstOrDefaultAsync() ?? "Unknown";
+
+        Document document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(2, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(11));
+
+                page.Header()
+                    .Column(column =>
+                    {
+                        column.Item().Text("Top Ranked Photos Report")
+                            .SemiBold()
+                            .FontSize(20)
+                            .FontColor(Colors.Blue.Medium);
+                        column.Item().Text($"Prepared for: {pathfinderName}")
+                            .FontSize(14)
+                            .FontColor(Colors.Grey.Darken2);
+                    });
+
+                page.Content()
+                    .PaddingVertical(1, Unit.Centimetre)
+                    .Column(x =>
+                    {
+                        x.Spacing(20);
+
+                        foreach (CompositionRule rule in allRules)
+                        {
+                            if (!topPhotosByRule.TryGetValue(rule.Id, out List<PhotoSubmission>? photos) || !photos.Any())
+                            {
+                                continue;
+                            }
+
+                            // Only include rules where the pathfinder has at least one photo
+                            if (!photos.Any(p => p.PathfinderEmail.Equals(pathfinderEmail, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                continue;
+                            }
+
+                            x.Item().Element(container => this.ComposeTopPhotosForRule(container, rule, photos, pathfinderEmail));
+                        }
+                    });
+
+                page.Footer()
+                    .AlignCenter()
+                    .Text(text =>
+                    {
+                        text.Span("Page ");
+                        text.CurrentPageNumber();
+                        text.Span(" of ");
+                        text.TotalPages();
+                        text.Span(" - Generated on ");
+                        text.Span(DateTime.Now.ToString("MMMM dd, yyyy"));
+                    });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    private void ComposeTopPhotosForRule(IContainer container, CompositionRule rule, List<PhotoSubmission> photos, string highlightEmail)
+    {
+        container.Column(column =>
+        {
+            column.Spacing(10);
+            column.Item().Text($"{rule.Id}. {rule.Name}").SemiBold().FontSize(16).FontColor(Colors.Blue.Medium);
+            
+            foreach ((PhotoSubmission photo, int index) in photos.Select((p, i) => (p, i)))
+            {
+                bool isHighlighted = photo.PathfinderEmail.Equals(highlightEmail, StringComparison.OrdinalIgnoreCase);
+                
+                column.Item().Element(c => this.ComposeTopPhotoItem(c, photo, index + 1, isHighlighted));
+            }
+        });
+    }
+
+    private void ComposeTopPhotoItem(IContainer container, PhotoSubmission photo, int rank, bool isHighlighted)
+    {
+        container.Border(isHighlighted ? 3 : 1)
+            .BorderColor(isHighlighted ? Colors.Orange.Medium : Colors.Grey.Lighten2)
+            .Background(isHighlighted ? Colors.Orange.Lighten4 : Colors.White)
+            .Padding(10)
+            .Column(column =>
+            {
+                column.Spacing(5);
+
+                column.Item().Row(row =>
+                {
+                    row.RelativeItem().Text(text =>
+                    {
+                        text.Span($"#{rank} - ").SemiBold();
+                        text.Span(photo.PathfinderName);
+                        if (isHighlighted)
+                        {
+                            text.Span(" ⭐ YOUR PHOTO").Bold().FontColor(Colors.Orange.Darken2);
+                        }
+                    });
+                    row.AutoItem().Text($"Rating: {Math.Round(photo.EloRating, 0)}").FontSize(10).FontColor(Colors.Blue.Medium);
+                });
+
+                column.Item().Row(row =>
+                {
+                    row.AutoItem().Text($"Status: ");
+                    row.AutoItem().Text(GetStatusBadge(photo.GradeStatus));
+                    row.RelativeItem().AlignRight().Text($"Submitted: {photo.SubmissionDate:MMM dd, yyyy}").FontSize(9);
+                });
+
+                if (!string.IsNullOrEmpty(photo.Description))
+                {
+                    column.Item().PaddingTop(5).Text($"\"{photo.Description}\"").FontSize(9).Italic().FontColor(Colors.Grey.Darken1);
+                }
+
+                // Image rendering with error handling
+                if (photo.ImageData != null && photo.ImageData.Length > 0)
+                {
+                    try
+                    {
+                        column.Item().PaddingTop(5).MaxWidth(300).Image(photo.ImageData).FitArea();
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+                    {
+                        logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", photo.Id);
+                        column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
+                    }
+                }
+            });
     }
 }

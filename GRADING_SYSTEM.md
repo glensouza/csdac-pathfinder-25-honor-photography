@@ -143,6 +143,81 @@ Admins can delete users who shouldn't be submitting photos to the system:
 - **For Admins:** Promote instructors before the students start submitting photos
 - **For Everyone:** The Gallery page is a great way to see examples of good photos that have passed
 
+## Completion Certificates
+
+### Automatic Certificate Generation
+
+When a pathfinder successfully passes all 11 composition rules, the system automatically:
+
+1. **Generates a completion certificate** - A professional PDF certificate with the pathfinder's name and completion date
+2. **Stores it in the database** - The certificate is saved for future re-download
+3. **Emails it to the pathfinder** - An automatic email is sent with the certificate attached
+4. **Makes it available for download** - Pathfinders can access their certificate anytime from the "My Certificate" page
+
+### Accessing Your Certificate
+
+Pathfinders can view and download their completion certificate:
+
+1. Navigate to **"My Certificate"** in the navigation menu
+2. If all rules are completed:
+   - See a congratulations message
+   - View completion and issue dates
+   - Download the certificate as a PDF
+   - Re-download anytime (no limit)
+3. If not yet completed:
+   - See progress toward completion
+   - View how many rules remain
+   - Get links to submit more photos
+
+### Manual Certificate Management (Admin)
+
+Admins can manually trigger certificate generation and sending:
+
+1. Navigate to **"Admin Dashboard"** → **"Export to PDF"**
+2. Click **"Process & Send Certificates"**
+3. The system will:
+   - Check for newly completed pathfinders
+   - Generate certificates for those without one
+   - Email the certificates automatically
+
+## Top Photos Reports
+
+### Personalized Top Photos Reports
+
+The system can generate personalized PDF reports for pathfinders whose photos rank in the top 3 for any composition rule:
+
+1. **Report includes:**
+   - Top 3 photos for each composition rule
+   - Only shown if the pathfinder has at least one photo in the rankings
+   - Pathfinder's own photos are highlighted with a special border and "YOUR PHOTO" label
+   - Photo details: rank, ELO rating, grade status, and description
+   - Thumbnail images of all top photos
+
+2. **Sending Top Photos Reports (Admin):**
+   - Navigate to **"Admin Dashboard"** → **"Export to PDF"**
+   - Click **"Send Top Photos Reports"**
+   - Reports are generated and emailed to all eligible pathfinders
+
+### How Top Photos Are Ranked
+
+Photos are ranked using the ELO rating system based on community voting:
+
+- Each photo starts with a rating of 1000
+- When users vote, ratings adjust based on comparisons
+- Higher ratings indicate consistently preferred photos
+- Top 3 photos for each composition rule are featured in reports
+
+## Email Notifications
+
+The system sends automatic email notifications for:
+
+1. **Grading Notifications** - When a photo is graded (Pass or Fail)
+2. **New Submission Notifications** - Sent to instructors when pathfinders submit photos
+3. **Completion Certificates** - When a pathfinder completes all rules
+4. **Top Photos Reports** - Personalized reports for pathfinders with ranked photos
+
+**Note:** Email notifications require SMTP configuration. If not configured, the system will log notifications but won't send emails.
+
 ## Support
 
 If you encounter any issues:

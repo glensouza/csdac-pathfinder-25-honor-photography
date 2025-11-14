@@ -8,6 +8,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<PhotoSubmission> PhotoSubmissions { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<PhotoVote> PhotoVotes { get; set; }
+    public DbSet<CompletionCertificate> CompletionCertificates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +59,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             
             entity.HasIndex(e => e.VoterEmail);
             entity.HasIndex(e => new { e.VoterEmail, e.WinnerPhotoId, e.LoserPhotoId });
+        });
+
+        modelBuilder.Entity<CompletionCertificate>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PathfinderEmail).IsRequired().HasMaxLength(200).HasColumnType("citext");
+            entity.Property(e => e.PathfinderName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.CompletionDate).IsRequired();
+            entity.Property(e => e.CertificatePdfData).IsRequired();
+            entity.Property(e => e.IssuedDate).IsRequired();
+            entity.Property(e => e.EmailSent).IsRequired();
+            
+            entity.HasIndex(e => e.PathfinderEmail);
+            entity.HasIndex(e => e.CompletionDate);
         });
     }
 }

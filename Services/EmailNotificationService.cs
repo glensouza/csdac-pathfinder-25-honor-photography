@@ -100,7 +100,7 @@ Pathfinder Photography Team"
         {
             this._logger.LogError(ex, "IO error while sending grading notification for {Rule}", compositionRuleName);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Failed to send grading notification for {Rule}", compositionRuleName);
         }
@@ -183,7 +183,7 @@ Pathfinder Photography System"
         {
             this._logger.LogError(ex, "IO error while sending new submission notification");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Failed to send new submission notification");
         }
@@ -227,7 +227,7 @@ Pathfinder Photography System"
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             this._logger.LogError(ex, "Error sending email via SMTP");
             throw;
@@ -263,5 +263,190 @@ Pathfinder Photography System"
             GradeStatus.Fail => "Your submission needs improvement. Please review the composition rule and try again.",
             _ => ""
         };
+    }
+
+    public async Task SendCompletionCertificateAsync(
+        string pathfinderEmail,
+        string pathfinderName,
+        byte[] certificatePdf)
+    {
+        if (!this._isEnabled)
+        {
+            this._logger.LogDebug("Email notifications disabled, skipping certificate notification.");
+            return;
+        }
+
+        try
+        {
+            using MimeMessage message = new();
+            message.From.Add(new MailboxAddress(this._configuration["Email:FromName"] ?? "Pathfinder Photography", this._configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
+            message.To.Add(new MailboxAddress(pathfinderName, pathfinderEmail));
+            message.Subject = "Congratulations! Photography Honor Completed";
+
+            BodyBuilder bodyBuilder = new()
+            {
+                HtmlBody = $@"
+                    <html>
+                    <body style='font-family: Arial, sans-serif;'>
+                        <h2>🎉 Congratulations on Completing the Photography Honor! 🎉</h2>
+                        <p>Dear {pathfinderName},</p>
+                        <p>We are thrilled to inform you that you have successfully completed <strong>all composition requirements</strong> for the Pathfinder Photography Honor!</p>
+                        <p>Your dedication to learning and mastering the various photography composition techniques has been outstanding. You have demonstrated excellence in all 11 composition rules.</p>
+                        <p>Please find your <strong>Certificate of Completion</strong> attached to this email. You can download, print, and proudly display it as a testament to your achievement.</p>
+                        <p>This certificate is also stored in the system and can be re-downloaded at any time from your profile.</p>
+                        <p><strong>What's Next?</strong></p>
+                        <ul>
+                            <li>Continue practicing and refining your photography skills</li>
+                            <li>Share your knowledge with other Pathfinders</li>
+                            <li>Keep voting on photos to help others improve</li>
+                            <li>Consider pursuing advanced photography honors</li>
+                        </ul>
+                        <p>Once again, congratulations on this remarkable achievement!</p>
+                        <p>Best regards,<br/>Pathfinder Photography Team</p>
+                    </body>
+                    </html>",
+                TextBody = $@"
+Congratulations on Completing the Photography Honor!
+
+Dear {pathfinderName},
+
+We are thrilled to inform you that you have successfully completed all composition requirements for the Pathfinder Photography Honor!
+
+Your dedication to learning and mastering the various photography composition techniques has been outstanding. You have demonstrated excellence in all 11 composition rules.
+
+Please find your Certificate of Completion attached to this email. You can download, print, and proudly display it as a testament to your achievement.
+
+This certificate is also stored in the system and can be re-downloaded at any time from your profile.
+
+What's Next?
+- Continue practicing and refining your photography skills
+- Share your knowledge with other Pathfinders
+- Keep voting on photos to help others improve
+- Consider pursuing advanced photography honors
+
+Once again, congratulations on this remarkable achievement!
+
+Best regards,
+Pathfinder Photography Team"
+            };
+
+            // Attach certificate PDF
+            bodyBuilder.Attachments.Add("Photography_Honor_Certificate.pdf", certificatePdf, new ContentType("application", "pdf"));
+            message.Body = bodyBuilder.ToMessageBody();
+
+            await this.SendEmailAsync(message);
+            this._logger.LogInformation("Completion certificate sent to {Email}", pathfinderEmail);
+        }
+        catch (SmtpCommandException ex)
+        {
+            this._logger.LogError(ex, "SMTP command error while sending completion certificate");
+        }
+        catch (SmtpProtocolException ex)
+        {
+            this._logger.LogError(ex, "SMTP protocol error while sending completion certificate");
+        }
+        catch (FormatException ex)
+        {
+            this._logger.LogError(ex, "Email format error while sending completion certificate");
+        }
+        catch (IOException ex)
+        {
+            this._logger.LogError(ex, "IO error while sending completion certificate");
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        {
+            this._logger.LogError(ex, "Failed to send completion certificate");
+        }
+    }
+
+    public async Task SendTopPhotosReportAsync(
+        string pathfinderEmail,
+        string pathfinderName,
+        byte[] topPhotosReportPdf)
+    {
+        if (!this._isEnabled)
+        {
+            this._logger.LogDebug("Email notifications disabled, skipping top photos report.");
+            return;
+        }
+
+        try
+        {
+            using MimeMessage message = new();
+            message.From.Add(new MailboxAddress(this._configuration["Email:FromName"] ?? "Pathfinder Photography", this._configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
+            message.To.Add(new MailboxAddress(pathfinderName, pathfinderEmail));
+            message.Subject = "Your Photos in Top Rankings!";
+
+            BodyBuilder bodyBuilder = new()
+            {
+                HtmlBody = $@"
+                    <html>
+                    <body style='font-family: Arial, sans-serif;'>
+                        <h2>🏆 Your Photos Are in the Top Rankings! 🏆</h2>
+                        <p>Dear {pathfinderName},</p>
+                        <p>Great news! One or more of your photos have made it into the <strong>top 3 rankings</strong> for their composition categories!</p>
+                        <p>This achievement shows that your photography skills are being recognized by the community through our voting system.</p>
+                        <p>Attached is a personalized report highlighting your top-ranked photos. Your photos are specially marked in the report for easy identification.</p>
+                        <p><strong>Keep up the excellent work!</strong></p>
+                        <ul>
+                            <li>Continue submitting high-quality photos</li>
+                            <li>Experiment with different composition techniques</li>
+                            <li>Learn from other top-ranked photos</li>
+                            <li>Help others by voting and providing feedback</li>
+                        </ul>
+                        <p>We're proud of your progress and can't wait to see what you'll create next!</p>
+                        <p>Best regards,<br/>Pathfinder Photography Team</p>
+                    </body>
+                    </html>",
+                TextBody = $@"
+Your Photos Are in the Top Rankings!
+
+Dear {pathfinderName},
+
+Great news! One or more of your photos have made it into the top 3 rankings for their composition categories!
+
+This achievement shows that your photography skills are being recognized by the community through our voting system.
+
+Attached is a personalized report highlighting your top-ranked photos. Your photos are specially marked in the report for easy identification.
+
+Keep up the excellent work!
+- Continue submitting high-quality photos
+- Experiment with different composition techniques
+- Learn from other top-ranked photos
+- Help others by voting and providing feedback
+
+We're proud of your progress and can't wait to see what you'll create next!
+
+Best regards,
+Pathfinder Photography Team"
+            };
+
+            // Attach top photos report PDF
+            bodyBuilder.Attachments.Add("Top_Photos_Report.pdf", topPhotosReportPdf, new ContentType("application", "pdf"));
+            message.Body = bodyBuilder.ToMessageBody();
+
+            await this.SendEmailAsync(message);
+            this._logger.LogInformation("Top photos report sent to {Email}", pathfinderEmail);
+        }
+        catch (SmtpCommandException ex)
+        {
+            this._logger.LogError(ex, "SMTP command error while sending top photos report");
+        }
+        catch (SmtpProtocolException ex)
+        {
+            this._logger.LogError(ex, "SMTP protocol error while sending top photos report");
+        }
+        catch (FormatException ex)
+        {
+            this._logger.LogError(ex, "Email format error while sending top photos report");
+        }
+        catch (IOException ex)
+        {
+            this._logger.LogError(ex, "IO error while sending top photos report");
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        {
+            this._logger.LogError(ex, "Failed to send top photos report");
+        }
     }
 }
