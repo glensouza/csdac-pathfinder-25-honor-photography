@@ -136,6 +136,66 @@
                     }
                     <p><strong>Description:</strong></p>
                     <p>@selectedSubmission.Description</p>
+                    
+                    @if (!string.IsNullOrEmpty(selectedSubmission.AiTitle) || 
+                         !string.IsNullOrEmpty(selectedSubmission.AiDescription) || 
+                         selectedSubmission.AiRating.HasValue)
+                    {
+                        <hr />
+                        <h6 class="text-primary">🤖 AI Analysis</h6>
+                        
+                        @if (!string.IsNullOrEmpty(selectedSubmission.AiTitle))
+                        {
+                            <p><strong>AI Suggested Title:</strong> @selectedSubmission.AiTitle</p>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(selectedSubmission.AiDescription))
+                        {
+                            <p><strong>AI Description:</strong> @selectedSubmission.AiDescription</p>
+                        }
+                        
+                        @if (selectedSubmission.AiRating.HasValue)
+                        {
+                            <p><strong>AI Rating:</strong> 
+                                <span class="badge bg-info">@selectedSubmission.AiRating/10</span>
+                            </p>
+                        }
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(selectedSubmission.AiMarketingHeadline) || 
+                         !string.IsNullOrEmpty(selectedSubmission.AiMarketingCopy) || 
+                         selectedSubmission.AiSuggestedPrice.HasValue)
+                    {
+                        <hr />
+                        <h6 class="text-success">💼 Marketing Ideas (Educational)</h6>
+                        <p class="small text-muted">Learn how to present your photography professionally!</p>
+                        
+                        @if (!string.IsNullOrEmpty(selectedSubmission.AiMarketingHeadline))
+                        {
+                            <p><strong>Headline:</strong> @selectedSubmission.AiMarketingHeadline</p>
+                        }
+                        
+                        @if (selectedSubmission.AiSuggestedPrice.HasValue)
+                        {
+                            <p><strong>Suggested Price (8x10 print):</strong> 
+                                <span class="badge bg-success">$@selectedSubmission.AiSuggestedPrice.Value.ToString("F2")</span>
+                            </p>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(selectedSubmission.AiMarketingCopy))
+                        {
+                            <p><strong>Marketing Copy:</strong></p>
+                            <p class="fst-italic">@selectedSubmission.AiMarketingCopy</p>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(selectedSubmission.AiSocialMediaText))
+                        {
+                            <p><strong>Social Media Post:</strong></p>
+                            <div class="alert alert-light">
+                                <p class="mb-0">@selectedSubmission.AiSocialMediaText</p>
+                            </div>
+                        }
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>

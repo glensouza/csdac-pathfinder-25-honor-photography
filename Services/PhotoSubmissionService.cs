@@ -8,6 +8,7 @@ public class PhotoSubmissionService(
     IDbContextFactory<ApplicationDbContext> contextFactory, 
     EmailNotificationService emailService,
     UserService userService,
+    PhotoAnalysisService photoAnalysisService,
     ILogger<PhotoSubmissionService> logger)
 {
     public async Task<List<PhotoSubmission>> GetAllSubmissionsAsync()
@@ -55,6 +56,21 @@ public class PhotoSubmissionService(
                 }
             }, TaskContinuationOptions.OnlyOnFaulted);
         #pragma warning restore CS4014
+
+        // Perform AI analysis asynchronously (don't wait)
+        if (submission.ImageData != null && submission.ImageData.Length > 0)
+        {
+            #pragma warning disable CS4014
+            Task.Run(() => this.PerformAiAnalysisAsync(submission.Id, submission.ImageData, submission.ImagePath, submission.CompositionRuleName))
+                .ContinueWith(task =>
+                {
+                    if (task.Exception != null)
+                    {
+                        logger.LogWarning(task.Exception, "Failed to perform AI analysis for submission {Id}", submission.Id);
+                    }
+                }, TaskContinuationOptions.OnlyOnFaulted);
+            #pragma warning restore CS4014
+        }
     }
 
     private async Task SendNewSubmissionNotificationAsync(PhotoSubmission submission)
@@ -202,5 +218,46 @@ public class PhotoSubmissionService(
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         return await context.PhotoSubmissions.FindAsync(id);
+    }
+
+    private async Task PerformAiAnalysisAsync(int submissionId, byte[] imageData, string imagePath, string compositionRule)
+    {
+        try
+        {
+            logger.LogInformation("Starting AI analysis for submission {Id}", submissionId);
+
+            PhotoAnalysisResult result = await photoAnalysisService.AnalyzePhotoAsync(
+                imageData, 
+                imagePath, 
+                compositionRule);
+
+            // Update the submission with AI results
+            await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+            PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
+            
+            if (submission != null)
+            {
+                submission.AiTitle = result.Title;
+                submission.AiDescription = result.Description;
+                submission.AiRating = result.Rating;
+                submission.AiMarketingHeadline = result.MarketingHeadline;
+                submission.AiMarketingCopy = result.MarketingCopy;
+                submission.AiSuggestedPrice = result.SuggestedPrice;
+                submission.AiSocialMediaText = result.SocialMediaText;
+                
+                await context.SaveChangesAsync();
+                
+                logger.LogInformation("AI analysis completed and saved for submission {Id}: Title='{Title}', Rating={Rating}", 
+                    submissionId, result.Title, result.Rating);
+            }
+            else
+            {
+                logger.LogWarning("Submission {Id} not found for AI analysis update", submissionId);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        {
+            logger.LogError(ex, "AI analysis failed for submission {Id}", submissionId);
+        }
     }
 }

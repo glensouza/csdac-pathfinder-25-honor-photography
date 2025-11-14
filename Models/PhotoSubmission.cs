@@ -18,6 +18,13 @@ public class PhotoSubmission
     public int SubmissionVersion { get; set; } = 1;
     public int? PreviousSubmissionId { get; set; }
     public double EloRating { get; set; } = 1000.0;
+    public string? AiTitle { get; set; }
+    public string? AiDescription { get; set; }
+    public int? AiRating { get; set; }
+    public string? AiMarketingHeadline { get; set; }
+    public string? AiMarketingCopy { get; set; }
+    public decimal? AiSuggestedPrice { get; set; }
+    public string? AiSocialMediaText { get; set; }
 }
 
 public enum GradeStatus

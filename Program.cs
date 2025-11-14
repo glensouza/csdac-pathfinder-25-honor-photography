@@ -83,6 +83,8 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<VotingService>();
 builder.Services.AddScoped<PdfExportService>();
 builder.Services.AddScoped<EmailNotificationService>();
+builder.Services.AddSingleton<IOllamaClientProvider, OllamaClientProvider>();
+builder.Services.AddScoped<PhotoAnalysisService>();
 
 WebApplication app = builder.Build();
 
