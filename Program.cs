@@ -86,6 +86,10 @@ builder.Services.AddScoped<EmailNotificationService>();
 builder.Services.AddSingleton<IOllamaClientProvider, OllamaClientProvider>();
 builder.Services.AddScoped<PhotoAnalysisService>();
 
+// Add AI Processing Background Service
+builder.Services.AddSingleton<AiProcessingBackgroundService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<AiProcessingBackgroundService>());
+
 WebApplication app = builder.Build();
 
 // Ensure database is created

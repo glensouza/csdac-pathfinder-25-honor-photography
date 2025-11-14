@@ -8,7 +8,7 @@ public class PhotoSubmissionService(
     IDbContextFactory<ApplicationDbContext> contextFactory, 
     EmailNotificationService emailService,
     UserService userService,
-    PhotoAnalysisService photoAnalysisService,
+    AiProcessingBackgroundService aiProcessingService,
     ILogger<PhotoSubmissionService> logger)
 {
     public async Task<List<PhotoSubmission>> GetAllSubmissionsAsync()
@@ -64,19 +64,16 @@ public class PhotoSubmissionService(
             }, TaskContinuationOptions.OnlyOnFaulted);
         #pragma warning restore CS4014
 
-        // Perform AI analysis asynchronously (don't wait)
+        // Queue AI analysis in background service
         if (submission.ImageData != null && submission.ImageData.Length > 0)
         {
-            #pragma warning disable CS4014
-            Task.Run(() => this.PerformAiAnalysisAsync(submission.Id, submission.ImageData, submission.ImagePath, submission.CompositionRuleName))
-                .ContinueWith(task =>
-                {
-                    if (task.Exception != null)
-                    {
-                        logger.LogWarning(task.Exception, "Failed to perform AI analysis for submission {Id}", submission.Id);
-                    }
-                }, TaskContinuationOptions.OnlyOnFaulted);
-            #pragma warning restore CS4014
+            await aiProcessingService.QueueAnalysisAsync(new AiAnalysisRequest
+            {
+                SubmissionId = submission.Id,
+                ImageData = submission.ImageData,
+                ImagePath = submission.ImagePath,
+                CompositionRule = submission.CompositionRuleName
+            });
         }
     }
 
@@ -244,94 +241,19 @@ public class PhotoSubmissionService(
 
         logger.LogInformation("Manually retrying AI analysis for submission {Id}", submissionId);
 
-        // Perform AI analysis synchronously for manual retry (so admin sees immediate feedback)
-        await PerformAiAnalysisAsync(submissionId, submission.ImageData, submission.ImagePath, submission.CompositionRuleName);
+        // Reset status to Queued
+        submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+        submission.AiProcessingError = null;
+        await context.SaveChangesAsync();
+
+        // Queue for processing via background service
+        await aiProcessingService.QueueAnalysisAsync(new AiAnalysisRequest
+        {
+            SubmissionId = submission.Id,
+            ImageData = submission.ImageData,
+            ImagePath = submission.ImagePath,
+            CompositionRule = submission.CompositionRuleName
+        });
     }
 
-    private async Task PerformAiAnalysisAsync(int submissionId, byte[] imageData, string imagePath, string compositionRule)
-    {
-        // Update status to Processing
-        await UpdateAiProcessingStatusAsync(submissionId, Models.AiProcessingStatus.Processing, startTime: DateTime.UtcNow);
-        
-        try
-        {
-            logger.LogInformation("Starting AI analysis for submission {Id}", submissionId);
-
-            PhotoAnalysisResult result = await photoAnalysisService.AnalyzePhotoAsync(
-                imageData, 
-                imagePath, 
-                compositionRule);
-
-            // Update the submission with AI results
-            await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
-            PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
-            
-            if (submission != null)
-            {
-                submission.AiTitle = result.Title;
-                submission.AiDescription = result.Description;
-                submission.AiRating = result.Rating;
-                submission.AiMarketingHeadline = result.MarketingHeadline;
-                submission.AiMarketingCopy = result.MarketingCopy;
-                submission.AiSuggestedPrice = result.SuggestedPrice;
-                submission.AiSocialMediaText = result.SocialMediaText;
-                submission.AiProcessingStatus = Models.AiProcessingStatus.Completed;
-                submission.AiProcessingCompletedTime = DateTime.UtcNow;
-                submission.AiProcessingError = null; // Clear any previous error
-                
-                await context.SaveChangesAsync();
-                
-                logger.LogInformation("AI analysis completed and saved for submission {Id}: Title='{Title}', Rating={Rating}", 
-                    submissionId, result.Title, result.Rating);
-            }
-            else
-            {
-                logger.LogWarning("Submission {Id} not found for AI analysis update", submissionId);
-                await UpdateAiProcessingStatusAsync(submissionId, Models.AiProcessingStatus.Failed, 
-                    error: "Submission not found", completedTime: DateTime.UtcNow);
-            }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
-        {
-            logger.LogError(ex, "AI analysis failed for submission {Id}", submissionId);
-            await UpdateAiProcessingStatusAsync(submissionId, Models.AiProcessingStatus.Failed, 
-                error: ex.Message, completedTime: DateTime.UtcNow);
-        }
-    }
-
-    private async Task UpdateAiProcessingStatusAsync(int submissionId, Models.AiProcessingStatus status, 
-        string? error = null, DateTime? startTime = null, DateTime? completedTime = null)
-    {
-        try
-        {
-            await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
-            PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
-            
-            if (submission != null)
-            {
-                submission.AiProcessingStatus = status;
-                
-                if (error != null)
-                {
-                    submission.AiProcessingError = error;
-                }
-                
-                if (startTime.HasValue)
-                {
-                    submission.AiProcessingStartTime = startTime.Value;
-                }
-                
-                if (completedTime.HasValue)
-                {
-                    submission.AiProcessingCompletedTime = completedTime.Value;
-                }
-                
-                await context.SaveChangesAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to update AI processing status for submission {Id}", submissionId);
-        }
-    }
 }

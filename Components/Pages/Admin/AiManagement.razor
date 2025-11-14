@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inject PhotoSubmissionService SubmissionService
 @inject UserService UserService
+@inject AiProcessingBackgroundService AiProcessingService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @attribute [Authorize]
@@ -47,35 +48,51 @@
 
         <!-- Statistics Cards -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card bg-primary text-white">
                     <div class="card-body">
-                        <h5 class="card-title">Total Submissions</h5>
-                        <h2 class="mb-0">@totalSubmissions</h2>
+                        <h6 class="card-title">Total Submissions</h6>
+                        <h3 class="mb-0">@totalSubmissions</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card bg-success text-white">
                     <div class="card-body">
-                        <h5 class="card-title">With AI Analysis</h5>
-                        <h2 class="mb-0">@submissionsWithAi</h2>
+                        <h6 class="card-title">Completed</h6>
+                        <h3 class="mb-0">@submissionsWithAi</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card bg-warning text-white">
                     <div class="card-body">
-                        <h5 class="card-title">Without AI</h5>
-                        <h2 class="mb-0">@submissionsWithoutAi</h2>
+                        <h6 class="card-title">Without AI</h6>
+                        <h3 class="mb-0">@submissionsWithoutAi</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <div class="card bg-purple text-white" style="background-color: #6f42c1 !important;">
+                    <div class="card-body">
+                        <h6 class="card-title">⏳ In Queue</h6>
+                        <h3 class="mb-0">@queuedCount</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">✗ Failed</h6>
+                        <h3 class="mb-0">@failedCount</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
                 <div class="card bg-info text-white">
                     <div class="card-body">
-                        <h5 class="card-title">Avg AI Rating</h5>
-                        <h2 class="mb-0">@averageAiRating.ToString("F1")</h2>
+                        <h6 class="card-title">Avg Rating</h6>
+                        <h3 class="mb-0">@averageAiRating.ToString("F1")</h3>
                     </div>
                 </div>
             </div>
@@ -207,6 +224,8 @@
     private int totalSubmissions = 0;
     private int submissionsWithAi = 0;
     private int submissionsWithoutAi = 0;
+    private int queuedCount = 0;
+    private int failedCount = 0;
     private double averageAiRating = 0.0;
 
     protected override async Task OnInitializedAsync()
@@ -246,6 +265,8 @@
         totalSubmissions = allSubmissions.Count;
         submissionsWithAi = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Completed);
         submissionsWithoutAi = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.NotStarted || s.AiProcessingStatus == AiProcessingStatus.Failed);
+        queuedCount = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Queued || s.AiProcessingStatus == AiProcessingStatus.Processing);
+        failedCount = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Failed);
         
         List<int> ratings = allSubmissions
             .Where(s => s.AiRating.HasValue)
