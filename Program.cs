@@ -12,6 +12,9 @@ using System.IO;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+// Validate required configuration and repo automation before proceeding
+ValidateRequiredConfigurations(builder.Configuration);
+
 // Add Aspire service defaults (telemetry, health checks, service discovery)
 builder.AddServiceDefaults();
     
@@ -163,3 +166,36 @@ app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationD
 });
 
 app.Run();
+
+
+// Validate required configuration values and repository automation presence
+static void ValidateRequiredConfigurations(IConfiguration configuration)
+{
+    // Email SMTP configuration
+    string? smtpHost = configuration["Email:SmtpHost"];
+    string? fromAddress = configuration["Email:FromAddress"];
+
+    if (string.IsNullOrWhiteSpace(smtpHost))
+    {
+        throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:SmtpHost'. Add Email:SmtpHost to your configuration.");
+    }
+
+    if (string.IsNullOrWhiteSpace(fromAddress))
+    {
+        throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:FromAddress'. Add Email:FromAddress to your configuration.");
+    }
+
+    // OpenTelemetry OTLP endpoint (SigNoz collector)
+    string? otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+    if (string.IsNullOrWhiteSpace(otlpEndpoint))
+    {
+        throw new InvalidOperationException("SigNoz telemetry is required. Missing 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable or configuration. Set this to your OTLP collector endpoint.");
+    }
+
+    // Ensure GitHub Actions automation workflow exists in repo
+    string workflowPath = Path.Combine(Directory.GetCurrentDirectory(), ".github", "workflows", "deploy-bare-metal.yml");
+    if (!File.Exists(workflowPath))
+    {
+        throw new InvalidOperationException($"Automation workflow is required but not found at '{workflowPath}'. Ensure '.github/workflows/deploy-bare-metal.yml' exists in the repository.");
+    }
+}

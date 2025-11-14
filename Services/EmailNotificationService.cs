@@ -9,21 +9,31 @@ public class EmailNotificationService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailNotificationService> _logger;
-    private readonly bool _isEnabled;
+    private readonly bool _isEnabled; // keep field declaration to avoid hot-reload related analyzer errors
 
     public EmailNotificationService(IConfiguration configuration, ILogger<EmailNotificationService> logger)
     {
         this._configuration = configuration;
         this._logger = logger;
         
-        // Check if email is configured
+        // Validate required email configuration — email notifications are required
         string? smtpHost = this._configuration["Email:SmtpHost"];
-        this._isEnabled = !string.IsNullOrEmpty(smtpHost);
-        
+        string? fromAddress = this._configuration["Email:FromAddress"];
+
+        // Set _isEnabled based on presence of smtpHost (will be true if configured)
+        this._isEnabled = !string.IsNullOrWhiteSpace(smtpHost);
+
         if (!this._isEnabled)
         {
-            this._logger.LogInformation("Email notifications are disabled. Configure Email:SmtpHost to enable.");
+            throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:SmtpHost'.");
         }
+
+        if (string.IsNullOrWhiteSpace(fromAddress))
+        {
+            throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:FromAddress'.");
+        }
+
+        this._logger.LogInformation("Email notifications are enabled.");
     }
 
     public async Task SendGradingNotificationAsync(
@@ -33,12 +43,6 @@ public class EmailNotificationService
         GradeStatus gradeStatus,
         string gradedBy)
     {
-        if (!this._isEnabled)
-        {
-            this._logger.LogDebug("Email notifications disabled, skipping grading notification.");
-            return;
-        }
-
         try
         {
             using MimeMessage message = new();
@@ -112,9 +116,9 @@ Pathfinder Photography Team"
         string compositionRuleName,
         List<string> instructorEmails)
     {
-        if (!this._isEnabled || !instructorEmails.Any())
+        if (!instructorEmails.Any())
         {
-            this._logger.LogDebug("Email notifications disabled or no instructors to notify, skipping submission notification.");
+            this._logger.LogDebug("No instructors to notify for new submission, skipping email.");
             return;
         }
 
