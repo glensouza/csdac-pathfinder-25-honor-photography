@@ -9,6 +9,7 @@ public class PhotoSubmissionService(
     EmailNotificationService emailService,
     UserService userService,
     AiProcessingBackgroundService aiProcessingService,
+    CertificateService certificateService,
     ILogger<PhotoSubmissionService> logger)
 {
     public async Task<List<PhotoSubmission>> GetAllSubmissionsAsync()
@@ -188,7 +189,42 @@ public class PhotoSubmissionService(
                     logger.LogWarning(task.Exception, "Failed to send grading email notification for rule {Rule}", submission.CompositionRuleName);
                 }
             }, TaskContinuationOptions.OnlyOnFaulted);
+
+        // If graded as Pass, check if pathfinder has completed all rules and issue certificate
+        if (status == GradeStatus.Pass)
+        {
+            Task.Run(() => this.CheckAndIssueCertificateAsync(submission.PathfinderEmail))
+                .ContinueWith(task =>
+                {
+                    if (task.Exception != null)
+                    {
+                        logger.LogWarning(task.Exception, "Failed to check/issue completion certificate for {Email}", submission.PathfinderEmail);
+                    }
+                }, TaskContinuationOptions.OnlyOnFaulted);
+        }
         #pragma warning restore CS4014
+    }
+
+    private async Task CheckAndIssueCertificateAsync(string pathfinderEmail)
+    {
+        try
+        {
+            bool hasCompleted = await certificateService.HasCompletedAllRulesAsync(pathfinderEmail);
+            if (hasCompleted)
+            {
+                CompletionCertificate? existingCertificate = await certificateService.GetCertificateAsync(pathfinderEmail);
+                if (existingCertificate == null)
+                {
+                    await certificateService.GenerateAndStoreCertificateAsync(pathfinderEmail);
+                    await certificateService.SendCertificateEmailAsync(pathfinderEmail);
+                    logger.LogInformation("Completion certificate issued to {Email}", pathfinderEmail);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        {
+            logger.LogWarning(ex, "Failed to check/issue certificate for {Email}", pathfinderEmail);
+        }
     }
 
     private async Task SendGradingNotificationAsync(PhotoSubmission submission, GradeStatus status, string gradedBy)
