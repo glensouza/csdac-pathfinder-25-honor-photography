@@ -137,6 +137,8 @@ public class AiProcessingBackgroundService : BackgroundService
             submission.AiMarketingCopy = result.MarketingCopy;
             submission.AiSuggestedPrice = result.SuggestedPrice;
             submission.AiSocialMediaText = result.SocialMediaText;
+            submission.AiMarketingImageData = result.MarketingImageData;
+            submission.AiMarketingImagePrompt = result.MarketingImagePrompt;
             submission.AiProcessingStatus = AiProcessingStatus.Completed;
             submission.AiProcessingCompletedTime = DateTime.UtcNow;
             submission.AiProcessingError = null; // Clear any previous error

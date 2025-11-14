@@ -25,6 +25,8 @@ public class PhotoSubmission
     public string? AiMarketingCopy { get; set; }
     public decimal? AiSuggestedPrice { get; set; }
     public string? AiSocialMediaText { get; set; }
+    public byte[]? AiMarketingImageData { get; set; }
+    public string? AiMarketingImagePrompt { get; set; }
     public AiProcessingStatus AiProcessingStatus { get; set; } = AiProcessingStatus.NotStarted;
     public string? AiProcessingError { get; set; }
     public DateTime? AiProcessingStartTime { get; set; }

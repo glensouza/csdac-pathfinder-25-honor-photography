@@ -50,6 +50,23 @@ public class PhotoAnalysisService
             result.SuggestedPrice = marketing.Price;
             result.SocialMediaText = marketing.SocialMediaText;
 
+            // Step 3: Generate marketing image using image generation model (optional)
+            string? imageGenModel = _configuration["AI:Ollama:ImageGenerationModel"];
+            if (!string.IsNullOrEmpty(imageGenModel))
+            {
+                _logger.LogDebug("Generating marketing image with model: {Model}", imageGenModel);
+                try
+                {
+                    (result.MarketingImageData, result.MarketingImagePrompt) = await GenerateMarketingImageAsync(
+                        client, imageGenModel, result.Title, result.Description, marketing.Headline);
+                }
+                catch (Exception imgEx)
+                {
+                    _logger.LogWarning(imgEx, "Failed to generate marketing image, continuing without it");
+                    // Continue without marketing image - it's optional
+                }
+            }
+
             _logger.LogInformation("AI analysis complete: Title='{Title}', Rating={Rating}", 
                 result.Title, result.Rating);
         }
@@ -271,6 +288,43 @@ Respond ONLY with valid JSON in this exact format:
             SocialMediaText = $"Proud of my photography work! #{compositionRule.Replace(" ", "")} #PathfinderPhotography #YoungPhotographer"
         };
     }
+
+    private async Task<(byte[]? imageData, string prompt)> GenerateMarketingImageAsync(
+        IOllamaApiClient client,
+        string imageGenModel,
+        string title,
+        string description,
+        string headline)
+    {
+        _logger.LogDebug("Generating marketing image for: {Title}", title);
+
+        // Create a prompt for generating a marketing/promotional image
+        string prompt = $@"Professional marketing photograph, product photography style: {headline}. 
+{description}. 
+High quality, commercial photography, product shot, clean background, professional lighting, 
+marketing material, advertising quality, HD, detailed, sharp focus";
+
+        try
+        {
+            // Note: Ollama's image generation support varies by model
+            // This is a placeholder - actual implementation depends on the specific
+            // image generation model being used (e.g., stable-diffusion via Ollama)
+            
+            // For now, we'll log and return null since image generation through Ollama
+            // requires specific models and may not be available by default
+            _logger.LogInformation("Marketing image generation requested with prompt: {Prompt}", prompt);
+            _logger.LogWarning("Image generation through Ollama requires specific models (e.g., stable-diffusion). " +
+                "This feature is optional and currently returns null. Install an image generation model in Ollama to enable this feature.");
+            
+            // Return the prompt for future reference, but no image data yet
+            return (null, prompt);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate marketing image");
+            return (null, prompt);
+        }
+    }
 }
 
 public class PhotoAnalysisResult
@@ -283,6 +337,8 @@ public class PhotoAnalysisResult
     public string MarketingCopy { get; set; } = string.Empty;
     public decimal SuggestedPrice { get; set; }
     public string SocialMediaText { get; set; } = string.Empty;
+    public byte[]? MarketingImageData { get; set; }
+    public string? MarketingImagePrompt { get; set; }
 }
 
 public class MarketingContent

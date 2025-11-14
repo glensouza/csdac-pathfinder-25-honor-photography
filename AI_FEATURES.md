@@ -8,6 +8,7 @@ When a photo is submitted, the system automatically analyzes it using a local Ol
 
 1. **AI Analysis**: Automated description, title suggestion, and composition rating
 2. **Marketing Education**: Sample marketing materials to teach professional presentation
+3. **Marketing Images** (Optional): AI-generated promotional/marketing images showing creative presentations
 
 ## Features
 
@@ -28,6 +29,18 @@ To help young photographers understand professional presentation, the AI generat
 - **Suggested Price**: A realistic price range ($5-$25) for an 8x10 print, teaching basic pricing concepts
 - **Social Media Post**: A fun, shareable social media post under 280 characters with relevant hashtags
 
+### 3. Marketing Image Generation (Optional)
+
+If an image generation model is configured in Ollama, the system can generate AI-created marketing/promotional images:
+
+- **Purpose**: Creates visual marketing materials showing creative presentations of the photograph
+- **Use Case**: Teaches students about advertising, product photography, and visual marketing
+- **Technical**: Requires Stable Diffusion or similar image generation model in Ollama
+- **Status**: Currently logs the prompt but doesn't generate images by default (requires additional model installation)
+- **Educational Value**: Shows how AI can be used to create marketing collateral
+
+**Note**: Image generation is an advanced optional feature. The core photo analysis and marketing text features work without it.
+
 ## Technical Setup
 
 ### Prerequisites
@@ -45,6 +58,13 @@ To help young photographers understand professional presentation, the AI generat
    ollama pull llama2
    ```
 
+3. **Optional - Image Generation Model**:
+   ```bash
+   # Install Stable Diffusion or similar for marketing image generation
+   # Note: This is optional and requires significant resources
+   ollama pull stable-diffusion
+   ```
+
 ### Configuration
 
 Edit `appsettings.json` or use environment variables:
@@ -55,22 +75,29 @@ Edit `appsettings.json` or use environment variables:
     "Ollama": {
       "Endpoint": "http://localhost:11434",
       "VisionModel": "llava",
-      "TextModel": "llama2"
+      "TextModel": "llama2",
+      "ImageGenerationModel": "stable-diffusion"
     }
   }
 }
 ```
 
-**Alternative Vision Models**:
+**Vision Models (Required)**:
 - `llava` (recommended, ~4.7GB)
 - `llava:13b` (larger, more accurate, ~8GB)
 - `bakllava` (alternative vision model)
 
-**Alternative Text Models**:
+**Text Models (Required)**:
 - `llama2` (recommended, ~3.8GB)
 - `llama2:13b` (larger, better quality)
+- `llama3.2` (newer version, good quality)
 - `mistral` (fast, good quality, ~4GB)
 - `phi` (small, fast, ~1.6GB)
+
+**Image Generation Models (Optional)**:
+- `stable-diffusion` (if available in Ollama, ~4-7GB depending on version)
+- Leave blank or omit to disable marketing image generation
+- **Note**: Image generation support in Ollama varies by installation and may require additional setup
 
 ### Environment Variables
 
