@@ -6,10 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PathfinderPhotography.Services;
 
-public class AiProcessingBackgroundService(
-    IServiceProvider serviceProvider,
-    ILogger<AiProcessingBackgroundService> logger)
-    : BackgroundService
+public class AiProcessingBackgroundService(IServiceProvider serviceProvider, ILogger<AiProcessingBackgroundService> logger) : BackgroundService
 {
     private readonly Channel<AiAnalysisRequest> queue = Channel.CreateUnbounded<AiAnalysisRequest>(new UnboundedChannelOptions
     {
@@ -52,33 +49,31 @@ public class AiProcessingBackgroundService(
             try
             {
                 logger.LogInformation("Processing AI analysis for submission {SubmissionId}", request.SubmissionId);
-                
-                using (IServiceScope scope = serviceProvider.CreateScope())
-                {
-                    PhotoAnalysisService photoAnalysisService = scope.ServiceProvider.GetRequiredService<PhotoAnalysisService>();
-                    IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-                    
-                    // Update status to Processing
-                    await this.UpdateStatusAsync(contextFactory, request.SubmissionId, 
-                        AiProcessingStatus.Processing, startTime: DateTime.UtcNow);
-                    
-                    // Perform AI analysis
-                    PhotoAnalysisResult result = await photoAnalysisService.AnalyzePhotoAsync(
-                        request.ImageData,
-                        request.ImagePath,
-                        request.CompositionRule);
-                    
-                    // Save results
-                    await this.SaveResultsAsync(contextFactory, request.SubmissionId, result);
-                    
-                    lock (this.countLock)
-                    {
-                        this.queuedCount--;
-                    }
 
-                    logger.LogInformation("Completed AI analysis for submission {SubmissionId}: Title='{Title}', Rating={Rating}",
-                        request.SubmissionId, result.Title, result.Rating);
+                using IServiceScope scope = serviceProvider.CreateScope();
+                PhotoAnalysisService photoAnalysisService = scope.ServiceProvider.GetRequiredService<PhotoAnalysisService>();
+                IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+                    
+                // Update status to Processing
+                await this.UpdateStatusAsync(contextFactory, request.SubmissionId, 
+                    AiProcessingStatus.Processing, startTime: DateTime.UtcNow);
+                    
+                // Perform AI analysis
+                PhotoAnalysisResult result = await photoAnalysisService.AnalyzePhotoAsync(
+                    request.ImageData,
+                    request.ImagePath,
+                    request.CompositionRule);
+                    
+                // Save results
+                await this.SaveResultsAsync(contextFactory, request.SubmissionId, result);
+                    
+                lock (this.countLock)
+                {
+                    this.queuedCount--;
                 }
+
+                logger.LogInformation("Completed AI analysis for submission {SubmissionId}: Title='{Title}', Rating={Rating}",
+                    request.SubmissionId, result.Title, result.Rating);
             }
             catch (HttpRequestException ex)
             {

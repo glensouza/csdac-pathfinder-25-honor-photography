@@ -104,21 +104,25 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
         }
 
         // Sanitize title if model returned an internal filename or placeholder
-        if (!string.IsNullOrWhiteSpace(result.Title))
+        if (string.IsNullOrWhiteSpace(result.Title))
         {
-            string trimmed = result.Title.Trim();
-            bool looksLikeGeneratedFileName = trimmed.Contains("Gemini_Generated_Image", StringComparison.OrdinalIgnoreCase)
-                                              || trimmed.Contains("Generated_Image", StringComparison.OrdinalIgnoreCase)
-                                              || trimmed.Length > 80
-                                              || System.Text.RegularExpressions.Regex.IsMatch(trimmed, "[_\\-]taj\\d+");
-
-            if (looksLikeGeneratedFileName)
-            {
-                string baseName = Path.GetFileNameWithoutExtension(fileName);
-                result.Title = $"{SanitizeTitle(baseName)} - {compositionRule}";
-                logger.LogDebug("Sanitized AI title to: {Title}", result.Title);
-            }
+            return result;
         }
+
+        string trimmed = result.Title.Trim();
+        bool looksLikeGeneratedFileName = trimmed.Contains("Gemini_Generated_Image", StringComparison.OrdinalIgnoreCase)
+                                          || trimmed.Contains("Generated_Image", StringComparison.OrdinalIgnoreCase)
+                                          || trimmed.Length > 80
+                                          || System.Text.RegularExpressions.Regex.IsMatch(trimmed, "[_\\-]taj\\d+");
+
+        if (!looksLikeGeneratedFileName)
+        {
+            return result;
+        }
+
+        string baseName = Path.GetFileNameWithoutExtension(fileName);
+        result.Title = $"{SanitizeTitle(baseName)} - {compositionRule}";
+        logger.LogDebug("Sanitized AI title to: {Title}", result.Title);
 
         return result;
     }
@@ -224,19 +228,10 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
 
             // Strip markdown code blocks if present (Gemini sometimes wraps JSON in ```json ... ```)
             jsonResponse = jsonResponse.Trim();
-            if (jsonResponse.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+            if (jsonResponse.StartsWith("```json", StringComparison.OrdinalIgnoreCase) || jsonResponse.StartsWith("```"))
             {
                 int startIndex = jsonResponse.IndexOf('\n') + 1;
-                int endIndex = jsonResponse.LastIndexOf("```");
-                if (startIndex > 0 && endIndex > startIndex)
-                {
-                    jsonResponse = jsonResponse.Substring(startIndex, endIndex - startIndex).Trim();
-                }
-            }
-            else if (jsonResponse.StartsWith("```"))
-            {
-                int startIndex = jsonResponse.IndexOf('\n') + 1;
-                int endIndex = jsonResponse.LastIndexOf("```");
+                int endIndex = jsonResponse.LastIndexOf("```", StringComparison.Ordinal);
                 if (startIndex > 0 && endIndex > startIndex)
                 {
                     jsonResponse = jsonResponse.Substring(startIndex, endIndex - startIndex).Trim();
