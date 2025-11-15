@@ -212,7 +212,12 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
                 return ("A photograph", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
             }
 
-            string jsonResponse = response.Candidates[0].Content.Parts[0].Text;
+            string? jsonResponse = response.Candidates[0].Content.Parts[0].Text;
+            if (string.IsNullOrWhiteSpace(jsonResponse))
+            {
+                logger.LogWarning("Empty text in Gemini response");
+                return ("A photograph", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
+            }
             
             // Log raw response for diagnosis (DEBUG only)
             logger.LogDebug("Raw Gemini response: {Response}", jsonResponse);
