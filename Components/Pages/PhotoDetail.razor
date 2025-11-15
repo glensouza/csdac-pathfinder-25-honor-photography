@@ -173,7 +173,21 @@ else
                             }
                             
                             <div class="mt-4">
-                                <ProductMockup ImageSrc="@($"/api/images/{submission.Id}")" />
+                                @if (submission.AiMarketingImageData != null && submission.AiMarketingImageData.Length > 0)
+                                {
+                                    <div class="ai-marketing-image-container">
+                                        <h5 class="mb-3">📦 Product Mockup</h5>
+                                        <p class="text-muted small">AI-generated professional marketing image:</p>
+                                        <img src="@GetMarketingImageDataUrl()" 
+                                             alt="AI-generated marketing mockup" 
+                                             class="img-fluid rounded shadow"
+                                             style="max-width: 100%; height: auto;" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <ProductMockup ImageSrc="@($"/api/images/{submission.Id}")" />
+                                }
                             </div>
                         </div>
                     </div>
@@ -223,5 +237,16 @@ else
                 // Silently fail - could show a message to user in production
             }
         }
+    }
+
+    private string GetMarketingImageDataUrl()
+    {
+        if (submission?.AiMarketingImageData != null && submission.AiMarketingImageData.Length > 0)
+        {
+            string base64Image = Convert.ToBase64String(submission.AiMarketingImageData);
+            // Assume PNG format from Gemini image generation
+            return $"data:image/png;base64,{base64Image}";
+        }
+        return string.Empty;
     }
 }
