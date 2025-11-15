@@ -173,51 +173,46 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
 
         try
         {
-            EndpointName endpoint = EndpointName.FromProjectLocationPublisherModel(
-                projectId, location, "google", model);
+            // Build the model resource name for Gemini
+            string modelPath = $"projects/{projectId}/locations/{location}/publishers/google/models/{model}";
 
-            // Convert image to base64
-            string base64Image = Convert.ToBase64String(imageData);
-            string promptEscaped = prompt.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n");
-
-            // Create the request with image and text
-            Google.Protobuf.WellKnownTypes.Value instance = Google.Protobuf.WellKnownTypes.Value.Parser.ParseJson($@"
-            {{
-              ""contents"": [{{
-                ""role"": ""user"",
-                ""parts"": [
-                  {{""inline_data"": {{""mime_type"": ""image/jpeg"", ""data"": ""{base64Image}""}}}},
-                  {{""text"": ""{promptEscaped}""}}
-                ]
-              }}]
-            }}
-            ");
-
-            PredictRequest request = new()
+            // Create the request using GenerateContentAsync for Gemini models
+            GenerateContentRequest request = new GenerateContentRequest
             {
-                Endpoint = endpoint.ToString(),
-                Instances = { instance }
+                Model = modelPath,
+                Contents =
+                {
+                    new Content
+                    {
+                        Role = "user",
+                        Parts =
+                        {
+                            new Part { InlineData = new Blob { MimeType = "image/jpeg", Data = Google.Protobuf.ByteString.CopyFrom(imageData) } },
+                            new Part { Text = prompt }
+                        }
+                    }
+                }
             };
 
-            PredictResponse response;
+            GenerateContentResponse response;
             try
             {
-                response = await client.PredictAsync(request);
+                response = await client.GenerateContentAsync(request);
             }
             catch (RpcException rpcEx)
             {
-                // If Gemini cannot be accessed with Predict, return fallbacks and surface guidance in logs
-                logger.LogWarning(rpcEx, "Predict call failed for model {Model}. Gemini may require a different API (see https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal).", model);
+                // If Gemini call fails, return fallbacks and surface guidance in logs
+                logger.LogWarning(rpcEx, "GenerateContent call failed for model {Model}. See https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal for Gemini usage.", model);
                 return ("AI analysis unavailable", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
             }
 
-            if (response.Predictions.Count == 0)
+            if (response.Candidates.Count == 0 || response.Candidates[0].Content?.Parts.Count == 0)
             {
                 logger.LogWarning("Empty response from Gemini");
                 return ("A photograph", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
             }
 
-            string jsonResponse = response.Predictions[0].ToString();
+            string jsonResponse = response.Candidates[0].Content.Parts[0].Text;
             
             // Log raw response for diagnosis (DEBUG only)
             logger.LogDebug("Raw Gemini response: {Response}", jsonResponse);
