@@ -206,7 +206,7 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
             catch (RpcException rpcEx)
             {
                 // If Gemini call fails, return fallbacks and surface guidance in logs
-                logger.LogWarning(rpcEx, "GenerateContent call failed for model {Model}. See https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal for Gemini usage.", model);
+                logger.LogWarning(rpcEx, "GenerateContent call failed for model {Model} with status {StatusCode}. See https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal for Gemini usage.", model, rpcEx.StatusCode);
                 return ("AI analysis unavailable", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
             }
 
