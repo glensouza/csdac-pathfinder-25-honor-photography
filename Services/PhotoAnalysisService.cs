@@ -42,7 +42,7 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
                 try
                 {
                     result.MarketingImageData = await this.GenerateMarketingImageAsync(
-                        client, projectId, location, imageGenModel, result.Title, result.Description, marketing.Headline);
+                        client, projectId, location, imageGenModel, imageData, result.Title, result.Description, marketing.Headline);
                 }
                 catch (RpcException rpcEx)
                 {
@@ -301,19 +301,23 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
         string projectId,
         string location,
         string model,
+        byte[] imageData,
         string title,
         string description,
         string headline)
     {
         logger.LogDebug("Generating marketing image for: {Title}", title);
 
-        string prompt = $"Create a professional marketing image for a photography print featuring:\n\n" +
+        string prompt = $"You are creating professional marketing material for a photography print. " +
+                       $"Use the provided photograph and create a marketing image that showcases it beautifully.\n\n" +
+                       $"Photo Details:\n" +
                        $"Title: {title}\n" +
                        $"Description: {description}\n" +
-                       $"Headline: {headline}\n\n" +
-                       "Design a clean, modern marketing visual showing this photograph displayed as a high-quality framed print on a gallery wall with soft lighting. " +
-                       "The composition should be professional and appealing, showcasing the photograph as a product worth purchasing.\n" +
-                       "Style: Professional product photography, clean aesthetic, gallery presentation.";
+                       $"Marketing Headline: {headline}\n\n" +
+                       "Create a professional product mockup showing THIS EXACT PHOTOGRAPH displayed as a high-quality framed print on a gallery wall. " +
+                       "The marketing image should feature the actual submitted photo in an attractive presentation, NOT a different or similar image. " +
+                       "Include soft lighting, a clean modern aesthetic, and professional gallery presentation. " +
+                       "Make the original photograph the hero of the marketing image.";
 
         try
         {
@@ -321,6 +325,7 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
             string modelPath = $"projects/{projectId}/locations/{location}/publishers/google/models/{model}";
 
             // Create the request using GenerateContentAsync for Gemini image generation models
+            // Include the actual photo so Gemini can use it in the marketing material
             GenerateContentRequest request = new GenerateContentRequest
             {
                 Model = modelPath,
@@ -331,6 +336,7 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
                         Role = "user",
                         Parts =
                         {
+                            new Part { InlineData = new Blob { MimeType = "image/jpeg", Data = Google.Protobuf.ByteString.CopyFrom(imageData) } },
                             new Part { Text = prompt }
                         }
                     }
