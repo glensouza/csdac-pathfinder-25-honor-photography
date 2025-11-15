@@ -11,42 +11,42 @@ public static class MarketingProducts
 {
     public static readonly List<MarketingProductType> AvailableProducts =
     [
-        new MarketingProductType
+        new()
         {
             Name = "Framed Print",
             Description = "8x10 print with black frame on wall",
             IconClass = "bi-picture"
         },
 
-        new MarketingProductType
+        new()
         {
             Name = "Coffee Mug",
             Description = "11oz ceramic mug with photo wrap",
             IconClass = "bi-cup-hot"
         },
 
-        new MarketingProductType
+        new()
         {
             Name = "T-Shirt",
             Description = "Cotton t-shirt with photo print",
             IconClass = "bi-person"
         },
 
-        new MarketingProductType
+        new()
         {
             Name = "Greeting Card",
             Description = "5x7 folded greeting card",
             IconClass = "bi-envelope-heart"
         },
 
-        new MarketingProductType
+        new()
         {
             Name = "Phone Case",
             Description = "Hard case with photo print",
             IconClass = "bi-phone"
         },
 
-        new MarketingProductType
+        new()
         {
             Name = "Canvas Print",
             Description = "Gallery-wrapped canvas",

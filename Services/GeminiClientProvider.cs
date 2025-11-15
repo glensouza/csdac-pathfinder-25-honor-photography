@@ -1,4 +1,3 @@
-using Google.Api.Gax.ResourceNames;
 using Google.Cloud.AIPlatform.V1;
 
 namespace PathfinderPhotography.Services;
@@ -21,8 +20,7 @@ public class GeminiClientProvider : IGeminiClientProvider
         this.projectId = configuration["AI:Gemini:ProjectId"] ?? throw new InvalidOperationException("Project ID is required");
         this.location = configuration["AI:Gemini:Location"] ?? "us-central1";
         
-        logger.LogInformation("Initializing Gemini client for project: {ProjectId}, location: {Location}", 
-            this.projectId, this.location);
+        logger.LogInformation("Initializing Gemini client for project: {ProjectId}, location: {Location}", this.projectId, this.location);
 
         // Initialize the Vertex AI client with API key authentication
         PredictionServiceClientBuilder builder = new()

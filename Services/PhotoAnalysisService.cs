@@ -1,14 +1,10 @@
 using Google.Cloud.AIPlatform.V1;
-using Google.Protobuf;
-using Google.Protobuf.WellKnownTypes;
 using System.Text.Json;
+using Grpc.Core;
 
 namespace PathfinderPhotography.Services;
 
-public class PhotoAnalysisService(
-    IGeminiClientProvider geminiClientProvider,
-    IConfiguration configuration,
-    ILogger<PhotoAnalysisService> logger)
+public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IConfiguration configuration, ILogger<PhotoAnalysisService> logger)
 {
     public async Task<PhotoAnalysisResult> AnalyzePhotoAsync(byte[] imageData, string fileName, string compositionRule)
     {
@@ -16,7 +12,8 @@ public class PhotoAnalysisService(
 
         PhotoAnalysisResult result = new()
         {
-            OriginalFileName = fileName
+            OriginalFileName = fileName,
+            AiSucceeded = false
         };
 
         try
@@ -30,22 +27,58 @@ public class PhotoAnalysisService(
 
             // Step 1: Generate description, title, and rating using Gemini vision model
             logger.LogDebug("Generating description and title with vision model: {Model}", visionModel);
-            (result.Description, result.Title, result.Rating, MarketingContent marketing) = 
-                await this.GenerateAnalysisAndMarketingAsync(
-                    client, projectId, location, visionModel, imageData, fileName, compositionRule);
-            
-            result.MarketingHeadline = marketing.Headline;
-            result.MarketingCopy = marketing.MarketingCopy;
-            result.SuggestedPrice = marketing.Price;
-            result.SocialMediaText = marketing.SocialMediaText;
+            try
+            {
+                (result.Description, result.Title, result.Rating, MarketingContent marketing) = 
+                    await this.GenerateAnalysisAndMarketingAsync(client, projectId, location, visionModel, imageData, fileName, compositionRule);
 
-            // Step 2: Generate marketing image using Imagen
-            logger.LogDebug("Generating marketing image with model: {Model}", imageGenModel);
-            result.MarketingImageData = await this.GenerateMarketingImageAsync(
-                client, projectId, location, imageGenModel, result.Title, result.Description, marketing.Headline);
+                result.MarketingHeadline = marketing.Headline;
+                result.MarketingCopy = marketing.MarketingCopy;
+                result.SuggestedPrice = marketing.Price;
+                result.SocialMediaText = marketing.SocialMediaText;
 
-            logger.LogInformation("AI analysis complete: Title='{Title}', Rating={Rating}, Marketing image={HasImage}", 
-                result.Title, result.Rating, result.MarketingImageData != null);
+                // Step 2: Generate marketing image using Imagen
+                logger.LogDebug("Generating marketing image with model: {Model}", imageGenModel);
+                try
+                {
+                    result.MarketingImageData = await this.GenerateMarketingImageAsync(
+                        client, projectId, location, imageGenModel, result.Title, result.Description, marketing.Headline);
+                }
+                catch (RpcException rpcEx)
+                {
+                    // Image generation failed or is unsupported; log and continue with text-only results
+                    logger.LogWarning(rpcEx, "Image generation unavailable for model {Model}. Continuing without marketing image.", imageGenModel);
+                }
+
+                result.AiSucceeded = true;
+
+                logger.LogInformation("AI analysis complete: Title='{Title}', Rating={Rating}, Marketing image={HasImage}", 
+                    result.Title, result.Rating, result.MarketingImageData != null);
+            }
+            catch (RpcException rpcEx)
+            {
+                // Known case: Gemini cannot be accessed via Predict API
+                logger.LogWarning(rpcEx, "AI model request failed (model: {Model}). Falling back to safe defaults. See https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal for Gemini usage.", visionModel);
+
+                // Provide safe fallback values without throwing so app continues to work
+                string fallbackTitle = Path.GetFileNameWithoutExtension(fileName);
+                MarketingContent fallbackMarketing = GetFallbackMarketingContent(compositionRule);
+
+                PhotoAnalysisResult fallbackResult = new PhotoAnalysisResult()
+                {
+                    OriginalFileName = fileName,
+                    Title = fallbackTitle,
+                    Description = "AI analysis unavailable",
+                    Rating = 5,
+                    MarketingHeadline = fallbackMarketing.Headline,
+                    MarketingCopy = fallbackMarketing.MarketingCopy,
+                    SuggestedPrice = fallbackMarketing.Price,
+                    SocialMediaText = fallbackMarketing.SocialMediaText,
+                    AiSucceeded = false
+                };
+
+                return fallbackResult;
+            }
         }
         catch (Exception ex)
         {
@@ -66,9 +99,36 @@ public class PhotoAnalysisService(
             {
                 result.Rating = 5;
             }
+
+            result.AiSucceeded = false;
+        }
+
+        // Sanitize title if model returned an internal filename or placeholder
+        if (!string.IsNullOrWhiteSpace(result.Title))
+        {
+            string trimmed = result.Title.Trim();
+            bool looksLikeGeneratedFileName = trimmed.Contains("Gemini_Generated_Image", StringComparison.OrdinalIgnoreCase)
+                                              || trimmed.Contains("Generated_Image", StringComparison.OrdinalIgnoreCase)
+                                              || trimmed.Length > 80
+                                              || System.Text.RegularExpressions.Regex.IsMatch(trimmed, "[_\\-]taj\\d+");
+
+            if (looksLikeGeneratedFileName)
+            {
+                string baseName = Path.GetFileNameWithoutExtension(fileName);
+                result.Title = $"{SanitizeTitle(baseName)} - {compositionRule}";
+                logger.LogDebug("Sanitized AI title to: {Title}", result.Title);
+            }
         }
 
         return result;
+    }
+
+    private static string SanitizeTitle(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return "Untitled";
+        string s = input.Replace('_', ' ').Replace('-', ' ').Trim();
+        if (s.Length > 40) s = s.Substring(0, 40).TrimEnd();
+        return s;
     }
 
     private async Task<(string description, string title, int rating, MarketingContent marketing)> 
@@ -118,7 +178,7 @@ public class PhotoAnalysisService(
 
             // Convert image to base64
             string base64Image = Convert.ToBase64String(imageData);
-            string promptEscaped = prompt.Replace("\"", "\\\"");
+            string promptEscaped = prompt.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n");
 
             // Create the request with image and text
             Google.Protobuf.WellKnownTypes.Value instance = Google.Protobuf.WellKnownTypes.Value.Parser.ParseJson($@"
@@ -139,7 +199,17 @@ public class PhotoAnalysisService(
                 Instances = { instance }
             };
 
-            PredictResponse response = await client.PredictAsync(request);
+            PredictResponse response;
+            try
+            {
+                response = await client.PredictAsync(request);
+            }
+            catch (RpcException rpcEx)
+            {
+                // If Gemini cannot be accessed with Predict, return fallbacks and surface guidance in logs
+                logger.LogWarning(rpcEx, "Predict call failed for model {Model}. Gemini may require a different API (see https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal).", model);
+                return ("AI analysis unavailable", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
+            }
 
             if (response.Predictions.Count == 0)
             {
@@ -149,7 +219,8 @@ public class PhotoAnalysisService(
 
             string jsonResponse = response.Predictions[0].ToString();
             
-            logger.LogDebug("Gemini response: {Response}", jsonResponse);
+            // Log raw response for diagnosis (DEBUG only)
+            logger.LogDebug("Raw Gemini response: {Response}", jsonResponse);
 
             using JsonDocument doc = JsonDocument.Parse(jsonResponse);
             JsonElement root = doc.RootElement;
@@ -162,11 +233,11 @@ public class PhotoAnalysisService(
                 ? titleElement.GetString() ?? Path.GetFileNameWithoutExtension(fileName)
                 : Path.GetFileNameWithoutExtension(fileName);
 
-            int rating = root.TryGetProperty("rating", out JsonElement ratingElement)
+            int rating = root.TryGetProperty("rating", out JsonElement ratingElement) && ratingElement.ValueKind == JsonValueKind.Number
                 ? ratingElement.GetInt32()
                 : 5;
 
-            decimal price = root.TryGetProperty("price", out JsonElement priceElement)
+            decimal price = root.TryGetProperty("price", out JsonElement priceElement) && priceElement.ValueKind == JsonValueKind.Number
                 ? priceElement.GetDecimal()
                 : 10.00m;
 
@@ -228,7 +299,7 @@ public class PhotoAnalysisService(
             EndpointName endpoint = EndpointName.FromProjectLocationPublisherModel(
                 projectId, location, "google", model);
 
-            string promptEscaped = prompt.Replace("\"", "\\\"").Replace("\n", "\\n");
+            string promptEscaped = prompt.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
             Google.Protobuf.WellKnownTypes.Value instance = Google.Protobuf.WellKnownTypes.Value.Parser.ParseJson($@"
             {{
               ""prompt"": ""{promptEscaped}"",
@@ -245,7 +316,16 @@ public class PhotoAnalysisService(
                 Instances = { instance }
             };
 
-            PredictResponse response = await client.PredictAsync(request);
+            PredictResponse response;
+            try
+            {
+                response = await client.PredictAsync(request);
+            }
+            catch (RpcException rpcEx)
+            {
+                logger.LogWarning(rpcEx, "Image generation Predict call failed for model {Model}. Imagen may not be accessible via Predict API.", model);
+                return null;
+            }
 
             if (response.Predictions.Count == 0)
             {
@@ -255,6 +335,8 @@ public class PhotoAnalysisService(
 
             // Extract the base64 encoded image from response
             string responseJson = response.Predictions[0].ToString();
+            logger.LogDebug("Raw Imagen response: {Response}", responseJson);
+
             using JsonDocument doc = JsonDocument.Parse(responseJson);
             
             if (doc.RootElement.TryGetProperty("bytesBase64Encoded", out JsonElement imageElement))
@@ -299,6 +381,7 @@ public class PhotoAnalysisResult
     public decimal SuggestedPrice { get; set; }
     public string SocialMediaText { get; set; } = string.Empty;
     public byte[]? MarketingImageData { get; set; }
+    public bool AiSucceeded { get; set; } = false;
 }
 
 public class MarketingContent
