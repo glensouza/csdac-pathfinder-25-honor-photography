@@ -173,7 +173,21 @@ else
                             }
                             
                             <div class="mt-4">
-                                <ProductMockup ImageSrc="@($"/api/images/{submission.Id}")" />
+                                @if (submission.AiMarketingImageData != null && submission.AiMarketingImageData.Length > 0)
+                                {
+                                    <div class="ai-marketing-image-container">
+                                        <h5 class="mb-3">📦 Product Mockup</h5>
+                                        <p class="text-muted small">AI-generated professional marketing image:</p>
+                                        <img src="@GetMarketingImageDataUrl()" 
+                                             alt="AI-generated marketing mockup" 
+                                             class="img-fluid rounded shadow"
+                                             style="max-width: 100%; height: auto;" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <ProductMockup ImageSrc="@($"/api/images/{submission.Id}")" />
+                                }
                             </div>
                         </div>
                     </div>
@@ -223,5 +237,58 @@ else
                 // Silently fail - could show a message to user in production
             }
         }
+    }
+
+    private string GetMarketingImageDataUrl()
+    {
+        if (submission?.AiMarketingImageData != null && submission.AiMarketingImageData.Length > 0)
+        {
+            string base64Image = Convert.ToBase64String(submission.AiMarketingImageData);
+            // Detect image format from magic bytes (PNG, JPEG, WebP)
+            string mimeType = GetImageMimeType(submission.AiMarketingImageData);
+            return $"data:{mimeType};base64,{base64Image}";
+        }
+        return string.Empty;
+    }
+
+    // Detects image MIME type from magic bytes
+    private static string GetImageMimeType(byte[] imageData)
+    {
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (imageData.Length >= 8 &&
+            imageData[0] == 0x89 &&
+            imageData[1] == 0x50 &&
+            imageData[2] == 0x4E &&
+            imageData[3] == 0x47 &&
+            imageData[4] == 0x0D &&
+            imageData[5] == 0x0A &&
+            imageData[6] == 0x1A &&
+            imageData[7] == 0x0A)
+        {
+            return "image/png";
+        }
+        // JPEG: FF D8 FF
+        if (imageData.Length >= 3 &&
+            imageData[0] == 0xFF &&
+            imageData[1] == 0xD8 &&
+            imageData[2] == 0xFF)
+        {
+            return "image/jpeg";
+        }
+        // WebP: RIFF....WEBP
+        if (imageData.Length >= 12 &&
+            imageData[0] == 0x52 && // 'R'
+            imageData[1] == 0x49 && // 'I'
+            imageData[2] == 0x46 && // 'F'
+            imageData[3] == 0x46 && // 'F'
+            imageData[8] == 0x57 && // 'W'
+            imageData[9] == 0x45 && // 'E'
+            imageData[10] == 0x42 && // 'B'
+            imageData[11] == 0x50)   // 'P'
+        {
+            return "image/webp";
+        }
+        // Fallback to generic image MIME type
+        return "image/*";
     }
 }

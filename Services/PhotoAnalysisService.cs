@@ -42,7 +42,7 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
                 try
                 {
                     result.MarketingImageData = await this.GenerateMarketingImageAsync(
-                        client, projectId, location, imageGenModel, result.Title, result.Description, marketing.Headline);
+                        client, projectId, location, imageGenModel, imageData, result.Title, result.Description, marketing.Headline);
                 }
                 catch (RpcException rpcEx)
                 {
@@ -104,21 +104,25 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
         }
 
         // Sanitize title if model returned an internal filename or placeholder
-        if (!string.IsNullOrWhiteSpace(result.Title))
+        if (string.IsNullOrWhiteSpace(result.Title))
         {
-            string trimmed = result.Title.Trim();
-            bool looksLikeGeneratedFileName = trimmed.Contains("Gemini_Generated_Image", StringComparison.OrdinalIgnoreCase)
-                                              || trimmed.Contains("Generated_Image", StringComparison.OrdinalIgnoreCase)
-                                              || trimmed.Length > 80
-                                              || System.Text.RegularExpressions.Regex.IsMatch(trimmed, "[_\\-]taj\\d+");
-
-            if (looksLikeGeneratedFileName)
-            {
-                string baseName = Path.GetFileNameWithoutExtension(fileName);
-                result.Title = $"{SanitizeTitle(baseName)} - {compositionRule}";
-                logger.LogDebug("Sanitized AI title to: {Title}", result.Title);
-            }
+            return result;
         }
+
+        string trimmed = result.Title.Trim();
+        bool looksLikeGeneratedFileName = trimmed.Contains("Gemini_Generated_Image", StringComparison.OrdinalIgnoreCase)
+                                          || trimmed.Contains("Generated_Image", StringComparison.OrdinalIgnoreCase)
+                                          || trimmed.Length > 80
+                                          || System.Text.RegularExpressions.Regex.IsMatch(trimmed, "[_\\-]taj\\d+");
+
+        if (!looksLikeGeneratedFileName)
+        {
+            return result;
+        }
+
+        string baseName = Path.GetFileNameWithoutExtension(fileName);
+        result.Title = $"{SanitizeTitle(baseName)} - {compositionRule}";
+        logger.LogDebug("Sanitized AI title to: {Title}", result.Title);
 
         return result;
     }
@@ -173,54 +177,66 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
 
         try
         {
-            EndpointName endpoint = EndpointName.FromProjectLocationPublisherModel(
-                projectId, location, "google", model);
+            // Build the model resource name for Gemini
+            string modelPath = $"projects/{projectId}/locations/{location}/publishers/google/models/{model}";
 
-            // Convert image to base64
-            string base64Image = Convert.ToBase64String(imageData);
-            string promptEscaped = prompt.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n");
-
-            // Create the request with image and text
-            Google.Protobuf.WellKnownTypes.Value instance = Google.Protobuf.WellKnownTypes.Value.Parser.ParseJson($@"
-            {{
-              ""contents"": [{{
-                ""role"": ""user"",
-                ""parts"": [
-                  {{""inline_data"": {{""mime_type"": ""image/jpeg"", ""data"": ""{base64Image}""}}}},
-                  {{""text"": ""{promptEscaped}""}}
-                ]
-              }}]
-            }}
-            ");
-
-            PredictRequest request = new()
+            // Create the request using GenerateContentAsync for Gemini models
+            GenerateContentRequest request = new GenerateContentRequest
             {
-                Endpoint = endpoint.ToString(),
-                Instances = { instance }
+                Model = modelPath,
+                Contents =
+                {
+                    new Content
+                    {
+                        Role = "user",
+                        Parts =
+                        {
+                            new Part { InlineData = new Blob { MimeType = "image/jpeg", Data = Google.Protobuf.ByteString.CopyFrom(imageData) } },
+                            new Part { Text = prompt }
+                        }
+                    }
+                }
             };
 
-            PredictResponse response;
+            GenerateContentResponse response;
             try
             {
-                response = await client.PredictAsync(request);
+                response = await client.GenerateContentAsync(request);
             }
             catch (RpcException rpcEx)
             {
-                // If Gemini cannot be accessed with Predict, return fallbacks and surface guidance in logs
-                logger.LogWarning(rpcEx, "Predict call failed for model {Model}. Gemini may require a different API (see https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal).", model);
+                // If Gemini call fails, return fallbacks and surface guidance in logs
+                logger.LogWarning(rpcEx, "GenerateContent call failed for model {Model} with status {StatusCode}. See https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal for Gemini usage.", model, rpcEx.StatusCode);
                 return ("AI analysis unavailable", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
             }
 
-            if (response.Predictions.Count == 0)
+            if (response.Candidates.Count == 0 || response.Candidates[0].Content?.Parts.Count == 0)
             {
                 logger.LogWarning("Empty response from Gemini");
                 return ("A photograph", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
             }
 
-            string jsonResponse = response.Predictions[0].ToString();
+            string? jsonResponse = response.Candidates[0].Content.Parts[0].Text;
+            if (string.IsNullOrWhiteSpace(jsonResponse))
+            {
+                logger.LogWarning("Empty text in Gemini response");
+                return ("A photograph", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
+            }
             
             // Log raw response for diagnosis (DEBUG only)
             logger.LogDebug("Raw Gemini response: {Response}", jsonResponse);
+
+            // Strip markdown code blocks if present (Gemini sometimes wraps JSON in ```json ... ```)
+            jsonResponse = jsonResponse.Trim();
+            if (jsonResponse.StartsWith("```json", StringComparison.OrdinalIgnoreCase) || jsonResponse.StartsWith("```"))
+            {
+                int startIndex = jsonResponse.IndexOf('\n') + 1;
+                int endIndex = jsonResponse.LastIndexOf("```", StringComparison.Ordinal);
+                if (startIndex > 0 && endIndex > startIndex)
+                {
+                    jsonResponse = jsonResponse.Substring(startIndex, endIndex - startIndex).Trim();
+                }
+            }
 
             using JsonDocument doc = JsonDocument.Parse(jsonResponse);
             JsonElement root = doc.RootElement;
@@ -280,75 +296,77 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
         string projectId,
         string location,
         string model,
+        byte[] imageData,
         string title,
         string description,
         string headline)
     {
         logger.LogDebug("Generating marketing image for: {Title}", title);
 
-        string prompt = $"Create a professional marketing image for a photography print featuring:\n\n" +
+        string prompt = $"You are creating professional marketing material for a photography print. " +
+                       $"Use the provided photograph and create a marketing image that showcases it beautifully.\n\n" +
+                       $"Photo Details:\n" +
                        $"Title: {title}\n" +
                        $"Description: {description}\n" +
-                       $"Headline: {headline}\n\n" +
-                       "Design a clean, modern marketing visual showing this photograph displayed as a high-quality framed print on a gallery wall with soft lighting. " +
-                       "The composition should be professional and appealing, showcasing the photograph as a product worth purchasing.\n" +
-                       "Style: Professional product photography, clean aesthetic, gallery presentation.";
+                       $"Marketing Headline: {headline}\n\n" +
+                       "Create a professional product mockup showing THIS EXACT PHOTOGRAPH displayed as a high-quality framed print on a gallery wall. " +
+                       "The marketing image should feature the actual submitted photo in an attractive presentation, NOT a different or similar image. " +
+                       "Include soft lighting, a clean modern aesthetic, and professional gallery presentation. " +
+                       "Make the original photograph the hero of the marketing image.";
 
         try
         {
-            EndpointName endpoint = EndpointName.FromProjectLocationPublisherModel(
-                projectId, location, "google", model);
+            // Build the model resource name (works for Gemini image generation models like gemini-2.5-flash-image)
+            string modelPath = $"projects/{projectId}/locations/{location}/publishers/google/models/{model}";
 
-            string promptEscaped = prompt.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-            Google.Protobuf.WellKnownTypes.Value instance = Google.Protobuf.WellKnownTypes.Value.Parser.ParseJson($@"
-            {{
-              ""prompt"": ""{promptEscaped}"",
-              ""number_of_images"": 1,
-              ""aspect_ratio"": ""1:1"",
-              ""safety_filter_level"": ""block_few"",
-              ""person_generation"": ""dont_allow""
-            }}
-            ");
-
-            PredictRequest request = new()
+            // Create the request using GenerateContentAsync for Gemini image generation models
+            // Include the actual photo so Gemini can use it in the marketing material
+            GenerateContentRequest request = new GenerateContentRequest
             {
-                Endpoint = endpoint.ToString(),
-                Instances = { instance }
+                Model = modelPath,
+                Contents =
+                {
+                    new Content
+                    {
+                        Role = "user",
+                        Parts =
+                        {
+                            new Part { InlineData = new Blob { MimeType = "image/jpeg", Data = Google.Protobuf.ByteString.CopyFrom(imageData) } },
+                            new Part { Text = prompt }
+                        }
+                    }
+                }
             };
 
-            PredictResponse response;
+            GenerateContentResponse response;
             try
             {
-                response = await client.PredictAsync(request);
+                response = await client.GenerateContentAsync(request);
             }
             catch (RpcException rpcEx)
             {
-                logger.LogWarning(rpcEx, "Image generation Predict call failed for model {Model}. Imagen may not be accessible via Predict API.", model);
+                // If Gemini image generation call fails, return null (non-critical - app continues without marketing image)
+                logger.LogWarning(rpcEx, "Image generation call failed for model {Model}. Continuing without marketing image.", model);
                 return null;
             }
 
-            if (response.Predictions.Count == 0)
+            if (response.Candidates.Count == 0 || response.Candidates[0].Content?.Parts.Count == 0)
             {
-                logger.LogWarning("No marketing image generated by Imagen");
+                logger.LogWarning("No marketing image generated by {Model}", model);
                 return null;
             }
 
-            // Extract the base64 encoded image from response
-            string responseJson = response.Predictions[0].ToString();
-            logger.LogDebug("Raw Imagen response: {Response}", responseJson);
-
-            using JsonDocument doc = JsonDocument.Parse(responseJson);
+            // For image generation models, the response should contain inline image data
+            Part firstPart = response.Candidates[0].Content.Parts[0];
             
-            if (doc.RootElement.TryGetProperty("bytesBase64Encoded", out JsonElement imageElement))
+            // Check if we have inline image data
+            if (firstPart.InlineData != null && firstPart.InlineData.Data != null)
             {
-                string? base64Image = imageElement.GetString();
-                if (!string.IsNullOrWhiteSpace(base64Image))
-                {
-                    return Convert.FromBase64String(base64Image);
-                }
+                logger.LogDebug("Successfully generated marketing image with {Model}", model);
+                return firstPart.InlineData.Data.ToByteArray();
             }
 
-            logger.LogWarning("Could not extract image data from Imagen response");
+            logger.LogWarning("Could not extract image data from {Model} response - no inline data found", model);
             return null;
         }
         catch (Exception ex)
