@@ -387,9 +387,10 @@
                     StateHasChanged();
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore errors during auto-refresh
+                // Log but don't throw - this is background refresh
+                Console.WriteLine($"Auto-refresh failed: {ex.Message}");
             }
         }, null, TimeSpan.FromSeconds(autoRefreshIntervalSeconds), TimeSpan.FromSeconds(autoRefreshIntervalSeconds));
     }
