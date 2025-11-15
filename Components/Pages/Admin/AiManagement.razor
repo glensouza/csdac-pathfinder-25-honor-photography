@@ -239,6 +239,7 @@
 
     private System.Threading.Timer? autoRefreshTimer;
     private readonly int autoRefreshIntervalSeconds = 30;
+    private bool isDisposed = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -379,6 +380,8 @@
     {
         autoRefreshTimer = new System.Threading.Timer(async _ =>
         {
+            if (isDisposed) return;
+            
             try
             {
                 await InvokeAsync(async () =>
@@ -397,6 +400,7 @@
 
     public void Dispose()
     {
+        isDisposed = true;
         autoRefreshTimer?.Dispose();
     }
 }
