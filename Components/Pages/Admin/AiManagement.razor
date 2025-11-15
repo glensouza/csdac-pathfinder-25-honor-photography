@@ -1,0 +1,372 @@
+@page "/admin/ai-management"
+@using System.Security.Claims
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@inject PhotoSubmissionService SubmissionService
+@inject UserService UserService
+@inject AiProcessingBackgroundService AiProcessingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>AI Analysis Management</PageTitle>
+
+<div class="container-fluid mt-4">
+    <h1>AI Analysis Management</h1>
+    <p class="lead">Manage AI-powered photo analysis and retry failed analyses</p>
+
+    @if (!isAdmin)
+    {
+        <div class="alert alert-danger">
+            <h4>Access Denied</h4>
+            <p>You must be an admin to access this page.</p>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    }
+    else
+    {
+        @if (isProcessing)
+        {
+            <div class="alert alert-info">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Processing...</span>
+                </div>
+                Processing AI analysis... This may take 30-60 seconds.
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert @(statusMessageType switch
+                              {
+                                  "success" => "alert-success",
+                                  "error" => "alert-danger",
+                                  _ => "alert-info"
+                              }) alert-dismissible fade show" role="alert">
+                @statusMessage
+                <button type="button" class="btn-close" @onclick="() => statusMessage = string.Empty"></button>
+            </div>
+        }
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-2">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Submissions</h6>
+                        <h3 class="mb-0">@totalSubmissions</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Completed</h6>
+                        <h3 class="mb-0">@submissionsWithAi</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Without AI</h6>
+                        <h3 class="mb-0">@submissionsWithoutAi</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-purple text-white" style="background-color: #6f42c1 !important;">
+                    <div class="card-body">
+                        <h6 class="card-title">⏳ In Queue</h6>
+                        <h3 class="mb-0">@queuedCount</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">✗ Failed</h6>
+                        <h3 class="mb-0">@failedCount</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Avg Rating</h6>
+                        <h3 class="mb-0">@averageAiRating.ToString("F1")</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter and Actions -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Filter</label>
+                        <select class="form-select" @onchange="OnFilterChanged">
+                            <option value="all">All Submissions</option>
+                            <option value="with-ai">With AI Analysis (Completed)</option>
+                            <option value="without-ai">Without AI Analysis</option>
+                            <option value="low-rating">Low AI Rating (&lt; 5)</option>
+                            <option value="queued">Queued for Processing</option>
+                            <option value="processing">Currently Processing</option>
+                            <option value="failed">Failed Analysis</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button class="btn btn-primary" @onclick="RefreshData" disabled="@isProcessing">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submissions Table -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Photo Submissions</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Pathfinder</th>
+                                <th>Rule</th>
+                                <th>Submitted</th>
+                                <th>AI Status</th>
+                                <th>AI Rating</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (PhotoSubmission submission in filteredSubmissions)
+                            {
+                                <tr>
+                                    <td>@submission.Id</td>
+                                    <td>@submission.PathfinderName</td>
+                                    <td>
+                                        <small>@submission.CompositionRuleName</small>
+                                    </td>
+                                    <td>
+                                        <small>@submission.SubmissionDate.ToString("MMM dd, yyyy")</small>
+                                    </td>
+                                    <td>
+                                        @{
+                                            (string Icon, string Text, string BadgeClass, string Tooltip) statusInfo = GetAiStatusInfo(submission.AiProcessingStatus);
+                                        }
+                                        <span class="badge @statusInfo.BadgeClass" title="@statusInfo.Tooltip">
+                                            @statusInfo.Icon @statusInfo.Text
+                                        </span>
+                                        @if (submission.AiProcessingStatus == AiProcessingStatus.Failed && !string.IsNullOrEmpty(submission.AiProcessingError))
+                                        {
+                                            string errorText = submission.AiProcessingError.Length > 30 
+                                                ? submission.AiProcessingError.Substring(0, 30) + "..." 
+                                                : submission.AiProcessingError;
+                                            <br /><small class="text-danger" title="@submission.AiProcessingError">@errorText</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (submission.AiRating.HasValue)
+                                        {
+                                            <span class="badge @GetRatingBadgeClass(submission.AiRating.Value)">
+                                                @submission.AiRating/10
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="/photo/@submission.Id" class="btn btn-outline-primary" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <button class="btn btn-outline-success" 
+                                                    @onclick="() => RetryAnalysis(submission.Id)"
+                                                    disabled="@isProcessing"
+                                                    title="@(string.IsNullOrEmpty(submission.AiTitle) ? "Run AI Analysis" : "Retry AI Analysis")">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (!filteredSubmissions.Any())
+                    {
+                        <div class="alert alert-info">
+                            <p class="mb-0">No submissions found matching the current filter.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <a href="/admin/dashboard" class="btn btn-outline-secondary">← Back to Dashboard</a>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAdmin = false;
+    private bool isProcessing = false;
+    private string statusMessage = string.Empty;
+    private string statusMessageType = "info";
+    private List<PhotoSubmission> allSubmissions = [];
+    private List<PhotoSubmission> filteredSubmissions = [];
+    private string currentFilter = "all";
+
+    private int totalSubmissions = 0;
+    private int submissionsWithAi = 0;
+    private int submissionsWithoutAi = 0;
+    private int queuedCount = 0;
+    private int failedCount = 0;
+    private double averageAiRating = 0.0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            string currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+            string currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
+            
+            if (!string.IsNullOrEmpty(currentUserEmail))
+            {
+                await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
+                isAdmin = await UserService.IsAdminAsync(currentUserEmail);
+            }
+        }
+
+        if (!isAdmin)
+        {
+            return;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        allSubmissions = await SubmissionService.GetAllSubmissionsAsync();
+        CalculateStatistics();
+        ApplyFilter();
+    }
+
+    private void CalculateStatistics()
+    {
+        totalSubmissions = allSubmissions.Count;
+        submissionsWithAi = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Completed);
+        submissionsWithoutAi = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.NotStarted || s.AiProcessingStatus == AiProcessingStatus.Failed);
+        queuedCount = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Queued || s.AiProcessingStatus == AiProcessingStatus.Processing);
+        failedCount = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Failed);
+        
+        List<int> ratings = allSubmissions
+            .Where(s => s.AiRating.HasValue)
+            .Select(s => s.AiRating!.Value)
+            .ToList();
+        
+        averageAiRating = ratings.Any() ? ratings.Average() : 0.0;
+    }
+
+    private void ApplyFilter()
+    {
+        filteredSubmissions = currentFilter switch
+        {
+            "with-ai" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Completed).ToList(),
+            "without-ai" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.NotStarted || s.AiProcessingStatus == AiProcessingStatus.Failed).ToList(),
+            "low-rating" => allSubmissions.Where(s => s.AiRating is < 5).ToList(),
+            "queued" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Queued).ToList(),
+            "processing" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Processing).ToList(),
+            "failed" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Failed).ToList(),
+            _ => allSubmissions.ToList()
+        };
+
+        filteredSubmissions = filteredSubmissions.OrderByDescending(s => s.SubmissionDate).ToList();
+    }
+
+    private void OnFilterChanged(ChangeEventArgs e)
+    {
+        currentFilter = e.Value?.ToString() ?? "all";
+        ApplyFilter();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+        statusMessage = "Data refreshed successfully.";
+        statusMessageType = "success";
+    }
+
+    private async Task RetryAnalysis(int submissionId)
+    {
+        isProcessing = true;
+        statusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            await SubmissionService.RetryAiAnalysisAsync(submissionId);
+            
+            // Reload the data to show updated status
+            await LoadData();
+            
+            statusMessage = $"AI analysis queued for submission #{submissionId}. Processing in background...";
+            statusMessageType = "success";
+        }
+        catch (InvalidOperationException ex)
+        {
+            statusMessage = $"Cannot retry submission #{submissionId}: {ex.Message}";
+            statusMessageType = "error";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to queue analysis for submission #{submissionId}: {ex.Message}";
+            statusMessageType = "error";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetRatingBadgeClass(int rating)
+    {
+        return rating switch
+        {
+            >= 8 => "bg-success",
+            >= 6 => "bg-info",
+            >= 4 => "bg-warning",
+            _ => "bg-danger"
+        };
+    }
+
+    private (string Icon, string Text, string BadgeClass, string Tooltip) GetAiStatusInfo(AiProcessingStatus status)
+    {
+        return status switch
+        {
+            AiProcessingStatus.NotStarted => ("", "Not Started", "bg-secondary", "AI analysis not initiated"),
+            AiProcessingStatus.Queued => ("⏳", "Queued", "bg-info", "Waiting for AI analysis to begin"),
+            AiProcessingStatus.Processing => ("⚙️", "Processing", "bg-primary", "AI analysis currently in progress"),
+            AiProcessingStatus.Completed => ("✓", "Completed", "bg-success", "AI analysis completed successfully"),
+            AiProcessingStatus.Failed => ("✗", "Failed", "bg-danger", "AI analysis failed - see error message"),
+            _ => ("", "Unknown", "bg-secondary", "Unknown status")
+        };
+    }
+}

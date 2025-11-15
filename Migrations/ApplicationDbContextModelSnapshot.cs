@@ -17,7 +17,7 @@ namespace PathfinderPhotography.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "9.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
@@ -73,6 +73,42 @@ namespace PathfinderPhotography.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AiDescription")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AiMarketingCopy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AiMarketingHeadline")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("AiMarketingImageData")
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTime?>("AiProcessingCompletedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AiProcessingError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("AiProcessingStartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("AiProcessingStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AiRating")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AiSocialMediaText")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("AiSuggestedPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("AiTitle")
+                        .HasColumnType("text");
 
                     b.Property<int>("CompositionRuleId")
                         .HasColumnType("integer");

@@ -12,19 +12,62 @@ using PathfinderPhotography.Data;
 namespace PathfinderPhotography.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251107204538_UseCitextForUserEmail")]
-    partial class UseCitextForUserEmail
+    [Migration("20251115034003_initial")]
+    partial class initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "9.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("PathfinderPhotography.Models.CompletionCertificate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("CertificatePdfData")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTime>("CompletionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("EmailSent")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("EmailSentDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("IssuedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PathfinderEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("citext");
+
+                    b.Property<string>("PathfinderName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletionDate");
+
+                    b.HasIndex("PathfinderEmail");
+
+                    b.ToTable("CompletionCertificates");
+                });
 
             modelBuilder.Entity("PathfinderPhotography.Models.PhotoSubmission", b =>
                 {
@@ -33,6 +76,42 @@ namespace PathfinderPhotography.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AiDescription")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AiMarketingCopy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AiMarketingHeadline")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("AiMarketingImageData")
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTime?>("AiProcessingCompletedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AiProcessingError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("AiProcessingStartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("AiProcessingStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AiRating")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AiSocialMediaText")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("AiSuggestedPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("AiTitle")
+                        .HasColumnType("text");
 
                     b.Property<int>("CompositionRuleId")
                         .HasColumnType("integer");
@@ -77,7 +156,7 @@ namespace PathfinderPhotography.Migrations
                     b.Property<string>("PathfinderEmail")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("citext");
 
                     b.Property<string>("PathfinderName")
                         .IsRequired()
@@ -123,7 +202,7 @@ namespace PathfinderPhotography.Migrations
                     b.Property<string>("VoterEmail")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("citext");
 
                     b.Property<int>("WinnerPhotoId")
                         .HasColumnType("integer");

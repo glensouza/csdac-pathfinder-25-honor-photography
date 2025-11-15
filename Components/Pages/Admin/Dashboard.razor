@@ -64,6 +64,28 @@
             </div>
         </div>
 
+        <!-- AI Statistics Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">🤖 With AI Analysis</h5>
+                        <h2 class="mb-0">@statistics.SubmissionsWithAi <small class="fs-6">/ @statistics.TotalSubmissions</small></h2>
+                        <small>@((statistics.TotalSubmissions > 0 ? (statistics.SubmissionsWithAi * 100.0 / statistics.TotalSubmissions) : 0).ToString("F0"))% coverage</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">📊 Average AI Rating</h5>
+                        <h2 class="mb-0">@statistics.AverageAiRating.ToString("F1") <small class="fs-6">/ 10</small></h2>
+                        <small>Based on @statistics.SubmissionsWithAiRating submissions</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row mb-4">
             <div class="col-md-6">
                 <div class="card">
@@ -99,6 +121,7 @@
                         <div class="d-grid gap-2">
                             <a href="/grading" class="btn btn-primary">Grade Submissions</a>
                             <a href="/admin/users" class="btn btn-info">Manage Users</a>
+                            <a href="/admin/ai-management" class="btn btn-warning">🤖 Manage AI Analysis</a>
                             <button class="btn btn-success" @onclick="ExportToPdf">Export to PDF</button>
                         </div>
                     </div>
@@ -237,7 +260,10 @@
             TotalUsers = allUsers.Count,
             PathfinderCount = allUsers.Count(u => u.Role == UserRole.Pathfinder),
             InstructorCount = allUsers.Count(u => u.Role == UserRole.Instructor),
-            AdminCount = allUsers.Count(u => u.Role == UserRole.Admin)
+            AdminCount = allUsers.Count(u => u.Role == UserRole.Admin),
+            SubmissionsWithAi = allSubmissions.Count(s => s.AiProcessingStatus == Models.AiProcessingStatus.Completed),
+            SubmissionsWithAiRating = allSubmissions.Count(s => s.AiRating.HasValue),
+            AverageAiRating = allSubmissions.Where(s => s.AiRating.HasValue).Select(s => (double)s.AiRating!.Value).DefaultIfEmpty(0).Average()
         };
 
         ruleStatistics = rules.Select(rule => new RuleStatistic
@@ -271,6 +297,9 @@
         public int PathfinderCount { get; set; }
         public int InstructorCount { get; set; }
         public int AdminCount { get; set; }
+        public int SubmissionsWithAi { get; set; }
+        public int SubmissionsWithAiRating { get; set; }
+        public double AverageAiRating { get; set; }
     }
 
     private class RuleStatistic

@@ -197,14 +197,14 @@
 </div>
 
 @code {
-    private List<CompositionRule> rules = new();
+    private List<CompositionRule> rules = [];
     private PhotoSubmission currentSubmission = new();
     private IBrowserFile? selectedFile;
     private string selectedFileName = string.Empty;
     private string successMessage = string.Empty;
     private string errorMessage = string.Empty;
     private bool isSubmitting = false;
-    private List<PhotoSubmission> userSubmissions = new();
+    private List<PhotoSubmission> userSubmissions = [];
     private string currentUserEmail = string.Empty;
     private string currentUserName = string.Empty;
 
@@ -278,7 +278,7 @@
         PhotoSubmission? existingSubmission = await SubmissionService.GetLatestSubmissionForRuleAsync(currentUserEmail, currentSubmission.CompositionRuleId);
 
         // If there's an existing submission that passed, don't allow resubmission
-        if (existingSubmission != null && existingSubmission.GradeStatus == GradeStatus.Pass)
+        if (existingSubmission is { GradeStatus: GradeStatus.Pass })
         {
             errorMessage = "You cannot resubmit a photo that has already passed.";
             return;
@@ -322,14 +322,9 @@
 
             userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentUserEmail);
 
-            if (existingSubmission != null && existingSubmission.GradeStatus == GradeStatus.Fail)
-            {
-                successMessage = $"Photo resubmitted successfully (version {currentSubmission.SubmissionVersion})! You've submitted {userSubmissions.Count} out of {rules.Count} photos.";
-            }
-            else
-            {
-                successMessage = $"Photo submitted successfully! You've submitted {userSubmissions.Count} out of {rules.Count} photos.";
-            }
+            successMessage = existingSubmission is { GradeStatus: GradeStatus.Fail }
+                ? $"Photo resubmitted successfully (version {currentSubmission.SubmissionVersion})! You've submitted {userSubmissions.Count} out of {rules.Count} photos."
+                : $"Photo submitted successfully! You've submitted {userSubmissions.Count} out of {rules.Count} photos.";
 
             // Reset form for next submission, but keep the name
             string name = currentSubmission.PathfinderName;

@@ -1,0 +1,452 @@
+@using PathfinderPhotography.Models
+
+<div class="product-mockup-container">
+    <h5 class="mb-3">📦 Product Mockups</h5>
+    <p class="text-muted small">See how your photo would look on different products!</p>
+    
+    <div class="product-selector mb-3">
+        <label class="form-label">Choose a product:</label>
+        <select class="form-select" @bind="selectedProduct">
+            @foreach (MarketingProductType product in MarketingProducts.AvailableProducts)
+            {
+                <option value="@product.Name">
+                    @product.Name - @product.Description
+                </option>
+            }
+        </select>
+    </div>
+
+    <div class="mockup-display">
+        @if (selectedProduct == "Framed Print")
+        {
+            <div class="framed-print-mockup">
+                <div class="wall-background">
+                    <div class="frame-container">
+                        <div class="frame-border">
+                            <div class="mat-border">
+                                <img src="@ImageSrc" alt="Photo in frame" class="product-photo" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (selectedProduct == "Coffee Mug")
+        {
+            <div class="mug-mockup">
+                <div class="mug-surface">
+                    <div class="mug-body-left"></div>
+                    <div class="mug-body-center">
+                        <div class="mug-photo-wrap">
+                            <img src="@ImageSrc" alt="Photo on mug" class="product-photo mug-photo" />
+                        </div>
+                    </div>
+                    <div class="mug-body-right"></div>
+                    <div class="mug-handle"></div>
+                    <div class="mug-rim"></div>
+                    <div class="mug-base"></div>
+                </div>
+            </div>
+        }
+        else if (selectedProduct == "T-Shirt")
+        {
+            <div class="tshirt-mockup">
+                <div class="tshirt-background"></div>
+                <div class="tshirt-body">
+                    <div class="tshirt-collar"></div>
+                    <div class="tshirt-sleeve-left"></div>
+                    <div class="tshirt-sleeve-right"></div>
+                    <div class="tshirt-torso">
+                        <div class="tshirt-print">
+                            <img src="@ImageSrc" alt="Photo on t-shirt" class="product-photo" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (selectedProduct == "Greeting Card")
+        {
+            <div class="card-mockup">
+                <div class="card-front">
+                    <img src="@ImageSrc" alt="Photo on card" class="product-photo" />
+                </div>
+                <div class="card-shadow"></div>
+            </div>
+        }
+        else if (selectedProduct == "Phone Case")
+        {
+            <div class="phonecase-mockup">
+                <div class="phone-outline">
+                    <div class="phone-screen">
+                        <img src="@ImageSrc" alt="Photo on phone case" class="product-photo" />
+                    </div>
+                    <div class="phone-camera"></div>
+                </div>
+            </div>
+        }
+        else if (selectedProduct == "Canvas Print")
+        {
+            <div class="canvas-mockup">
+                <div class="canvas-wrapper">
+                    <img src="@ImageSrc" alt="Canvas print" class="product-photo" />
+                    <div class="canvas-edge"></div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="mockup-info mt-3">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            This is a preview mockup. Actual products may vary.
+        </small>
+    </div>
+</div>
+
+<style>
+    .product-mockup-container {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .mockup-display {
+        min-height: 300px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: white;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+
+    .product-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Framed Print Mockup */
+    .framed-print-mockup {
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .wall-background {
+        background: linear-gradient(135deg, #e0e0e0 25%, #f5f5f5 25%, #f5f5f5 50%, #e0e0e0 50%, #e0e0e0 75%, #f5f5f5 75%, #f5f5f5);
+        background-size: 20px 20px;
+        padding: 2rem;
+        border-radius: 8px;
+    }
+
+    .frame-container {
+        background: #fff;
+        padding: 0.5rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .frame-border {
+        border: 15px solid #2c2c2c;
+        border-radius: 2px;
+    }
+
+    .mat-border {
+        border: 20px solid #f5f5f5;
+        aspect-ratio: 4/5;
+        overflow: hidden;
+    }
+
+    /* Coffee Mug Mockup - Improved 3D */
+    .mug-mockup {
+        position: relative;
+        width: 280px;
+        height: 240px;
+        perspective: 1000px;
+    }
+
+    .mug-surface {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transform-style: preserve-3d;
+    }
+
+    .mug-body-left {
+        position: absolute;
+        left: 0;
+        top: 20px;
+        width: 30px;
+        height: 160px;
+        background: linear-gradient(90deg, #d0d0d0 0%, #e8e8e8 100%);
+        border-radius: 15px 0 0 15px;
+        box-shadow: inset -3px 0 5px rgba(0,0,0,0.1);
+    }
+
+    .mug-body-center {
+        position: absolute;
+        left: 30px;
+        top: 20px;
+        width: 160px;
+        height: 160px;
+        background: linear-gradient(180deg, #f8f8f8 0%, #ffffff 50%, #f0f0f0 100%);
+        border-radius: 8px;
+        overflow: visible;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .mug-body-right {
+        position: absolute;
+        right: 40px;
+        top: 20px;
+        width: 30px;
+        height: 160px;
+        background: linear-gradient(90deg, #e8e8e8 0%, #d0d0d0 100%);
+        border-radius: 0 15px 15px 0;
+        box-shadow: inset 3px 0 5px rgba(0,0,0,0.1);
+    }
+
+    .mug-photo-wrap {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+        right: 10px;
+        bottom: 15px;
+        border-radius: 5px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .mug-photo {
+        transform: perspective(800px) rotateY(-2deg);
+    }
+
+    .mug-handle {
+        position: absolute;
+        right: -5px;
+        top: 50px;
+        width: 50px;
+        height: 80px;
+        border: 12px solid #e0e0e0;
+        border-left: none;
+        border-radius: 0 40px 40px 0;
+        box-shadow: inset -2px 0 5px rgba(0,0,0,0.15), 3px 3px 8px rgba(0,0,0,0.2);
+    }
+
+    .mug-rim {
+        position: absolute;
+        left: 30px;
+        top: 15px;
+        width: 160px;
+        height: 10px;
+        background: linear-gradient(180deg, #f5f5f5 0%, #e0e0e0 100%);
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .mug-base {
+        position: absolute;
+        left: 35px;
+        bottom: 55px;
+        width: 150px;
+        height: 8px;
+        background: linear-gradient(180deg, #d0d0d0 0%, #e8e8e8 100%);
+        border-radius: 50%;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    }
+
+    /* T-Shirt Mockup - Improved Realism */
+    .tshirt-mockup {
+        width: 320px;
+        height: 380px;
+        position: relative;
+    }
+
+    .tshirt-background {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f0f0f0 0%, #ffffff 100%);
+        border-radius: 8px;
+    }
+
+    .tshirt-body {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .tshirt-collar {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 30px;
+        background: #3a7bc8;
+        border-radius: 50% 50% 0 0;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+
+    .tshirt-collar::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 20px;
+        background: #2d5fa0;
+        border-radius: 0 0 20px 20px;
+    }
+
+    .tshirt-sleeve-left {
+        position: absolute;
+        top: 40px;
+        left: 20px;
+        width: 80px;
+        height: 100px;
+        background: linear-gradient(135deg, #4a90e2 0%, #3a7bc8 100%);
+        border-radius: 40px 40px 20px 40px;
+        transform: rotate(-20deg);
+        box-shadow: -3px 3px 10px rgba(0,0,0,0.2);
+    }
+
+    .tshirt-sleeve-right {
+        position: absolute;
+        top: 40px;
+        right: 20px;
+        width: 80px;
+        height: 100px;
+        background: linear-gradient(225deg, #4a90e2 0%, #3a7bc8 100%);
+        border-radius: 40px 40px 40px 20px;
+        transform: rotate(20deg);
+        box-shadow: 3px 3px 10px rgba(0,0,0,0.2);
+    }
+
+    .tshirt-torso {
+        position: absolute;
+        top: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 220px;
+        height: 300px;
+        background: linear-gradient(180deg, #4a90e2 0%, #3675c9 50%, #2d5fa0 100%);
+        border-radius: 20px 20px 30px 30px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3), inset 0 -10px 20px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding-top: 40px;
+    }
+
+    .tshirt-print {
+        width: 140px;
+        height: 140px;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        background: white;
+        padding: 8px;
+    }
+
+    .tshirt-print img {
+        border-radius: 4px;
+    }
+
+    /* Greeting Card Mockup */
+    .card-mockup {
+        position: relative;
+        width: 200px;
+        height: 280px;
+    }
+
+    .card-front {
+        width: 100%;
+        height: 100%;
+        background: white;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        padding: 15px;
+    }
+
+    .card-shadow {
+        position: absolute;
+        bottom: -10px;
+        left: 10px;
+        right: -10px;
+        height: 20px;
+        background: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%);
+    }
+
+    /* Phone Case Mockup */
+    .phonecase-mockup {
+        width: 180px;
+        height: 360px;
+    }
+
+    .phone-outline {
+        width: 100%;
+        height: 100%;
+        background: #1a1a1a;
+        border-radius: 30px;
+        padding: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        position: relative;
+    }
+
+    .phone-screen {
+        width: 100%;
+        height: calc(100% - 40px);
+        border-radius: 20px;
+        overflow: hidden;
+        background: white;
+    }
+
+    .phone-camera {
+        position: absolute;
+        top: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 20px;
+        background: #000;
+        border-radius: 10px;
+    }
+
+    /* Canvas Print Mockup */
+    .canvas-mockup {
+        width: 100%;
+        max-width: 350px;
+    }
+
+    .canvas-wrapper {
+        position: relative;
+        aspect-ratio: 4/3;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .canvas-wrapper img {
+        border-radius: 2px;
+    }
+
+    .canvas-edge {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: -15px;
+        width: 15px;
+        background: linear-gradient(90deg, #666 0%, #999 100%);
+        transform: skewY(-1deg);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string ImageSrc { get; set; } = string.Empty;
+
+    private string selectedProduct = "Framed Print";
+}

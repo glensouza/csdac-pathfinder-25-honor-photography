@@ -4,14 +4,13 @@
 @using PathfinderPhotography.Models
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.JSInterop
 @inject PhotoSubmissionService SubmissionService
 @inject UserService UserService
 @inject CompositionRuleService RuleService
 @inject PdfExportService PdfExportService
 @inject CertificateService CertificateService
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 @attribute [Authorize]
 @rendermode InteractiveServer
 
@@ -277,7 +276,7 @@
     private async Task DownloadFileAsync(string fileName, byte[] data)
     {
         string base64 = Convert.ToBase64String(data);
-        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+        await JsRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
     }
 
     private async Task ProcessCompletionCertificates()

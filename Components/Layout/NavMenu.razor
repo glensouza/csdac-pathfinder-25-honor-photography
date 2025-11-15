@@ -59,6 +59,11 @@
                             <span class="bi bi-people-nav-menu" aria-hidden="true"></span> User Management
                         </NavLink>
                     </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="admin/ai-management">
+                            <span class="bi bi-cpu-nav-menu" aria-hidden="true"></span> AI Management
+                        </NavLink>
+                    </div>
                 }
             </Authorized>
         </AuthorizeView>
@@ -125,7 +130,7 @@
             AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             ClaimsPrincipal principal = authState.User;
 
-            if (principal.Identity != null && principal.Identity.IsAuthenticated)
+            if (principal.Identity is { IsAuthenticated: true })
             {
                 string? email = principal.FindFirst(ClaimTypes.Email)?.Value;
                 if (!string.IsNullOrEmpty(email))

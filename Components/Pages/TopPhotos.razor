@@ -166,7 +166,7 @@
 </style>
 
 @code {
-    private List<CompositionRule> rules = new();
+    private List<CompositionRule> rules = [];
     private Dictionary<int, List<PhotoSubmission>> topPhotosByRule = new();
     private PhotoSubmission? selectedSubmission;
     private bool isLoading = true;
@@ -179,12 +179,9 @@
         topPhotosByRule = await VotingService.GetTopPhotosByRuleBulkAsync(null, 3);
 
         // Ensure keys exist for rules with no submissions
-        foreach (CompositionRule rule in rules)
+        foreach (CompositionRule rule in rules.Where(rule => !topPhotosByRule.ContainsKey(rule.Id)))
         {
-            if (!topPhotosByRule.ContainsKey(rule.Id))
-            {
-                topPhotosByRule[rule.Id] = new List<PhotoSubmission>();
-            }
+            topPhotosByRule[rule.Id] = [];
         }
 
         isLoading = false;
@@ -206,19 +203,16 @@
         topPhotosByRule = await VotingService.GetTopPhotosByRuleBulkAsync(status, 3);
 
         // Ensure keys exist for rules with no submissions
-        foreach (CompositionRule rule in rules)
+        foreach (CompositionRule rule in rules.Where(rule => !topPhotosByRule.ContainsKey(rule.Id)))
         {
-            if (!topPhotosByRule.ContainsKey(rule.Id))
-            {
-                topPhotosByRule[rule.Id] = new List<PhotoSubmission>();
-            }
+            topPhotosByRule[rule.Id] = [];
         }
 
         isLoading = false;
         StateHasChanged();
     }
 
-    private string GetRankClass(int index)
+    private static string GetRankClass(int index)
     {
         return index switch
         {
@@ -240,7 +234,7 @@
         };
     }
 
-    private string GetRankIcon(int index)
+    private static string GetRankIcon(int index)
     {
         return index switch
         {

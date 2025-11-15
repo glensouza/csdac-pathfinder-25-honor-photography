@@ -138,27 +138,29 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
             }
 
             // Image rendering with error handling - display as thumbnail
-            if (submission.ImageData != null && submission.ImageData.Length > 0)
+            if (submission.ImageData is not { Length: > 0 })
             {
-                try
-                {
-                    column.Item().PaddingTop(5).Width(250).Image(submission.ImageData).FitArea();
-                }
-                catch (ArgumentException ex)
-                {
-                    logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
-                    column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
-                    column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
-                {
-                    logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
-                    column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
-                }
+                return;
+            }
+
+            try
+            {
+                column.Item().PaddingTop(5).Width(250).Image(submission.ImageData).FitArea();
+            }
+            catch (ArgumentException ex)
+            {
+                logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
+                column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
+            }
+            catch (InvalidOperationException ex)
+            {
+                logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
+                column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+            {
+                logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", submission.Id);
+                column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
             }
         });
     }
@@ -396,7 +398,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
         List<CompositionRule> allRules = ruleService.GetAllRules();
         
         // Get top 3 photos for each rule (passed and failed)
-        Dictionary<int, List<PhotoSubmission>> topPhotosByRule = new Dictionary<int, List<PhotoSubmission>>();
+        Dictionary<int, List<PhotoSubmission>> topPhotosByRule = new();
         
         foreach (CompositionRule rule in allRules)
         {
@@ -541,17 +543,19 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                 }
 
                 // Image rendering with error handling
-                if (photo.ImageData != null && photo.ImageData.Length > 0)
+                if (photo.ImageData is not { Length: > 0 })
                 {
-                    try
-                    {
-                        column.Item().PaddingTop(5).MaxWidth(300).Image(photo.ImageData).FitArea();
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
-                    {
-                        logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", photo.Id);
-                        column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
-                    }
+                    return;
+                }
+
+                try
+                {
+                    column.Item().PaddingTop(5).MaxWidth(300).Image(photo.ImageData).FitArea();
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+                {
+                    logger.LogWarning(ex, "Failed to render image in PDF for submission {SubmissionId}", photo.Id);
+                    column.Item().Text("[Image could not be rendered]").FontSize(9).FontColor(Colors.Red.Medium);
                 }
             });
     }

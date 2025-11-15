@@ -2,11 +2,21 @@
 
 This guide will walk you through setting up and running the Pathfinder Photography Honor application for local development.
 
+## Features
+
+- 📸 Photo submission for 10 composition rules
+- 🏆 ELO-based rating system for photo comparison voting
+- 👥 User management (Pathfinder, Instructor, Admin roles)
+- 📊 Admin dashboard with PDF export
+- 🤖 **AI-Powered Photo Analysis** with local Ollama (optional)
+- 💼 **Marketing Content Generation** for educational purposes (optional)
+
 ## Quick Start Options
 
 Choose your preferred local development setup:
 - **Option 1: .NET Aspire** - Recommended for development with integrated observability
 - **Option 2: Local .NET** - Direct .NET development without containers
+- **Optional: AI Features** - Install Ollama for AI photo analysis (see [AI Features Setup](#ai-features-setup-optional))
 
 ## Quick Start (Aspire - Recommended for Local Development)
 
@@ -320,9 +330,117 @@ psql -U postgres pathfinder_photography
 SELECT * FROM "PhotoSubmissions" LIMIT 5;
 ```
 
+## AI Features Setup (Optional)
+
+The application includes AI-powered photo analysis and marketing content generation using a local Ollama instance. This is **completely optional** - the application works fine without it.
+
+### What AI Features Provide
+
+- **Auto-generated photo titles**: Creative 3-7 word titles for submitted photos
+- **AI descriptions**: Detailed analysis of composition, lighting, and technique
+- **Composition ratings**: 1-10 scores evaluating how well photos demonstrate composition rules
+- **Marketing education**: Sample headlines, pricing, product copy, and social media posts to teach professional presentation
+
+### Installing Ollama
+
+1. **Download and install Ollama**:
+   - Visit https://ollama.ai and download for your OS
+   - Or use package managers:
+     ```bash
+     # macOS
+     brew install ollama
+     
+     # Linux
+     curl -fsSL https://ollama.ai/install.sh | sh
+     ```
+
+2. **Start Ollama service**:
+   ```bash
+   # macOS/Linux - starts automatically or run:
+   ollama serve
+   ```
+
+3. **Install required models**:
+   ```bash
+   # Vision model (required for image analysis) - ~4.7GB
+   ollama pull llava
+   
+   # Text model (required for marketing content) - ~3.8GB  
+   ollama pull llama2
+   ```
+
+4. **Verify installation**:
+   ```bash
+   ollama list
+   # Should show llava and llama2
+   
+   curl http://localhost:11434/api/version
+   # Should return version info
+   ```
+
+### Configuration
+
+The default configuration in `appsettings.json` should work if Ollama is running locally:
+
+```json
+{
+  "AI": {
+    "Ollama": {
+      "Endpoint": "http://localhost:11434",
+      "VisionModel": "llava",
+      "TextModel": "llama2"
+    }
+  }
+}
+```
+
+### Using AI Features
+
+Once Ollama is running with the required models:
+
+1. Submit a photo through the `/submit` page
+2. The photo is saved immediately (not blocked by AI)
+3. AI analysis runs in the background
+4. View results in the Gallery modal or Photo Detail page (`/photo/{id}`)
+5. Results include AI title, description, rating, and marketing ideas
+
+### Troubleshooting AI Features
+
+- **No AI results showing**: Check Ollama is running (`curl http://localhost:11434/api/version`)
+- **Models not found**: Run `ollama list` to verify models are installed
+- **Slow analysis**: Normal - vision analysis can take 10-60 seconds depending on hardware
+- **Analysis failed**: Check application logs; the photo submission still succeeds with fallback values
+
+For detailed AI feature documentation, see [AI_FEATURES.md](AI_FEATURES.md).
+
+### Alternative Models
+
+If you have limited disk space or want faster analysis:
+
+```bash
+# Smaller, faster text model (~1.6GB)
+ollama pull phi
+
+# Update appsettings.json:
+"TextModel": "phi"
+```
+
+For better quality with more disk space:
+
+```bash
+# Larger vision model (~8GB)
+ollama pull llava:13b
+
+# Larger text model (~7.4GB)
+ollama pull llama2:13b
+
+# Update appsettings.json accordingly
+```
+
 ## Quick Links
 - README overview: `./.github/README.md`
 - Production deployment: [DEPLOY.md](DEPLOY.md)
+- AI Features documentation: [AI_FEATURES.md](AI_FEATURES.md)
 - SigNoz details: `signoz/README.md`
 
 ## Support

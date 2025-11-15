@@ -18,6 +18,18 @@ public class PhotoSubmission
     public int SubmissionVersion { get; set; } = 1;
     public int? PreviousSubmissionId { get; set; }
     public double EloRating { get; set; } = 1000.0;
+    public string? AiTitle { get; set; }
+    public string? AiDescription { get; set; }
+    public int? AiRating { get; set; }
+    public string? AiMarketingHeadline { get; set; }
+    public string? AiMarketingCopy { get; set; }
+    public decimal? AiSuggestedPrice { get; set; }
+    public string? AiSocialMediaText { get; set; }
+    public byte[]? AiMarketingImageData { get; set; }
+    public AiProcessingStatus AiProcessingStatus { get; set; } = AiProcessingStatus.NotStarted;
+    public string? AiProcessingError { get; set; }
+    public DateTime? AiProcessingStartTime { get; set; }
+    public DateTime? AiProcessingCompletedTime { get; set; }
 }
 
 public enum GradeStatus
@@ -25,4 +37,13 @@ public enum GradeStatus
     NotGraded = 0,
     Pass = 1,
     Fail = 2
+}
+
+public enum AiProcessingStatus
+{
+    NotStarted = 0,
+    Queued = 1,
+    Processing = 2,
+    Completed = 3,
+    Failed = 4
 }

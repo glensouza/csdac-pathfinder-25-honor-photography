@@ -1,0 +1,227 @@
+@page "/photo/{id:int}"
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@inject PhotoSubmissionService SubmissionService
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Photo Details</PageTitle>
+
+@if (submission == null)
+{
+    <div class="container mt-4">
+        <div class="alert alert-warning">
+            <p class="mb-0">Photo not found. <a href="/gallery">Return to Gallery</a></p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="card-title mb-0">@submission.CompositionRuleName</h2>
+                            @if (submission.SubmissionVersion > 1)
+                            {
+                                <span class="badge bg-warning">Version @submission.SubmissionVersion</span>
+                            }
+                        </div>
+                        
+                        <img src="/api/images/@submission.Id" 
+                             class="img-fluid mb-3 rounded" 
+                             alt="@submission.CompositionRuleName by @submission.PathfinderName"
+                             style="width: 100%; max-height: 600px; object-fit: contain; background-color: #f8f9fa;" />
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Photographer:</strong> @submission.PathfinderName</p>
+                                <p class="mb-1"><strong>Submitted:</strong> @submission.SubmissionDate.ToString("MMMM dd, yyyy")</p>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <p class="mb-1"><strong>Status:</strong> 
+                                    @switch (submission.GradeStatus)
+                                    {
+                                        case GradeStatus.NotGraded:
+                                            <span class="badge bg-secondary">Not Graded</span>
+                                            break;
+                                        case GradeStatus.Pass:
+                                            <span class="badge bg-success">✓ Pass</span>
+                                            break;
+                                        case GradeStatus.Fail:
+                                            <span class="badge bg-danger">✗ Fail</span>
+                                            break;
+                                    }
+                                </p>
+                                @if (!string.IsNullOrEmpty(submission.GradedBy))
+                                {
+                                    <p class="mb-1 small text-muted">
+                                        Graded by @submission.GradedBy on @submission.GradedDate?.ToString("MMM dd, yyyy")
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                        
+                        <hr />
+                        
+                        <h5>Description</h5>
+                        <p>@submission.Description</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                @if (!string.IsNullOrEmpty(submission.AiTitle) || 
+                     !string.IsNullOrEmpty(submission.AiDescription) || 
+                     submission.AiRating.HasValue)
+                {
+                    <div class="card mb-3 border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">🤖 AI Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (!string.IsNullOrEmpty(submission.AiTitle))
+                            {
+                                <div class="mb-3">
+                                    <strong class="text-primary">Suggested Title:</strong>
+                                    <p class="mb-0 fst-italic">"@submission.AiTitle"</p>
+                                </div>
+                            }
+                            
+                            @if (submission.AiRating.HasValue)
+                            {
+                                <div class="mb-3">
+                                    <strong class="text-primary">Composition Rating:</strong>
+                                    <div class="d-flex align-items-center mt-1">
+                                        <div class="progress flex-grow-1 me-2" style="height: 25px;">
+                                            <div class="progress-bar @GetRatingColor(submission.AiRating.Value)" 
+                                                 role="progressbar" 
+                                                 style="width: @(submission.AiRating.Value * 10)%"
+                                                 aria-valuenow="@submission.AiRating.Value" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="10">
+                                                @submission.AiRating/10
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(submission.AiDescription))
+                            {
+                                <div>
+                                    <strong class="text-primary">AI Insights:</strong>
+                                    <p class="small">@submission.AiDescription</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                
+                @if (!string.IsNullOrEmpty(submission.AiMarketingHeadline) || 
+                     !string.IsNullOrEmpty(submission.AiMarketingCopy) || 
+                     submission.AiSuggestedPrice.HasValue ||
+                     !string.IsNullOrEmpty(submission.AiSocialMediaText))
+                {
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">💼 Marketing Ideas</h5>
+                            <small>Learn to present your work professionally!</small>
+                        </div>
+                        <div class="card-body">
+                            @if (!string.IsNullOrEmpty(submission.AiMarketingHeadline))
+                            {
+                                <div class="mb-3">
+                                    <strong class="text-success">Headline:</strong>
+                                    <p class="mb-0 fs-5 fw-bold">"@submission.AiMarketingHeadline"</p>
+                                </div>
+                            }
+                            
+                            @if (submission.AiSuggestedPrice.HasValue)
+                            {
+                                <div class="mb-3">
+                                    <strong class="text-success">Suggested Price:</strong>
+                                    <p class="mb-0">
+                                        <span class="badge bg-success fs-6">$@submission.AiSuggestedPrice.Value.ToString("F2")</span>
+                                        <small class="text-muted d-block">for a 8x10 print</small>
+                                    </p>
+                                </div>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(submission.AiMarketingCopy))
+                            {
+                                <div class="mb-3">
+                                    <strong class="text-success">Product Description:</strong>
+                                    <p class="small fst-italic">@submission.AiMarketingCopy</p>
+                                </div>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(submission.AiSocialMediaText))
+                            {
+                                <div class="mb-3">
+                                    <strong class="text-success">Social Media Post:</strong>
+                                    <div class="alert alert-light border mt-2">
+                                        <p class="mb-2 small">@submission.AiSocialMediaText</p>
+                                        <button class="btn btn-sm btn-outline-success" @onclick="CopySocialMediaText">
+                                            📋 Copy to Clipboard
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                            
+                            <div class="mt-4">
+                                <ProductMockup ImageSrc="@($"/api/images/{submission.Id}")" />
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <div class="mt-4 mb-4">
+            <a href="/gallery" class="btn btn-outline-secondary">← Back to Gallery</a>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private PhotoSubmission? submission;
+
+    protected override async Task OnInitializedAsync()
+    {
+        submission = await SubmissionService.GetSubmissionByIdAsync(Id);
+    }
+
+    private string GetRatingColor(int rating)
+    {
+        return rating switch
+        {
+            >= 8 => "bg-success",
+            >= 6 => "bg-info",
+            >= 4 => "bg-warning",
+            _ => "bg-danger"
+        };
+    }
+
+    private async Task CopySocialMediaText()
+    {
+        if (!string.IsNullOrEmpty(submission?.AiSocialMediaText))
+        {
+            try
+            {
+                await JsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", submission.AiSocialMediaText);
+            }
+            catch (JSException)
+            {
+                // Clipboard API not available or user denied permission
+                // Silently fail - could show a message to user in production
+            }
+        }
+    }
+}

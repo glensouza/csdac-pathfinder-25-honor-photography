@@ -8,6 +8,7 @@ public class PhotoSubmissionService(
     IDbContextFactory<ApplicationDbContext> contextFactory, 
     EmailNotificationService emailService,
     UserService userService,
+    AiProcessingBackgroundService aiProcessingService,
     CertificateService certificateService,
     ILogger<PhotoSubmissionService> logger)
 {
@@ -42,6 +43,13 @@ public class PhotoSubmissionService(
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         submission.SubmissionDate = DateTime.UtcNow;
+        
+        // Set initial AI processing status
+        if (submission.ImageData is { Length: > 0 })
+        {
+            submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+        }
+        
         context.PhotoSubmissions.Add(submission);
         await context.SaveChangesAsync();
 
@@ -56,6 +64,18 @@ public class PhotoSubmissionService(
                 }
             }, TaskContinuationOptions.OnlyOnFaulted);
         #pragma warning restore CS4014
+
+        // Queue AI analysis in background service
+        if (submission.ImageData is { Length: > 0 })
+        {
+            await aiProcessingService.QueueAnalysisAsync(new AiAnalysisRequest
+            {
+                SubmissionId = submission.Id,
+                ImageData = submission.ImageData,
+                ImagePath = submission.ImagePath,
+                CompositionRule = submission.CompositionRuleName
+            });
+        }
     }
 
     private async Task SendNewSubmissionNotificationAsync(PhotoSubmission submission)
@@ -239,4 +259,37 @@ public class PhotoSubmissionService(
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         return await context.PhotoSubmissions.FindAsync(id);
     }
+
+    public async Task RetryAiAnalysisAsync(int submissionId)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
+        
+        if (submission == null)
+        {
+            throw new InvalidOperationException($"Submission with ID {submissionId} not found.");
+        }
+
+        if (submission.ImageData == null || submission.ImageData.Length == 0)
+        {
+            throw new InvalidOperationException($"Submission {submissionId} has no image data.");
+        }
+
+        logger.LogInformation("Manually retrying AI analysis for submission {Id}", submissionId);
+
+        // Reset status to Queued
+        submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+        submission.AiProcessingError = null;
+        await context.SaveChangesAsync();
+
+        // Queue for processing via background service
+        await aiProcessingService.QueueAnalysisAsync(new AiAnalysisRequest
+        {
+            SubmissionId = submission.Id,
+            ImageData = submission.ImageData,
+            ImagePath = submission.ImagePath,
+            CompositionRule = submission.CompositionRuleName
+        });
+    }
+
 }

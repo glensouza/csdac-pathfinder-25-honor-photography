@@ -69,7 +69,7 @@ public class CertificateService(
             .MaxAsync(s => s.GradedDate ?? s.SubmissionDate);
 
         // Store certificate
-        CompletionCertificate certificate = new CompletionCertificate
+        CompletionCertificate certificate = new()
         {
             PathfinderEmail = pathfinderEmail,
             PathfinderName = pathfinderName,
@@ -104,13 +104,8 @@ public class CertificateService(
     /// </summary>
     public async Task SendCertificateEmailAsync(string pathfinderEmail)
     {
-        CompletionCertificate? certificate = await this.GetCertificateAsync(pathfinderEmail);
-        
-        if (certificate == null)
-        {
-            // Generate certificate if it doesn't exist
-            certificate = await this.GenerateAndStoreCertificateAsync(pathfinderEmail);
-        }
+        // Generate certificate if it doesn't exist
+        CompletionCertificate? certificate = await this.GetCertificateAsync(pathfinderEmail) ?? await this.GenerateAndStoreCertificateAsync(pathfinderEmail);
 
         // Send email
         await emailService.SendCompletionCertificateAsync(
@@ -189,7 +184,7 @@ public class CertificateService(
         List<CompositionRule> allRules = ruleService.GetAllRules();
         
         // Get top 3 photos for each rule
-        HashSet<string> pathfindersWithTopPhotos = new HashSet<string>();
+        HashSet<string> pathfindersWithTopPhotos = [];
         
         foreach (CompositionRule rule in allRules)
         {
