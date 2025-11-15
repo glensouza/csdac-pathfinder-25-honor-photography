@@ -32,7 +32,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-    <PackageReference Include="OllamaSharp" Version="5.4.10" />
+    <PackageReference Include="Google.Cloud.AIPlatform.V1" Version="3.13.0" />
     <PackageReference Include="QuestPDF" Version="2024.12.3" />
   </ItemGroup>
 

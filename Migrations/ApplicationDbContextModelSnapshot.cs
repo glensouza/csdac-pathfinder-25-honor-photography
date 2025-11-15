@@ -83,6 +83,9 @@ namespace PathfinderPhotography.Migrations
                     b.Property<string>("AiMarketingHeadline")
                         .HasColumnType("text");
 
+                    b.Property<byte[]>("AiMarketingImageData")
+                        .HasColumnType("bytea");
+
                     b.Property<DateTime?>("AiProcessingCompletedTime")
                         .HasColumnType("timestamp with time zone");
 

@@ -82,13 +82,13 @@ public class AiProcessingBackgroundService(
             }
             catch (HttpRequestException ex)
             {
-                logger.LogError(ex, "Network error while analyzing submission {SubmissionId}: Ollama may be unavailable", request.SubmissionId);
+                logger.LogError(ex, "Network error while analyzing submission {SubmissionId}: Gemini API may be unavailable", request.SubmissionId);
                 
                 using (IServiceScope scope = serviceProvider.CreateScope())
                 {
                     IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
                     await this.UpdateStatusAsync(contextFactory, request.SubmissionId,
-                        AiProcessingStatus.Failed, error: "Ollama service unavailable", completedTime: DateTime.UtcNow);
+                        AiProcessingStatus.Failed, error: "Gemini API service unavailable", completedTime: DateTime.UtcNow);
                 }
                 
                 lock (this.countLock)
@@ -189,6 +189,7 @@ public class AiProcessingBackgroundService(
             submission.AiMarketingCopy = result.MarketingCopy;
             submission.AiSuggestedPrice = result.SuggestedPrice;
             submission.AiSocialMediaText = result.SocialMediaText;
+            submission.AiMarketingImageData = result.MarketingImageData;
             submission.AiProcessingStatus = AiProcessingStatus.Completed;
             submission.AiProcessingCompletedTime = DateTime.UtcNow;
             submission.AiProcessingError = null; // Clear any previous error

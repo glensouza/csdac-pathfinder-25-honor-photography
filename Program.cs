@@ -85,7 +85,7 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<VotingService>();
 builder.Services.AddScoped<PdfExportService>();
 builder.Services.AddScoped<EmailNotificationService>();
-builder.Services.AddSingleton<IOllamaClientProvider, OllamaClientProvider>();
+builder.Services.AddSingleton<IGeminiClientProvider, GeminiClientProvider>();
 builder.Services.AddScoped<PhotoAnalysisService>();
 
 // Add AI Processing Background Service

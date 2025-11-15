@@ -1,11 +1,12 @@
-using OllamaSharp;
-using OllamaSharp.Models;
+using Google.Cloud.AIPlatform.V1;
+using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 using System.Text.Json;
 
 namespace PathfinderPhotography.Services;
 
 public class PhotoAnalysisService(
-    IOllamaClientProvider ollamaClientProvider,
+    IGeminiClientProvider geminiClientProvider,
     IConfiguration configuration,
     ILogger<PhotoAnalysisService> logger)
 {
@@ -20,27 +21,31 @@ public class PhotoAnalysisService(
 
         try
         {
-            IOllamaApiClient client = ollamaClientProvider.GetClient();
-            string visionModel = configuration["AI:Ollama:VisionModel"] ?? "llava";
-            string textModel = configuration["AI:Ollama:TextModel"] ?? "llama2";
+            PredictionServiceClient client = geminiClientProvider.GetPredictionClient();
+            string projectId = geminiClientProvider.GetProjectId();
+            string location = geminiClientProvider.GetLocation();
+            
+            string visionModel = configuration["AI:Gemini:VisionModel"] ?? "gemini-2.0-flash-exp";
+            string imageGenModel = configuration["AI:Gemini:ImageGenerationModel"] ?? "imagen-3.0-generate-001";
 
-            // Step 1: Generate description and title using vision model
+            // Step 1: Generate description, title, and rating using Gemini vision model
             logger.LogDebug("Generating description and title with vision model: {Model}", visionModel);
-            (result.Description, result.Title, result.Rating) = await this.GenerateDescriptionTitleAndRatingAsync(
-                client, visionModel, imageData, fileName, compositionRule);
-
-            // Step 2: Generate marketing content using text model
-            logger.LogDebug("Generating marketing content with text model: {Model}", textModel);
-            MarketingContent marketing = await this.GenerateMarketingContentAsync(
-                client, textModel, result.Title, result.Description, compositionRule);
+            (result.Description, result.Title, result.Rating, MarketingContent marketing) = 
+                await this.GenerateAnalysisAndMarketingAsync(
+                    client, projectId, location, visionModel, imageData, fileName, compositionRule);
             
             result.MarketingHeadline = marketing.Headline;
             result.MarketingCopy = marketing.MarketingCopy;
             result.SuggestedPrice = marketing.Price;
             result.SocialMediaText = marketing.SocialMediaText;
 
-            logger.LogInformation("AI analysis complete: Title='{Title}', Rating={Rating}", 
-                result.Title, result.Rating);
+            // Step 2: Generate marketing image using Imagen
+            logger.LogDebug("Generating marketing image with model: {Model}", imageGenModel);
+            result.MarketingImageData = await this.GenerateMarketingImageAsync(
+                client, projectId, location, imageGenModel, result.Title, result.Description, marketing.Headline);
+
+            logger.LogInformation("AI analysis complete: Title='{Title}', Rating={Rating}, Marketing image={HasImage}", 
+                result.Title, result.Rating, result.MarketingImageData != null);
         }
         catch (Exception ex)
         {
@@ -66,65 +71,85 @@ public class PhotoAnalysisService(
         return result;
     }
 
-    private async Task<(string description, string title, int rating)> GenerateDescriptionTitleAndRatingAsync(
-        IOllamaApiClient client,
-        string visionModel,
-        byte[] imageData,
-        string fileName,
-        string compositionRule)
+    private async Task<(string description, string title, int rating, MarketingContent marketing)> 
+        GenerateAnalysisAndMarketingAsync(
+            PredictionServiceClient client,
+            string projectId,
+            string location,
+            string model,
+            byte[] imageData,
+            string fileName,
+            string compositionRule)
     {
-        logger.LogDebug("Analyzing image with vision model for description, title, and rating");
+        logger.LogDebug("Analyzing image with Gemini for description, title, rating, and marketing");
 
         string prompt = $$"""
                           You are an expert photography instructor analyzing a student's photograph submitted for the '{{compositionRule}}' composition rule.
 
-                          Analyze this photograph and provide:
+                          Analyze this photograph and provide comprehensive feedback and marketing content for young photographers (ages 10-15).
+
+                          Provide:
                           1. A detailed description (2-3 sentences) focusing on composition, subject matter, lighting, and how well it demonstrates the '{{compositionRule}}' rule
                           2. A creative, compelling title (3-7 words) that captures the essence of the image
-                          3. A quality/composition rating from 1-10, where 10 is exceptional and demonstrates mastery of the '{{compositionRule}}' rule
+                          3. A quality/composition rating from 1-10, where 10 demonstrates mastery of the '{{compositionRule}}' rule
+                          4. A realistic starting price in USD for this as a small print (8x10), considering it's student work demonstrating composition skills ($5-$25 range)
+                          5. An attention-grabbing headline (5-10 words) that would make someone interested in this photo
+                          6. Marketing copy (2-3 short paragraphs) explaining what makes this photo special, how it demonstrates good composition, and why someone might want it (age-appropriate and educational)
+                          7. A fun social media post (under 280 characters) with 2-3 hashtags to share this accomplishment
+
+                          Make it encouraging, educational, and help them see the value in their work while being realistic.
 
                           Respond ONLY with valid JSON in this exact format:
                           {
                             "description": "your detailed description here",
                             "title": "Your Creative Title",
-                            "rating": 8
+                            "rating": 8,
+                            "price": 15.00,
+                            "headline": "Your Headline Here",
+                            "marketingCopy": "Your marketing copy paragraphs here...",
+                            "socialMediaText": "Your social media post with #hashtags"
                           }
                           """;
 
         try
         {
-            client.SelectedModel = visionModel;
-            
-            // Convert image bytes to base64 string for Ollama
+            EndpointName endpoint = EndpointName.FromProjectLocationPublisherModel(
+                projectId, location, "google", model);
+
+            // Convert image to base64
             string base64Image = Convert.ToBase64String(imageData);
-            
-            GenerateRequest request = new()
+            string promptEscaped = prompt.Replace("\"", "\\\"");
+
+            // Create the request with image and text
+            Google.Protobuf.WellKnownTypes.Value instance = Google.Protobuf.WellKnownTypes.Value.Parser.ParseJson($@"
+            {{
+              ""contents"": [{{
+                ""role"": ""user"",
+                ""parts"": [
+                  {{""inline_data"": {{""mime_type"": ""image/jpeg"", ""data"": ""{base64Image}""}}}},
+                  {{""text"": ""{promptEscaped}""}}
+                ]
+              }}]
+            }}
+            ");
+
+            PredictRequest request = new()
             {
-                Prompt = prompt,
-                Images = [base64Image],
-                Stream = false,
-                Format = "json"
+                Endpoint = endpoint.ToString(),
+                Instances = { instance }
             };
 
-            System.Text.StringBuilder responseBuilder = new();
-            
-            await foreach (GenerateResponseStream? stream in client.GenerateAsync(request))
+            PredictResponse response = await client.PredictAsync(request);
+
+            if (response.Predictions.Count == 0)
             {
-                if (stream?.Response != null)
-                {
-                    responseBuilder.Append(stream.Response);
-                }
+                logger.LogWarning("Empty response from Gemini");
+                return ("A photograph", Path.GetFileNameWithoutExtension(fileName), 5, GetFallbackMarketingContent(compositionRule));
             }
 
-            string jsonResponse = responseBuilder.ToString();
+            string jsonResponse = response.Predictions[0].ToString();
             
-            if (string.IsNullOrWhiteSpace(jsonResponse))
-            {
-                logger.LogWarning("Empty response from vision model");
-                return ("A photograph", Path.GetFileNameWithoutExtension(fileName), 5);
-            }
-
-            logger.LogDebug("Vision model response: {Response}", jsonResponse);
+            logger.LogDebug("Gemini response: {Response}", jsonResponse);
 
             using JsonDocument doc = JsonDocument.Parse(jsonResponse);
             JsonElement root = doc.RootElement;
@@ -140,87 +165,6 @@ public class PhotoAnalysisService(
             int rating = root.TryGetProperty("rating", out JsonElement ratingElement)
                 ? ratingElement.GetInt32()
                 : 5;
-
-            // Ensure rating is in valid range
-            rating = Math.Clamp(rating, 1, 10);
-
-            return (description, title, rating);
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(ex, "Failed to parse JSON response from vision model, using fallback values");
-            return ("A photograph demonstrating " + compositionRule, Path.GetFileNameWithoutExtension(fileName), 5);
-        }
-    }
-
-    private async Task<MarketingContent> GenerateMarketingContentAsync(
-        IOllamaApiClient client,
-        string textModel,
-        string title,
-        string description,
-        string compositionRule)
-    {
-        logger.LogDebug("Generating marketing content for: {Title}", title);
-
-        string prompt = $$"""
-                          You are a marketing expert helping young photographers (ages 10-15 called Pathfinders) learn how to present and market their photography work.
-
-                          Photo Details:
-                          - Title: {{title}}
-                          - Description: {{description}}
-                          - Composition Rule: {{compositionRule}}
-
-                          Create educational marketing content that teaches them professional presentation:
-
-                          1. Price: Suggest a realistic starting price in USD for this as a small print (8x10), considering it's a student work demonstrating composition skills ($5-$25 range is appropriate)
-                          2. Headline: Create an attention-grabbing headline (5-10 words) that would make someone interested in this photo
-                          3. Marketing Copy: Write 2-3 short paragraphs explaining what makes this photo special, how it demonstrates good composition, and why someone might want it (keep it age-appropriate and educational)
-                          4. Social Media: Create a fun social media post (under 280 characters) with 2-3 hashtags to share this accomplishment
-
-                          Make it encouraging, educational, and help them see the value in their work while being realistic.
-
-                          Respond ONLY with valid JSON in this exact format:
-                          {
-                            "price": 15.00,
-                            "headline": "Your Headline Here",
-                            "marketingCopy": "Your marketing copy paragraphs here...",
-                            "socialMediaText": "Your social media post with #hashtags"
-                          }
-                          """;
-
-        try
-        {
-            client.SelectedModel = textModel;
-            
-            GenerateRequest request = new()
-            {
-                Prompt = prompt,
-                Stream = false,
-                Format = "json"
-            };
-
-            System.Text.StringBuilder responseBuilder = new();
-            
-            await foreach (GenerateResponseStream? stream in client.GenerateAsync(request))
-            {
-                if (stream?.Response != null)
-                {
-                    responseBuilder.Append(stream.Response);
-                }
-            }
-
-            string jsonResponse = responseBuilder.ToString();
-            
-            if (string.IsNullOrWhiteSpace(jsonResponse))
-            {
-                logger.LogWarning("Empty response from text model");
-                return GetFallbackMarketingContent(compositionRule);
-            }
-
-            logger.LogDebug("Text model response: {Response}", jsonResponse);
-
-            using JsonDocument doc = JsonDocument.Parse(jsonResponse);
-            JsonElement root = doc.RootElement;
 
             decimal price = root.TryGetProperty("price", out JsonElement priceElement)
                 ? priceElement.GetDecimal()
@@ -238,21 +182,97 @@ public class PhotoAnalysisService(
                 ? socialElement.GetString() ?? $"Check out my photography! #{compositionRule.Replace(" ", "")} #PathfinderPhotography"
                 : $"Check out my photography! #{compositionRule.Replace(" ", "")} #PathfinderPhotography";
 
-            // Ensure price is reasonable
+            // Ensure values are in valid ranges
+            rating = Math.Clamp(rating, 1, 10);
             price = Math.Clamp(price, 5.00m, 25.00m);
 
-            return new MarketingContent
+            MarketingContent marketing = new()
             {
                 Price = price,
                 Headline = headline,
                 MarketingCopy = marketingCopy,
                 SocialMediaText = socialMediaText
             };
+
+            return (description, title, rating, marketing);
         }
         catch (JsonException ex)
         {
-            logger.LogWarning(ex, "Failed to parse JSON response from text model, using fallback values");
-            return GetFallbackMarketingContent(compositionRule);
+            logger.LogWarning(ex, "Failed to parse JSON response from Gemini, using fallback values");
+            return ("A photograph demonstrating " + compositionRule, Path.GetFileNameWithoutExtension(fileName), 5, 
+                GetFallbackMarketingContent(compositionRule));
+        }
+    }
+
+    private async Task<byte[]?> GenerateMarketingImageAsync(
+        PredictionServiceClient client,
+        string projectId,
+        string location,
+        string model,
+        string title,
+        string description,
+        string headline)
+    {
+        logger.LogDebug("Generating marketing image for: {Title}", title);
+
+        string prompt = $"Create a professional marketing image for a photography print featuring:\n\n" +
+                       $"Title: {title}\n" +
+                       $"Description: {description}\n" +
+                       $"Headline: {headline}\n\n" +
+                       "Design a clean, modern marketing visual showing this photograph displayed as a high-quality framed print on a gallery wall with soft lighting. " +
+                       "The composition should be professional and appealing, showcasing the photograph as a product worth purchasing.\n" +
+                       "Style: Professional product photography, clean aesthetic, gallery presentation.";
+
+        try
+        {
+            EndpointName endpoint = EndpointName.FromProjectLocationPublisherModel(
+                projectId, location, "google", model);
+
+            string promptEscaped = prompt.Replace("\"", "\\\"").Replace("\n", "\\n");
+            Google.Protobuf.WellKnownTypes.Value instance = Google.Protobuf.WellKnownTypes.Value.Parser.ParseJson($@"
+            {{
+              ""prompt"": ""{promptEscaped}"",
+              ""number_of_images"": 1,
+              ""aspect_ratio"": ""1:1"",
+              ""safety_filter_level"": ""block_few"",
+              ""person_generation"": ""dont_allow""
+            }}
+            ");
+
+            PredictRequest request = new()
+            {
+                Endpoint = endpoint.ToString(),
+                Instances = { instance }
+            };
+
+            PredictResponse response = await client.PredictAsync(request);
+
+            if (response.Predictions.Count == 0)
+            {
+                logger.LogWarning("No marketing image generated by Imagen");
+                return null;
+            }
+
+            // Extract the base64 encoded image from response
+            string responseJson = response.Predictions[0].ToString();
+            using JsonDocument doc = JsonDocument.Parse(responseJson);
+            
+            if (doc.RootElement.TryGetProperty("bytesBase64Encoded", out JsonElement imageElement))
+            {
+                string? base64Image = imageElement.GetString();
+                if (!string.IsNullOrWhiteSpace(base64Image))
+                {
+                    return Convert.FromBase64String(base64Image);
+                }
+            }
+
+            logger.LogWarning("Could not extract image data from Imagen response");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to generate marketing image, continuing without it");
+            return null;
         }
     }
 
@@ -278,6 +298,7 @@ public class PhotoAnalysisResult
     public string MarketingCopy { get; set; } = string.Empty;
     public decimal SuggestedPrice { get; set; }
     public string SocialMediaText { get; set; } = string.Empty;
+    public byte[]? MarketingImageData { get; set; }
 }
 
 public class MarketingContent
