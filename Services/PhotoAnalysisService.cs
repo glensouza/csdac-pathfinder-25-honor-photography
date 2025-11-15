@@ -222,6 +222,27 @@ public class PhotoAnalysisService(IGeminiClientProvider geminiClientProvider, IC
             // Log raw response for diagnosis (DEBUG only)
             logger.LogDebug("Raw Gemini response: {Response}", jsonResponse);
 
+            // Strip markdown code blocks if present (Gemini sometimes wraps JSON in ```json ... ```)
+            jsonResponse = jsonResponse.Trim();
+            if (jsonResponse.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+            {
+                int startIndex = jsonResponse.IndexOf('\n') + 1;
+                int endIndex = jsonResponse.LastIndexOf("```");
+                if (startIndex > 0 && endIndex > startIndex)
+                {
+                    jsonResponse = jsonResponse.Substring(startIndex, endIndex - startIndex).Trim();
+                }
+            }
+            else if (jsonResponse.StartsWith("```"))
+            {
+                int startIndex = jsonResponse.IndexOf('\n') + 1;
+                int endIndex = jsonResponse.LastIndexOf("```");
+                if (startIndex > 0 && endIndex > startIndex)
+                {
+                    jsonResponse = jsonResponse.Substring(startIndex, endIndex - startIndex).Trim();
+                }
+            }
+
             using JsonDocument doc = JsonDocument.Parse(jsonResponse);
             JsonElement root = doc.RootElement;
 
