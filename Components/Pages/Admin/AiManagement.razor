@@ -11,6 +11,7 @@
 @inject NavigationManager NavigationManager
 @attribute [Authorize]
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>AI Analysis Management</PageTitle>
 
@@ -236,6 +237,10 @@
     private int failedCount = 0;
     private double averageAiRating = 0.0;
 
+    private System.Threading.Timer? autoRefreshTimer;
+    private readonly int autoRefreshIntervalSeconds = 30;
+    private bool isDisposed = false;
+
     protected override async Task OnInitializedAsync()
     {
         AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -259,6 +264,7 @@
         }
 
         await LoadData();
+        StartAutoRefresh();
     }
 
     private async Task LoadData()
@@ -368,5 +374,33 @@
             AiProcessingStatus.Failed => ("✗", "Failed", "bg-danger", "AI analysis failed - see error message"),
             _ => ("", "Unknown", "bg-secondary", "Unknown status")
         };
+    }
+
+    private void StartAutoRefresh()
+    {
+        autoRefreshTimer = new System.Threading.Timer(async _ =>
+        {
+            if (isDisposed) return;
+            
+            try
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadData();
+                    StateHasChanged();
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - this is background refresh
+                Console.WriteLine($"Auto-refresh failed: {ex.Message}");
+            }
+        }, null, TimeSpan.FromSeconds(autoRefreshIntervalSeconds), TimeSpan.FromSeconds(autoRefreshIntervalSeconds));
+    }
+
+    public void Dispose()
+    {
+        isDisposed = true;
+        autoRefreshTimer?.Dispose();
     }
 }
