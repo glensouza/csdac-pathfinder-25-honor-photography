@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.DataProtection;
-using System.IO;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -172,6 +171,7 @@ app.MapGet("/api/images/{id:int}", async (int id, IDbContextFactory<ApplicationD
 });
 
 app.Run();
+return;
 
 
 // Validate required configuration values and repository automation presence

@@ -267,27 +267,30 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
         // Use a CTE with ROW_NUMBER() partitioned by CompositionRuleId to select top N per rule
         List<PhotoSubmission> results = await context.PhotoSubmissions
-            .FromSqlInterpolated($@"
-                WITH ranked AS (
-                    SELECT *, ROW_NUMBER() OVER (PARTITION BY ""CompositionRuleId"" ORDER BY ""EloRating"" DESC, ""SubmissionDate"" DESC) AS rn
-                    FROM ""PhotoSubmissions""
-                    WHERE ({(gradeStatus == null)} OR ""GradeStatus"" = {(int?)gradeStatus})
-                )
-                SELECT * FROM ranked WHERE rn <= {perRuleCount}")
+            .FromSqlInterpolated($"""
+
+                                                  WITH ranked AS (
+                                                      SELECT *, ROW_NUMBER() OVER (PARTITION BY "CompositionRuleId" ORDER BY "EloRating" DESC, "SubmissionDate" DESC) AS rn
+                                                      FROM "PhotoSubmissions"
+                                                      WHERE ({(gradeStatus == null)} OR "GradeStatus" = {(int?)gradeStatus})
+                                                  )
+                                                  SELECT * FROM ranked WHERE rn <= {perRuleCount}
+                                  """)
             .AsNoTracking()
             .ToListAsync();
 
-        Dictionary<int, List<PhotoSubmission>> grouped = new Dictionary<int, List<PhotoSubmission>>();
+        Dictionary<int, List<PhotoSubmission>> grouped = new();
 
         foreach (PhotoSubmission photo in results)
         {
             int key = photo.CompositionRuleId;
-            if (!grouped.ContainsKey(key))
+            if (!grouped.TryGetValue(key, out List<PhotoSubmission>? value))
             {
-                grouped[key] = new List<PhotoSubmission>();
+                value = [];
+                grouped[key] = value;
             }
 
-            grouped[key].Add(photo);
+            value.Add(photo);
         }
 
         return grouped;

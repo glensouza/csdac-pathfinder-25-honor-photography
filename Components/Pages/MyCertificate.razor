@@ -4,11 +4,10 @@
 @using PathfinderPhotography.Models
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.JSInterop
 @inject CertificateService CertificateService
 @inject UserService UserService
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 @attribute [Authorize]
 @rendermode InteractiveServer
 
@@ -123,8 +122,8 @@
                                      style="width: @progressPercentage%;" 
                                      aria-valuenow="@passedRulesCount" 
                                      aria-valuemin="0" 
-                                     aria-valuemax="@totalRulesCount">
-                                    @passedRulesCount / @totalRulesCount Rules Passed
+                                     aria-valuemax="@TotalRulesCount">
+                                    @passedRulesCount / @TotalRulesCount Rules Passed
                                 </div>
                             </div>
                             <p class="mt-2 text-center">
@@ -153,7 +152,7 @@
     private bool hasCompleted = false;
     private CompletionCertificate? certificate = null;
     private int passedRulesCount = 0;
-    private int totalRulesCount = 11;
+    private const int TotalRulesCount = 11;
     private int progressPercentage = 0;
 
     protected override async Task OnInitializedAsync()
@@ -180,7 +179,7 @@
                 // For now, we'll just set it based on completion
                 if (certificate != null || hasCompleted)
                 {
-                    passedRulesCount = totalRulesCount;
+                    passedRulesCount = TotalRulesCount;
                     progressPercentage = 100;
                 }
             }
@@ -191,7 +190,7 @@
 
     private async Task DownloadCertificate()
     {
-        if (certificate == null || certificate.CertificatePdfData == null)
+        if (certificate?.CertificatePdfData == null)
         {
             return;
         }
@@ -203,7 +202,7 @@
         {
             string fileName = $"Photography_Honor_Certificate_{certificate.PathfinderName.Replace(" ", "_")}_{certificate.CompletionDate:yyyyMMdd}.pdf";
             string base64 = Convert.ToBase64String(certificate.CertificatePdfData);
-            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+            await JsRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
         }
         catch (Exception ex)
         {

@@ -6,64 +6,60 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PathfinderPhotography.Services;
 
-public class AiProcessingBackgroundService : BackgroundService
+public class AiProcessingBackgroundService(
+    IServiceProvider serviceProvider,
+    ILogger<AiProcessingBackgroundService> logger)
+    : BackgroundService
 {
-    private readonly Channel<AiAnalysisRequest> _queue;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<AiProcessingBackgroundService> _logger;
-    private int _queuedCount = 0;
-    private readonly object _countLock = new object();
-
-    public AiProcessingBackgroundService(
-        IServiceProvider serviceProvider,
-        ILogger<AiProcessingBackgroundService> logger)
+    private readonly Channel<AiAnalysisRequest> queue = Channel.CreateUnbounded<AiAnalysisRequest>(new UnboundedChannelOptions
     {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-        
-        // Create unbounded channel for queueing requests
-        _queue = Channel.CreateUnbounded<AiAnalysisRequest>(new UnboundedChannelOptions
-        {
-            SingleReader = true, // Only one background worker reads
-            SingleWriter = false // Multiple threads can enqueue
-        });
-    }
+        SingleReader = true, // Only one background worker reads
+        SingleWriter = false // Multiple threads can enqueue
+    });
+
+    private int queuedCount = 0;
+    private readonly Lock countLock = new();
+
+    // Create unbounded channel for queueing requests
+    // Only one background worker reads
+    // Multiple threads can enqueue
 
     public async Task QueueAnalysisAsync(AiAnalysisRequest request)
     {
-        await _queue.Writer.WriteAsync(request);
-        lock (_countLock)
+        await this.queue.Writer.WriteAsync(request);
+        lock (this.countLock)
         {
-            _queuedCount++;
+            this.queuedCount++;
         }
-        _logger.LogInformation("Queued AI analysis for submission {SubmissionId}", request.SubmissionId);
+
+        logger.LogInformation("Queued AI analysis for submission {SubmissionId}", request.SubmissionId);
     }
 
     public int GetQueuedCount()
     {
-        lock (_countLock)
+        lock (this.countLock)
         {
-            return _queuedCount;
+            return this.queuedCount;
         }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("AI Processing Background Service started");
+        logger.LogInformation("AI Processing Background Service started");
 
-        await foreach (AiAnalysisRequest request in _queue.Reader.ReadAllAsync(stoppingToken))
+        await foreach (AiAnalysisRequest request in this.queue.Reader.ReadAllAsync(stoppingToken))
         {
             try
             {
-                _logger.LogInformation("Processing AI analysis for submission {SubmissionId}", request.SubmissionId);
+                logger.LogInformation("Processing AI analysis for submission {SubmissionId}", request.SubmissionId);
                 
-                using (IServiceScope scope = _serviceProvider.CreateScope())
+                using (IServiceScope scope = serviceProvider.CreateScope())
                 {
                     PhotoAnalysisService photoAnalysisService = scope.ServiceProvider.GetRequiredService<PhotoAnalysisService>();
                     IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
                     
                     // Update status to Processing
-                    await UpdateStatusAsync(contextFactory, request.SubmissionId, 
+                    await this.UpdateStatusAsync(contextFactory, request.SubmissionId, 
                         AiProcessingStatus.Processing, startTime: DateTime.UtcNow);
                     
                     // Perform AI analysis
@@ -73,68 +69,68 @@ public class AiProcessingBackgroundService : BackgroundService
                         request.CompositionRule);
                     
                     // Save results
-                    await SaveResultsAsync(contextFactory, request.SubmissionId, result);
+                    await this.SaveResultsAsync(contextFactory, request.SubmissionId, result);
                     
-                    lock (_countLock)
+                    lock (this.countLock)
                     {
-                        _queuedCount--;
+                        this.queuedCount--;
                     }
-                    
-                    _logger.LogInformation("Completed AI analysis for submission {SubmissionId}: Title='{Title}', Rating={Rating}",
+
+                    logger.LogInformation("Completed AI analysis for submission {SubmissionId}: Title='{Title}', Rating={Rating}",
                         request.SubmissionId, result.Title, result.Rating);
                 }
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex, "Network error while analyzing submission {SubmissionId}: Ollama may be unavailable", request.SubmissionId);
+                logger.LogError(ex, "Network error while analyzing submission {SubmissionId}: Ollama may be unavailable", request.SubmissionId);
                 
-                using (IServiceScope scope = _serviceProvider.CreateScope())
+                using (IServiceScope scope = serviceProvider.CreateScope())
                 {
                     IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-                    await UpdateStatusAsync(contextFactory, request.SubmissionId,
+                    await this.UpdateStatusAsync(contextFactory, request.SubmissionId,
                         AiProcessingStatus.Failed, error: "Ollama service unavailable", completedTime: DateTime.UtcNow);
                 }
                 
-                lock (_countLock)
+                lock (this.countLock)
                 {
-                    _queuedCount--;
+                    this.queuedCount--;
                 }
             }
             catch (JsonException ex)
             {
-                _logger.LogError(ex, "Failed to parse AI response for submission {SubmissionId}", request.SubmissionId);
+                logger.LogError(ex, "Failed to parse AI response for submission {SubmissionId}", request.SubmissionId);
                 
-                using (IServiceScope scope = _serviceProvider.CreateScope())
+                using (IServiceScope scope = serviceProvider.CreateScope())
                 {
                     IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-                    await UpdateStatusAsync(contextFactory, request.SubmissionId,
+                    await this.UpdateStatusAsync(contextFactory, request.SubmissionId,
                         AiProcessingStatus.Failed, error: "AI response parsing failed", completedTime: DateTime.UtcNow);
                 }
                 
-                lock (_countLock)
+                lock (this.countLock)
                 {
-                    _queuedCount--;
+                    this.queuedCount--;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "AI analysis failed for submission {SubmissionId}", request.SubmissionId);
+                logger.LogError(ex, "AI analysis failed for submission {SubmissionId}", request.SubmissionId);
                 
-                using (IServiceScope scope = _serviceProvider.CreateScope())
+                using (IServiceScope scope = serviceProvider.CreateScope())
                 {
                     IDbContextFactory<ApplicationDbContext> contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-                    await UpdateStatusAsync(contextFactory, request.SubmissionId,
+                    await this.UpdateStatusAsync(contextFactory, request.SubmissionId,
                         AiProcessingStatus.Failed, error: ex.Message, completedTime: DateTime.UtcNow);
                 }
                 
-                lock (_countLock)
+                lock (this.countLock)
                 {
-                    _queuedCount--;
+                    this.queuedCount--;
                 }
             }
         }
-        
-        _logger.LogInformation("AI Processing Background Service stopped");
+
+        logger.LogInformation("AI Processing Background Service stopped");
     }
 
     private async Task UpdateStatusAsync(IDbContextFactory<ApplicationDbContext> contextFactory, 
@@ -170,11 +166,11 @@ public class AiProcessingBackgroundService : BackgroundService
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Database update failed while updating AI processing status for submission {SubmissionId}", submissionId);
+            logger.LogWarning(ex, "Database update failed while updating AI processing status for submission {SubmissionId}", submissionId);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Invalid operation while updating AI processing status for submission {SubmissionId}", submissionId);
+            logger.LogWarning(ex, "Invalid operation while updating AI processing status for submission {SubmissionId}", submissionId);
         }
     }
 

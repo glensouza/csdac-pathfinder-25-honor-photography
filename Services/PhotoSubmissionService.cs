@@ -45,7 +45,7 @@ public class PhotoSubmissionService(
         submission.SubmissionDate = DateTime.UtcNow;
         
         // Set initial AI processing status
-        if (submission.ImageData != null && submission.ImageData.Length > 0)
+        if (submission.ImageData is { Length: > 0 })
         {
             submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
         }
@@ -66,7 +66,7 @@ public class PhotoSubmissionService(
         #pragma warning restore CS4014
 
         // Queue AI analysis in background service
-        if (submission.ImageData != null && submission.ImageData.Length > 0)
+        if (submission.ImageData is { Length: > 0 })
         {
             await aiProcessingService.QueueAnalysisAsync(new AiAnalysisRequest
             {

@@ -1,10 +1,9 @@
 @page "/photo/{id:int}"
 @using PathfinderPhotography.Services
 @using PathfinderPhotography.Models
-@using Microsoft.JSInterop
 @inject PhotoSubmissionService SubmissionService
 @inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 @rendermode InteractiveServer
 
 <PageTitle>Photo Details</PageTitle>
@@ -147,7 +146,7 @@ else
                                     <strong class="text-success">Suggested Price:</strong>
                                     <p class="mb-0">
                                         <span class="badge bg-success fs-6">$@submission.AiSuggestedPrice.Value.ToString("F2")</span>
-                                        <small class="text-muted d-block">for an 8x10 print</small>
+                                        <small class="text-muted d-block">for a 8x10 print</small>
                                     </p>
                                 </div>
                             }
@@ -216,7 +215,7 @@ else
         {
             try
             {
-                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", submission.AiSocialMediaText);
+                await JsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", submission.AiSocialMediaText);
             }
             catch (JSException)
             {

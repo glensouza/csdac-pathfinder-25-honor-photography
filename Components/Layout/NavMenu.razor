@@ -130,7 +130,7 @@
             AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             ClaimsPrincipal principal = authState.User;
 
-            if (principal.Identity != null && principal.Identity.IsAuthenticated)
+            if (principal.Identity is { IsAuthenticated: true })
             {
                 string? email = principal.FindFirst(ClaimTypes.Email)?.Value;
                 if (!string.IsNullOrEmpty(email))

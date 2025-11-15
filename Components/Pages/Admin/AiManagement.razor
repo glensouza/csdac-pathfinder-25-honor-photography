@@ -40,7 +40,12 @@
 
         @if (!string.IsNullOrEmpty(statusMessage))
         {
-            <div class="alert @(statusMessageType == "success" ? "alert-success" : statusMessageType == "error" ? "alert-danger" : "alert-info") alert-dismissible fade show" role="alert">
+            <div class="alert @(statusMessageType switch
+                              {
+                                  "success" => "alert-success",
+                                  "error" => "alert-danger",
+                                  _ => "alert-info"
+                              }) alert-dismissible fade show" role="alert">
                 @statusMessage
                 <button type="button" class="btn-close" @onclick="() => statusMessage = string.Empty"></button>
             </div>
@@ -285,7 +290,7 @@
         {
             "with-ai" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Completed).ToList(),
             "without-ai" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.NotStarted || s.AiProcessingStatus == AiProcessingStatus.Failed).ToList(),
-            "low-rating" => allSubmissions.Where(s => s.AiRating.HasValue && s.AiRating.Value < 5).ToList(),
+            "low-rating" => allSubmissions.Where(s => s.AiRating is < 5).ToList(),
             "queued" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Queued).ToList(),
             "processing" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Processing).ToList(),
             "failed" => allSubmissions.Where(s => s.AiProcessingStatus == AiProcessingStatus.Failed).ToList(),
