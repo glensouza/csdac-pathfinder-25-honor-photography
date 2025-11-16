@@ -227,25 +227,20 @@ return;
 // Validate required configuration values and repository automation presence
 static void ValidateRequiredConfigurations(IConfiguration configuration)
 {
-    // Email SMTP configuration
+    // Email SMTP configuration (optional - log warning if not configured)
     string? smtpHost = configuration["Email:SmtpHost"];
     string? fromAddress = configuration["Email:FromAddress"];
 
-    if (string.IsNullOrWhiteSpace(smtpHost))
+    if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(fromAddress))
     {
-        throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:SmtpHost'. Add Email:SmtpHost to your configuration.");
+        Console.WriteLine("Warning: Email notifications are not configured. Email:SmtpHost and Email:FromAddress are required for email functionality.");
     }
 
-    if (string.IsNullOrWhiteSpace(fromAddress))
-    {
-        throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:FromAddress'. Add Email:FromAddress to your configuration.");
-    }
-
-    // OpenTelemetry OTLP endpoint (SigNoz collector)
+    // OpenTelemetry OTLP endpoint (SigNoz collector) - optional
     string? otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
     if (string.IsNullOrWhiteSpace(otlpEndpoint))
     {
-        throw new InvalidOperationException("SigNoz telemetry is required. Missing 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable or configuration. Set this to your OTLP collector endpoint.");
+        Console.WriteLine("Warning: SigNoz telemetry is not configured. Set 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable for observability features.");
     }
 
     // Ensure GitHub Actions automation workflow exists in repo
