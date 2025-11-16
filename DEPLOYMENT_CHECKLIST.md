@@ -30,7 +30,7 @@ For detailed step-by-step instructions, see:
 - [ ] Google OAuth Client ID
 - [ ] Google OAuth Client Secret
 - [ ] PostgreSQL password (secure, random - use `openssl rand -base64 32`)
-- [ ] (Optional) Email SMTP settings for notifications
+- [ ] Email SMTP settings for notifications
 - [ ] SSL certificate domain (if using Let's Encrypt)
 
 #### Prerequisites Verified
@@ -120,7 +120,7 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] PostgreSQL service active: `systemctl is-active postgresql`
 - [ ] Application service active: `systemctl is-active pathfinder-photography`
 - [ ] Nginx service active: `systemctl is-active nginx`
-- [ ] (Optional) GitHub runner active: `systemctl is-active github-runner`
+- [ ] GitHub runner active: `systemctl is-active actions.runner.*`
 - [ ] No errors in application logs: `journalctl -u pathfinder-photography -n 100`
 
 #### Application Access
@@ -186,8 +186,8 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 
 ### Monitoring
 - [ ] Configured log rotation in journald
-- [ ] (Optional) Set up external monitoring/alerting
-- [ ] (Optional) Configured health check script
+- [ ] Set up external monitoring/alerting
+- [ ] Configured health check script
 - [ ] Know where to find logs: `journalctl -u pathfinder-photography`
 
 ## Troubleshooting Completed

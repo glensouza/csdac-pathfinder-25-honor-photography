@@ -251,7 +251,7 @@ PGAdmin will run on `http://localhost:8080/pgadmin4` and will be proxied through
 - Consider restricting access by IP address in Nginx configuration if only accessing from specific locations
 - The pgAdmin interface should only be accessible by authorized administrators
 
-## Update Login Message (Optional)
+## Update Login Message
 
 To display service URLs in the login message, update the `/etc/profile.d/00_lxc-details.sh` file (or create it if it doesn't exist):
 
@@ -274,7 +274,7 @@ echo -e "        - Public: https://photohonor.coronasda.church"
 echo -e "    🗄️   PGAdmin 4 (Database Management):"
 echo -e "        - Local: http://localhost:8080/pgadmin4"
 echo -e "        - Public: https://photohonorpgadmin.coronasda.church"
-echo -e "    📊   SigNoz (Observability - Optional):"
+echo -e "    📊   SigNoz (Observability):"
 echo -e "        - Local: http://10.10.10.200:3301"
 echo -e "        - Public: https://photohonorsignoz.coronasda.church"
 echo -e "    🖥️   Cockpit (System Management):"

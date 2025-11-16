@@ -137,10 +137,10 @@ PermitRootLogin no
 # Use SSH keys only (disable password authentication)
 PasswordAuthentication no
 
-# Limit users who can SSH (optional)
+# Limit users who can SSH
 AllowUsers your-username
 
-# Change default port (optional, adds security through obscurity)
+# Change default port (adds security through obscurity)
 # Port 2222
 ```
 

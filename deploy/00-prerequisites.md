@@ -69,8 +69,8 @@ Create a checklist of the information you'll need:
 - [ ] Google OAuth Client ID
 - [ ] Google OAuth Client Secret
 - [ ] PostgreSQL password (generated above)
-- [ ] (Optional) Email SMTP settings for notifications
-- [ ] (Optional) Additional domain names for pgAdmin and SigNoz
+- [ ] Email SMTP settings for notifications
+- [ ] Additional domain names for pgAdmin and SigNoz
 
 ### Review the Deployment Checklist
 
@@ -88,8 +88,8 @@ This deployment will install the following components:
 6. **Pathfinder Photography Application** - The main application
 7. **Systemd Service** - Manages application lifecycle
 8. **Nginx** - Reverse proxy and web server
-9. *(Optional)* **SigNoz** - Observability platform
-10. *(Optional)* **GitHub Actions Runner** - For automated deployments
+9. **SigNoz** - Observability platform
+10. **GitHub Actions Runner** - For automated deployments
 
 ## Estimated Time
 
