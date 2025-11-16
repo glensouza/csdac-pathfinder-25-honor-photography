@@ -2,17 +2,17 @@
 
 ## 📋 Quick Navigation
 
-| [← PostgreSQL](01-install-postgresql.md) | [Home](../DEPLOY.md) | [Next: Install Application →](03-install-application.md) |
-|:-----------------------------------------|:--------------------:|----------------------------------------------------------:|
+| [← PostgreSQL](01-install-postgresql.md) | [Home](../DEPLOY.md) | [Next: Install SigNoz →](05-install-signoz.md) |
+|:-----------------------------------------|:--------------------:|------------------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
 - [Prerequisites](00-prerequisites.md)
 - [Step 1: Install PostgreSQL](01-install-postgresql.md)
 - **Step 2: Install .NET Runtime** ← You are here
-- [Step 3: Install Application](03-install-application.md)
-- [Step 4: Configure Systemd Service](04-configure-systemd.md)
-- [Step 5: Install SigNoz](05-install-signoz.md)
+- [Step 3: Install SigNoz](05-install-signoz.md)
+- [Step 4: Install Application](03-install-application.md)
+- [Step 5: Configure Systemd Service](04-configure-systemd.md)
 - [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
 - [Step 7: Setup Automated Deployments](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
@@ -156,7 +156,7 @@ Before moving to the next step, verify:
 
 ## Next Step
 
-.NET is now installed! Continue with installing the application.
+.NET is now installed! Continue with installing SigNoz observability platform.
 
-| [← PostgreSQL](01-install-postgresql.md) | [Home](../DEPLOY.md) | [Next: Install Application →](03-install-application.md) |
-|:-----------------------------------------|:--------------------:|----------------------------------------------------------:|
+| [← PostgreSQL](01-install-postgresql.md) | [Home](../DEPLOY.md) | [Next: Install SigNoz →](05-install-signoz.md) |
+|:-----------------------------------------|:--------------------:|------------------------------------------------:|

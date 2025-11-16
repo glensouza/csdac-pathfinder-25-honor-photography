@@ -2,17 +2,17 @@
 
 ## 📋 Quick Navigation
 
-| [← SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments →](07-automated-deployments.md) |
-|:----------------------------------|:--------------------:|-------------------------------------------------------------------------:|
+| [← Systemd Service](04-configure-systemd.md) | [Home](../DEPLOY.md) | [Next: Automated Deployments →](07-automated-deployments.md) |
+|:---------------------------------------------|:--------------------:|--------------------------------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
 - [Prerequisites](00-prerequisites.md)
 - [Step 1: Install PostgreSQL](01-install-postgresql.md)
 - [Step 2: Install .NET Runtime](02-install-dotnet.md)
-- [Step 3: Install Application](03-install-application.md)
-- [Step 4: Configure Systemd Service](04-configure-systemd.md)
-- [Step 5: Install SigNoz](05-install-signoz.md)
+- [Step 3: Install SigNoz](05-install-signoz.md)
+- [Step 4: Install Application](03-install-application.md)
+- [Step 5: Configure Systemd Service](04-configure-systemd.md)
 - **Step 6: Install Nginx Reverse Proxy** ← You are here
 - [Step 7: Setup Automated Deployments](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)

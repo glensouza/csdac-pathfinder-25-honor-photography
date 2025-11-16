@@ -1,18 +1,18 @@
-# Step 4: Configure Systemd Service
+# Step 5: Configure Systemd Service
 
 ## 📋 Quick Navigation
 
-| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: SigNoz →](05-install-signoz.md) |
-|:---------------------------------------------------|:--------------------:|----------------------------------------:|
+| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: Nginx →](06-install-nginx.md) |
+|:---------------------------------------------------|:--------------------:|--------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
 - [Prerequisites](00-prerequisites.md)
 - [Step 1: Install PostgreSQL](01-install-postgresql.md)
 - [Step 2: Install .NET Runtime](02-install-dotnet.md)
-- [Step 3: Install Application](03-install-application.md)
-- **Step 4: Configure Systemd Service** ← You are here
-- [Step 5: Install SigNoz](05-install-signoz.md)
+- [Step 3: Install SigNoz](05-install-signoz.md)
+- [Step 4: Install Application](03-install-application.md)
+- **Step 5: Configure Systemd Service** ← You are here
 - [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
 - [Step 7: Setup Automated Deployments](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
@@ -57,6 +57,8 @@ SyslogIdentifier=pathfinder-photography
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:5000
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+Environment=OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
 
 # Security settings
 NoNewPrivileges=true
@@ -90,16 +92,9 @@ WantedBy=multi-user.target
 - `ProtectSystem=strict` - Filesystem is read-only except for explicitly allowed paths
 - `ProtectHome=true` - Hide home directories from the service
 
-### Optional: SigNoz Integration
-
-**Note**: If you're planning to install SigNoz ([Step 6](06-install-signoz.md)), add these environment variables to the service file:
-
-```ini
-Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-Environment=OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
-```
-
-You can add these lines now or after installing SigNoz. If you add them later, remember to run `sudo systemctl daemon-reload` and `sudo systemctl restart pathfinder-photography`.
+**SigNoz Integration**:
+- `OTEL_EXPORTER_OTLP_ENDPOINT` - OpenTelemetry collector endpoint (required, configured in Step 3)
+- `OTEL_RESOURCE_ATTRIBUTES` - Service name for telemetry identification
 
 ### Important: Data Protection Keys
 
@@ -229,5 +224,5 @@ Before moving to the next step, verify:
 
 The application service is now running! Continue with installing and configuring Nginx as a reverse proxy to make the application accessible via your domain.
 
-| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: SigNoz →](05-install-signoz.md) |
+| [← Install Application](03-install-application.md) | [Home](../DEPLOY.md) | [Next: Nginx →](06-install-nginx.md) |
 |:---------------------------------------------------|:--------------------:|--------------------------------------:|

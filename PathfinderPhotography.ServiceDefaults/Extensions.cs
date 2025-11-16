@@ -91,7 +91,34 @@ public static class Extensions
     {
         builder.Services.AddHealthChecks()
             // Add a default liveness check to ensure app is responsive
-            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
+            // Add Email configuration health check
+            .AddCheck("email_configuration", () =>
+            {
+                string? smtpHost = builder.Configuration["Email:SmtpHost"];
+                string? fromAddress = builder.Configuration["Email:FromAddress"];
+                
+                if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(fromAddress))
+                {
+                    return HealthCheckResult.Unhealthy(
+                        "Email configuration is missing. Required: Email:SmtpHost and Email:FromAddress");
+                }
+                
+                return HealthCheckResult.Healthy("Email configuration is present");
+            })
+            // Add SigNoz/OTLP configuration health check
+            .AddCheck("signoz_configuration", () =>
+            {
+                string? otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+                
+                if (string.IsNullOrWhiteSpace(otlpEndpoint))
+                {
+                    return HealthCheckResult.Unhealthy(
+                        "SigNoz telemetry configuration is missing. Required: OTEL_EXPORTER_OTLP_ENDPOINT environment variable");
+                }
+                
+                return HealthCheckResult.Healthy($"SigNoz configured at {otlpEndpoint}");
+            });
 
         return builder;
     }
