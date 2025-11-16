@@ -8,15 +8,15 @@ This guide will walk you through setting up and running the Pathfinder Photograp
 - 🏆 ELO-based rating system for photo comparison voting
 - 👥 User management (Pathfinder, Instructor, Admin roles)
 - 📊 Admin dashboard with PDF export
-- 🤖 **AI-Powered Photo Analysis** with local Ollama (optional)
-- 💼 **Marketing Content Generation** for educational purposes (optional)
+- 🤖 **AI-Powered Photo Analysis** with local Ollama
+- 💼 **Marketing Content Generation** for educational purposes
 
 ## Quick Start Options
 
 Choose your preferred local development setup:
 - **Option 1: .NET Aspire** - Recommended for development with integrated observability
 - **Option 2: Local .NET** - Direct .NET development without containers
-- **Optional: AI Features** - Install Ollama for AI photo analysis (see [AI Features Setup](#ai-features-setup-optional))
+- **AI Features** - Install Ollama for AI photo analysis (see [AI Features Setup](#ai-features-setup))
 
 ## Quick Start (Aspire - Recommended for Local Development)
 
@@ -89,7 +89,7 @@ Choose your preferred local development setup:
 
 **For production deployment**, see [DEPLOY.md](DEPLOY.md) for configuration instructions ([Step 3: Install Application](deploy/03-install-application.md)).
 
-## Email Notifications (Optional)
+## Email Notifications
 
 Used to notify instructors/admins of new submissions and pathfinders of grading results.
 
@@ -284,7 +284,7 @@ SELECT "Name","Email","Role" FROM "Users";
 - `Authentication__Google__ClientSecret`
 - `ASPNETCORE_URLS`
 - `ASPNETCORE_ENVIRONMENT`
-- `Email` section (optional)
+- `Email` section
 
 ## Troubleshooting
 
@@ -330,9 +330,9 @@ psql -U postgres pathfinder_photography
 SELECT * FROM "PhotoSubmissions" LIMIT 5;
 ```
 
-## AI Features Setup (Optional)
+## AI Features Setup
 
-The application includes AI-powered photo analysis and marketing content generation using a local Ollama instance. This is **completely optional** - the application works fine without it.
+The application includes AI-powered photo analysis and marketing content generation using a local Ollama instance.
 
 ### What AI Features Provide
 
