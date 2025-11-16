@@ -175,7 +175,7 @@ ls -la /opt/pathfinder-photography/appsettings.Production.json
 # Should have 600 permissions (owner read/write only)
 
 # Sudoers file
-ls -la /etc/sudoers.d/github-runner
+ls -la /etc/sudoers.d/pathfinder
 # Should have 440 permissions (if using automated deployments)
 ```
 
