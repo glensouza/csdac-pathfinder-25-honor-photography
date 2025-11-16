@@ -21,9 +21,9 @@ A Blazor Server web application built with .NET9.0 for SDA Pathfinders to submit
 ✅ PDF export (reports and progress)
 ✅ Email notifications (SMTP)
 
-###10 Composition Rules
+### 10 Composition Rules
 
-All10 rules implemented with detailed descriptions and explanations:
+All 10 rules implemented with detailed descriptions and explanations:
 
 1. Rule of Thirds
 2. Leading Lines
@@ -77,7 +77,7 @@ All10 rules implemented with detailed descriptions and explanations:
 ### User Features
 - Google Sign-In (OAuth2.0)
 - Automatic name tracking from Google profile
-- Photo upload (images up to10MB)
+- Photo upload (images up to 10MB)
 - Rule selection (10 composition rules)
 - Description input explaining the rule application
 - Personal and public galleries with filtering
