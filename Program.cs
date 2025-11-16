@@ -157,6 +157,10 @@ using (IServiceScope scope = app.Services.CreateScope())
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    
+    // Add status code pages to handle 500 errors with a custom page
+    app.UseStatusCodePagesWithReExecute("/Error/{0}");
+    
     app.UseHsts();
 }
 
