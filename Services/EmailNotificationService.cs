@@ -15,21 +15,24 @@ public class EmailNotificationService
         this.configuration = configuration;
         this.logger = logger;
         
-        // Email notifications are optional - check if configured
+        // Validate required email configuration — email notifications are required
         string? smtpHost = this.configuration["Email:SmtpHost"];
         string? fromAddress = this.configuration["Email:FromAddress"];
 
-        // Set isEnabled based on presence of both smtpHost and fromAddress
-        this.isEnabled = !string.IsNullOrWhiteSpace(smtpHost) && !string.IsNullOrWhiteSpace(fromAddress);
+        // Set _isEnabled based on presence of smtpHost (will be true if configured)
+        this.isEnabled = !string.IsNullOrWhiteSpace(smtpHost);
 
-        if (this.isEnabled)
+        if (!this.isEnabled)
         {
-            this.logger.LogInformation("Email notifications are enabled.");
+            throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:SmtpHost'.");
         }
-        else
+
+        if (string.IsNullOrWhiteSpace(fromAddress))
         {
-            this.logger.LogWarning("Email notifications are disabled. Email:SmtpHost and Email:FromAddress are not configured.");
+            throw new InvalidOperationException("Email notifications are required. Missing configuration 'Email:FromAddress'.");
         }
+
+        this.logger.LogInformation("Email notifications are enabled.");
     }
 
     public async Task SendGradingNotificationAsync(
@@ -39,12 +42,6 @@ public class EmailNotificationService
         GradeStatus gradeStatus,
         string gradedBy)
     {
-        if (!this.isEnabled)
-        {
-            this.logger.LogDebug("Email notifications disabled, skipping grading notification.");
-            return;
-        }
-
         try
         {
             using MimeMessage message = new();
@@ -122,12 +119,6 @@ public class EmailNotificationService
         string compositionRuleName,
         List<string> instructorEmails)
     {
-        if (!this.isEnabled)
-        {
-            this.logger.LogDebug("Email notifications disabled, skipping new submission notification.");
-            return;
-        }
-
         if (!instructorEmails.Any())
         {
             this.logger.LogDebug("No instructors to notify for new submission, skipping email.");

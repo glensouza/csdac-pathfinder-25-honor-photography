@@ -1,18 +1,18 @@
-# Step 5: Install SigNoz
+# Step 3: Install SigNoz
 
 ## 📋 Quick Navigation
 
-| [← Systemd Service](04-configure-systemd.md) | [Home](../DEPLOY.md) | [Next: Nginx →](06-install-nginx.md) |
-|:---------------------------------------------|:--------------------:|--------------------------------------:|
+| [← .NET Runtime](02-install-dotnet.md) | [Home](../DEPLOY.md) | [Next: Application →](03-install-application.md) |
+|:---------------------------------------|:--------------------:|--------------------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
 - [Prerequisites](00-prerequisites.md)
 - [Step 1: Install PostgreSQL](01-install-postgresql.md)
 - [Step 2: Install .NET Runtime](02-install-dotnet.md)
-- [Step 3: Install Application](03-install-application.md)
-- [Step 4: Configure Systemd Service](04-configure-systemd.md)
-- **Step 5: Install SigNoz** ← You are here
+- **Step 3: Install SigNoz** ← You are here
+- [Step 4: Install Application](03-install-application.md)
+- [Step 5: Configure Systemd Service](04-configure-systemd.md)
 - [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
 - [Step 7: Setup Automated Deployments](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
@@ -21,7 +21,7 @@
 
 ## Overview
 
-SigNoz provides observability (traces, metrics, logs) for monitoring your application performance and troubleshooting issues.
+SigNoz provides observability (traces, metrics, logs) for monitoring your application performance and troubleshooting issues. **This is a required component** - the application needs SigNoz telemetry configured to start properly.
 
 **Estimated time**: 20-30 minutes
 
@@ -82,26 +82,13 @@ sudo systemctl enable clickhouse-server
 - ✅ Lower resource consumption
 - ✅ Easier troubleshooting with standard Linux tools
 
-## Configure Application to Use SigNoz
+## Next Steps
 
-Update the systemd service file to include SigNoz configuration:
-
-```bash
-sudo nano /etc/systemd/system/pathfinder-photography.service
-```
-
-Add these environment variables to the `[Service]` section:
+SigNoz is now installed and ready! The OTLP collector is running on port 4317. When you configure the systemd service in Step 5, the application will automatically connect to SigNoz using these environment variables:
 
 ```ini
 Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 Environment=OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
-```
-
-Restart the application:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart pathfinder-photography
 ```
 
 ## Verification Checklist
@@ -110,10 +97,16 @@ Before moving to the next step, verify:
 
 - [ ] SigNoz services are installed and running
 - [ ] SigNoz UI is accessible at `http://localhost:3301`
-- [ ] Application service is configured with OTEL environment variables
-- [ ] Application is sending telemetry to SigNoz
+- [ ] OTLP collector is listening on port 4317
 
-**Note**: The Nginx configuration for SigNoz will be added in [Step 6: Nginx](06-install-nginx.md).
+You can verify the collector is running:
+```bash
+sudo netstat -tlnp | grep 4317
+# OR
+sudo ss -tlnp | grep 4317
+```
+
+**Note**: The application will be configured to use SigNoz in Step 5 (Systemd Service), and the Nginx configuration for SigNoz UI will be added in Step 6.
 
 ## Troubleshooting
 
@@ -127,20 +120,25 @@ sudo journalctl -u signoz-query-service -n 100 --no-pager
 sudo journalctl -u clickhouse-server -n 100 --no-pager
 ```
 
-### No Telemetry Data
+### OTLP Collector Not Listening
 
-1. Verify application environment variables are set correctly
-2. Check application logs for OTEL-related errors
-3. Verify SigNoz collector is running on port 4317:
-   ```bash
-   sudo netstat -tlnp | grep 4317
-   ```
+Verify the collector is running on port 4317:
+```bash
+sudo netstat -tlnp | grep 4317
+# OR
+sudo ss -tlnp | grep 4317
+```
+
+If not running, check the collector service status:
+```bash
+sudo systemctl status signoz-otel-collector
+```
 
 ---
 
 ## Next Steps
 
-SigNoz is now installed and configured! Continue with [Step 6: Nginx](06-install-nginx.md) to configure the reverse proxy for all services including SigNoz.
+SigNoz is now installed and ready! Continue with Step 4 to install the application, which will be configured to use SigNoz in Step 5.
 
-| [← Systemd Service](04-configure-systemd.md) | [Home](../DEPLOY.md) | [Next: Nginx →](06-install-nginx.md) |
-|:---------------------------------------------|:--------------------:|--------------------------------------:|
+| [← .NET Runtime](02-install-dotnet.md) | [Home](../DEPLOY.md) | [Next: Application →](03-install-application.md) |
+|:---------------------------------------|:--------------------:|--------------------------------------------------:|

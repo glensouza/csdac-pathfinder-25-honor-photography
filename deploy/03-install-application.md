@@ -1,18 +1,18 @@
-# Step 3: Install Application
+# Step 4: Install Application
 
 ## 📋 Quick Navigation
 
-| [← .NET Runtime](02-install-dotnet.md) | [Home](../DEPLOY.md) | [Next: Systemd Service →](04-configure-systemd.md) |
-|:---------------------------------------|:--------------------:|----------------------------------------------------:|
+| [← Install SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Systemd Service →](04-configure-systemd.md) |
+|:----------------------------------------|:--------------------:|----------------------------------------------------:|
 
 ## 📑 Deployment Steps Index
 
 - [Prerequisites](00-prerequisites.md)
 - [Step 1: Install PostgreSQL](01-install-postgresql.md)
 - [Step 2: Install .NET Runtime](02-install-dotnet.md)
-- **Step 3: Install Application** ← You are here
-- [Step 4: Configure Systemd Service](04-configure-systemd.md)
-- [Step 5: Install SigNoz](05-install-signoz.md)
+- [Step 3: Install SigNoz](05-install-signoz.md)
+- **Step 4: Install Application** ← You are here
+- [Step 5: Configure Systemd Service](04-configure-systemd.md)
 - [Step 6: Install Nginx Reverse Proxy](06-install-nginx.md)
 - [Step 7: Setup Automated Deployments](07-automated-deployments.md)
 - [Security & Performance](08-security-performance.md)
@@ -123,8 +123,9 @@ Add the following content:
 
 - Replace `your_secure_password_here` with the PostgreSQL password you created in [Step 1](01-install-postgresql.md)
 - Replace `your_google_client_id_here` and `your_google_client_secret_here` with your Google OAuth credentials (see [SETUP.md](../SETUP.md#google-oauth20-setup))
-- Email configuration is optional but recommended for notifications
+- **Email configuration is required** - Configure SMTP settings for notifications
 - For Gmail SMTP, you'll need to generate an App Password (not your regular Gmail password)
+- **SigNoz was installed in Step 3** and will be configured in the systemd service (Step 5)
 
 ### Set Proper Permissions
 
@@ -182,5 +183,5 @@ Before moving to the next step, verify:
 
 The application is now installed and configured! Continue with setting up the systemd service to manage the application lifecycle.
 
-| [← .NET Runtime](02-install-dotnet.md) | [Home](../DEPLOY.md) | [Next: Systemd Service →](04-configure-systemd.md) |
+| [← Install SigNoz](05-install-signoz.md) | [Home](../DEPLOY.md) | [Next: Systemd Service →](04-configure-systemd.md) |
 |:---------------------------------------|:--------------------:|----------------------------------------------------:|

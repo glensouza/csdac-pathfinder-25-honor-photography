@@ -9,9 +9,9 @@ Welcome to the Pathfinder Photography application deployment wizard! This guide 
 | [**Prerequisites**](deploy/00-prerequisites.md) | System requirements and prerequisites | ⬜ Start here |
 | [**Step 1: PostgreSQL**](deploy/01-install-postgresql.md) | Install and configure PostgreSQL 16 | ⬜ |
 | [**Step 2: .NET Runtime**](deploy/02-install-dotnet.md) | Install .NET 9.0 SDK and runtime | ⬜ |
-| [**Step 3: Application**](deploy/03-install-application.md) | Deploy the application | ⬜ |
-| [**Step 4: Systemd Service**](deploy/04-configure-systemd.md) | Configure service and autostart | ⬜ |
-| [**Step 5: SigNoz**](deploy/05-install-signoz.md) | Install observability platform | ⬜ |
+| [**Step 3: SigNoz**](deploy/05-install-signoz.md) | Install observability platform (required) | ⬜ |
+| [**Step 4: Application**](deploy/03-install-application.md) | Deploy the application | ⬜ |
+| [**Step 5: Systemd Service**](deploy/04-configure-systemd.md) | Configure service and autostart | ⬜ |
 | [**Step 6: Nginx**](deploy/06-install-nginx.md) | Install and configure reverse proxy | ⬜ |
 | [**Step 7: Automation**](deploy/07-automated-deployments.md) | Setup GitHub Actions deployments | ⬜ |
 | [**Security & Performance**](deploy/08-security-performance.md) | Best practices and optimization | ⬜ |
