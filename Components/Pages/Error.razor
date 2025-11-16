@@ -1,7 +1,9 @@
 ﻿@page "/Error"
 @page "/Error/{StatusCode:int}"
 @using System.Diagnostics
+@using Microsoft.JSInterop
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Error - Pathfinder Photography</PageTitle>
 
@@ -177,8 +179,8 @@
         NavigationManager.NavigateTo("/", forceLoad: true);
     }
 
-    private void GoBack()
+    private async Task GoBack()
     {
-        NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+        await JSRuntime.InvokeVoidAsync("history.back");
     }
 }
