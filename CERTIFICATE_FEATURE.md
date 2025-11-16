@@ -127,7 +127,7 @@ Located in **Admin Dashboard → Export to PDF**:
 
 ## Configuration
 
-### Email Settings (Optional)
+### Email Settings
 
 Required in `appsettings.json` for email functionality:
 ```json

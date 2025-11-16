@@ -137,10 +137,10 @@ PermitRootLogin no
 # Use SSH keys only (disable password authentication)
 PasswordAuthentication no
 
-# Limit users who can SSH (optional)
+# Limit users who can SSH
 AllowUsers your-username
 
-# Change default port (optional, adds security through obscurity)
+# Change default port (adds security through obscurity)
 # Port 2222
 ```
 
@@ -175,7 +175,7 @@ ls -la /opt/pathfinder-photography/appsettings.Production.json
 # Should have 600 permissions (owner read/write only)
 
 # Sudoers file
-ls -la /etc/sudoers.d/github-runner
+ls -la /etc/sudoers.d/pathfinder
 # Should have 440 permissions (if using automated deployments)
 ```
 

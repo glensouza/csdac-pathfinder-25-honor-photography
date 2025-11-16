@@ -2,7 +2,7 @@
 
 ## Overview
 
-A Blazor Server web application built with .NET9.0 for SDA Pathfinders to submit and manage photography assignments demonstrating10 composition rules. Includes Google authentication, PostgreSQL persistence, optional email notifications, PDF export, and integrated observability (Aspire for dev; optional SigNoz in homelab).
+A Blazor Server web application built with .NET9.0 for SDA Pathfinders to submit and manage photography assignments demonstrating 10 composition rules. Includes Google authentication, PostgreSQL persistence, email notifications, PDF export, and integrated observability (Aspire for dev; SigNoz in production).
 
 ## All Requirements Implemented
 
@@ -19,11 +19,11 @@ A Blazor Server web application built with .NET9.0 for SDA Pathfinders to submit
 ✅ .NET Aspire integration
 ✅ Admin dashboard and user management
 ✅ PDF export (reports and progress)
-✅ Optional email notifications (SMTP)
+✅ Email notifications (SMTP)
 
-###10 Composition Rules
+### 10 Composition Rules
 
-All10 rules implemented with detailed descriptions and explanations:
+All 10 rules implemented with detailed descriptions and explanations:
 
 1. Rule of Thirds
 2. Leading Lines
@@ -68,7 +68,7 @@ All10 rules implemented with detailed descriptions and explanations:
 - ORM: Entity Framework Core9.0
 - Authentication: Google OAuth2.0
 - Observability: OpenTelemetry (traces, metrics, logs)
-- Optional Telemetry Platform: SigNoz (compose profile)
+- Telemetry Platform: SigNoz
 - UI: Bootstrap5
 - Containerization: Docker & Docker Compose
 
@@ -77,7 +77,7 @@ All10 rules implemented with detailed descriptions and explanations:
 ### User Features
 - Google Sign-In (OAuth2.0)
 - Automatic name tracking from Google profile
-- Photo upload (images up to10MB)
+- Photo upload (images up to 10MB)
 - Rule selection (10 composition rules)
 - Description input explaining the rule application
 - Personal and public galleries with filtering
@@ -88,7 +88,7 @@ All10 rules implemented with detailed descriptions and explanations:
 - Delete users who shouldn't have access (removes user, submissions, and votes; recalculates ELO ratings)
 - Grading workflow (Instructor/Admin)
 - PDF export (all submissions, per-pathfinder progress, filter by rule)
-- Optional email notifications for submissions and grading
+- Email notifications for submissions and grading
 
 ### Technical Features
 - Health checks and metrics endpoints
@@ -125,9 +125,9 @@ All10 rules implemented with detailed descriptions and explanations:
 2) Docker Compose (Homelab/Production)
 - File: single consolidated `docker-compose.yml`
 - Command: `docker compose up -d`
-- Optional observability: `docker compose --profile signoz up -d`
-- Services: `pathfinder-app`, `pathfinder-postgres` (+ optional SigNoz services when profile enabled)
-- Note: With Aspire (dev), SigNoz is automatically included; with Docker Compose, it's optional via profile
+- With observability: `docker compose --profile signoz up -d`
+- Services: `pathfinder-app`, `pathfinder-postgres` (+ SigNoz services when profile enabled)
+- Note: With Aspire (dev), SigNoz is automatically included; with Docker Compose, enable via profile
 
 ## Observability
 
@@ -144,7 +144,7 @@ All10 rules implemented with detailed descriptions and explanations:
 - Health endpoints: `/health`, `/alive`, `/ready`
 - Metrics endpoint: `/metrics` (Prometheus format)
 - Tracing: OpenTelemetry
-- SigNoz (optional): Enable with profile `docker compose --profile signoz up -d`
+- SigNoz: Enable with profile `docker compose --profile signoz up -d`
   - When enabled, traces export to `signoz-otel-collector`
   - SigNoz UI: `http://localhost:3301`
 
@@ -157,7 +157,7 @@ Required
 Database
 - `ConnectionStrings__DefaultConnection` (injected via Aspire or configured in compose)
 
-Optional Email
+Email
 - `Email__SmtpHost`, `Email__SmtpPort`, `Email__SmtpUsername`, `Email__SmtpPassword`, `Email__UseSsl`, `Email__FromAddress`, `Email__FromName`
 
 ## File Structure

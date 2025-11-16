@@ -51,28 +51,24 @@ The self-hosted GitHub runner will:
 - GitHub repository admin access
 - At least 2GB free disk space for runner
 
-## Step 7.1: Create Runner User
+## Step 7.1: Configure Pathfinder User for Deployments
 
-Create a dedicated user for running the GitHub Actions runner:
+The GitHub Actions runner will run as the `pathfinder` user (already created in [Step 4](03-install-application.md)). This simplifies permissions and avoids issues with service management across different users.
 
 ```bash
-# Create user with no login shell for security
-sudo useradd -r -m -s /bin/bash github-runner
-
-# Add to necessary groups (NOT sudo - privileges granted via sudoers file only)
-sudo usermod -aG pathfinder github-runner
-sudo usermod -aG www-data github-runner
+# Ensure pathfinder user is in www-data group (should already be done from Step 4)
+sudo usermod -aG www-data pathfinder
 ```
 
-**Security Note**: The `github-runner` user is intentionally NOT added to the `sudo` group. All required privileges are explicitly granted through the sudoers file in the next step, following the principle of least privilege.
+**Security Note**: The `pathfinder` user will have restricted sudo privileges granted through the sudoers file in the next step, following the principle of least privilege. Only the specific commands needed for deployment will be allowed.
 
 ## Step 7.2: Configure Passwordless Sudo
 
-Create a dedicated sudoers configuration file for the runner user:
+Create a dedicated sudoers configuration file for the pathfinder user:
 
 ```bash
 # As root, create the sudoers file
-sudo visudo -f /etc/sudoers.d/github-runner
+sudo visudo -f /etc/sudoers.d/pathfinder
 ```
 
 Add the following content (this grants ONLY the minimum privileges needed for deployment):
@@ -82,42 +78,42 @@ Add the following content (this grants ONLY the minimum privileges needed for de
 # Security: This grants ONLY the minimum privileges needed for deployment
 
 # System service management - pathfinder-photography service only
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl start pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl start pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl status pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active pathfinder-photography
 
 # Nginx management - reload and test only
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nginx
-github-runner ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nginx
+pathfinder ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 
 # Directory creation - restricted to specific paths
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography/deployments
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /opt/backups/pathfinder-photography/deployments
 
 # Backup operations - highly restricted paths
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz -C /opt/pathfinder-photography .
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz -C /opt/pathfinder-photography *
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz -C /opt/pathfinder-photography .
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/tar -czf /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz -C /opt/pathfinder-photography *
 
 # Deployment extraction - only from current directory to deployment dir
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/tar -xzf pathfinder-photography-[0-9a-f]*.tar.gz -C /opt/pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/tar -xzf pathfinder-photography-[0-9a-f]*.tar.gz -C /opt/pathfinder-photography
 
 # File ownership - restricted to deployment paths only
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown -R pathfinder\:pathfinder /opt/pathfinder-photography
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/chown -R pathfinder\:pathfinder /opt/pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/chown pathfinder\:pathfinder /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz
 
 # File permissions - specific modes only
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 755 /opt/pathfinder-photography
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 755 /opt/pathfinder-photography
 
 # Log viewing - restricted to pathfinder-photography service only
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u pathfinder-photography *
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u pathfinder-photography *
 
 # Backup cleanup - restricted to backup directory with date pattern
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/find /opt/backups/pathfinder-photography/deployments -name backup_[0-9]*.tar.gz -type f -printf *
-github-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/find /opt/backups/pathfinder-photography/deployments -name backup_[0-9]*.tar.gz -type f -printf *
+pathfinder ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photography/deployments/backup_[0-9]*.tar.gz
 ```
 
 **Security Note**: This configuration follows the principle of least privilege:
@@ -126,15 +122,16 @@ github-runner ALL=(ALL) NOPASSWD: /usr/bin/rm -f /opt/backups/pathfinder-photogr
 - ✅ File patterns use `[0-9]*` for timestamps and `[0-9a-f]*` for SHA hashes to prevent path traversal
 - ✅ No ability to obtain a root shell or execute arbitrary commands
 - ✅ Nginx can only be reloaded (not stopped), preventing service disruption
+- ✅ The pathfinder user owns the application files, eliminating permission conflicts
 
 Validate the sudoers configuration:
 
 ```bash
 # Check syntax
-sudo visudo -c -f /etc/sudoers.d/github-runner
+sudo visudo -c -f /etc/sudoers.d/pathfinder
 
 # Set proper permissions
-sudo chmod 0440 /etc/sudoers.d/github-runner
+sudo chmod 0440 /etc/sudoers.d/pathfinder
 ```
 
 ## Step 7.3: Download and Configure GitHub Runner
@@ -143,16 +140,16 @@ Create runner directory and download the runner software:
 
 ```bash
 # Create runner directory
-sudo mkdir -p /home/github-runner/actions-runner
-sudo chown github-runner:github-runner /home/github-runner/actions-runner
+sudo mkdir -p /home/pathfinder/actions-runner
+sudo chown pathfinder:pathfinder /home/pathfinder/actions-runner
 
 # Install jq (needed for runner setup)
 sudo apt update
 sudo apt install -y jq
 
-# Download and extract runner as github-runner user
-sudo -u github-runner bash << 'EOF'
-cd /home/github-runner/actions-runner
+# Download and extract runner as pathfinder user
+sudo -u pathfinder bash << 'EOF'
+cd /home/pathfinder/actions-runner
 RUNNER_VERSION=$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r '.tag_name' | sed 's/^v//')
 curl -o actions-runner-linux-x64.tar.gz -L "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
 tar xzf actions-runner-linux-x64.tar.gz
@@ -172,9 +169,9 @@ EOF
 2. **Configure the runner:**
 
 ```bash
-# Configure runner as github-runner user
-sudo -u github-runner bash << 'EOF'
-cd /home/github-runner/actions-runner
+# Configure runner as pathfinder user
+sudo -u pathfinder bash << 'EOF'
+cd /home/pathfinder/actions-runner
 ./config.sh --url https://github.com/glensouza/csdac-pathfinder-25-honor-photography --token YOUR_TOKEN_HERE
 EOF
 ```
@@ -193,13 +190,13 @@ Install the runner as a systemd service:
 
 ```bash
 # Install service
-sudo /home/github-runner/actions-runner/svc.sh install github-runner
+sudo /home/pathfinder/actions-runner/svc.sh install pathfinder
 
 # Start service
-sudo /home/github-runner/actions-runner/svc.sh start
+sudo /home/pathfinder/actions-runner/svc.sh start
 
 # Check status
-sudo /home/github-runner/actions-runner/svc.sh status
+sudo /home/pathfinder/actions-runner/svc.sh status
 
 # Enable auto-start on boot
 sudo systemctl enable actions.runner.glensouza-csdac-pathfinder-25-honor-photography.$(hostname).service
@@ -246,7 +243,7 @@ ls -lh /opt/backups/pathfinder-photography/deployments/
 
 1. Check runner service status:
    ```bash
-   sudo /home/github-runner/actions-runner/svc.sh status
+   sudo /home/pathfinder/actions-runner/svc.sh status
    ```
 
 2. View runner logs:
@@ -258,12 +255,12 @@ ls -lh /opt/backups/pathfinder-photography/deployments/
 
 1. Verify sudoers configuration:
    ```bash
-   sudo visudo -c -f /etc/sudoers.d/github-runner
+   sudo visudo -c -f /etc/sudoers.d/pathfinder
    ```
 
-2. Test sudo permissions as github-runner user:
+2. Test sudo permissions as pathfinder user:
    ```bash
-   sudo -u github-runner sudo systemctl status pathfinder-photography
+   sudo -u pathfinder sudo systemctl status pathfinder-photography
    ```
 
 ### Workflow Fails
@@ -273,7 +270,7 @@ Check the Actions tab in GitHub for detailed error messages and logs.
 ## Security Considerations
 
 The runner security model includes:
-- ✅ Dedicated non-privileged user (github-runner)
+- ✅ Single user (pathfinder) runs both application and deployments
 - ✅ Restricted sudo access via sudoers file
 - ✅ No wildcard command execution
 - ✅ Path restrictions to prevent directory traversal
@@ -281,12 +278,13 @@ The runner security model includes:
 - ✅ Automatic backups before deployment
 - ✅ Automatic rollback on failures
 - ✅ Health checks after deployment
+- ✅ User owns application files, eliminating permission conflicts
 
 ## Verification Checklist
 
 Before moving to the next step, verify:
 
-- [ ] github-runner user is created
+- [ ] Pathfinder user has sudo permissions configured
 - [ ] Sudoers configuration is validated and has correct permissions
 - [ ] Runner software is downloaded and extracted
 - [ ] Runner is configured and connected to GitHub

@@ -47,6 +47,88 @@ Before beginning the deployment, ensure you have the following:
 - **Disk**: 50 GB free space (more if storing many photos)
 - **Network**: 1 Gbps
 
+## Creating Ubuntu LXC Container on Proxmox
+
+If you're using Proxmox VE, you can easily create an Ubuntu LXC container using the Proxmox VE Helper-Scripts community project.
+
+### Using Proxmox VE Helper-Scripts
+
+The easiest way to create an Ubuntu LXC container on Proxmox is to use the community-maintained helper scripts:
+
+1. **Access your Proxmox host** via SSH or the Proxmox web shell
+
+2. **Run the Ubuntu LXC creation script**:
+   ```bash
+   bash -c "$(wget -qLO - https://github.com/community-scripts/ProxmoxVE/raw/main/ct/ubuntu.sh)"
+   ```
+
+3. **Follow the interactive prompts** to configure:
+   - Container ID (default: next available)
+   - Hostname (e.g., `pathfinder-photography`)
+   - Disk Size (minimum 20GB, recommend 50GB)
+   - CPU Cores (minimum 2, recommend 4)
+   - RAM (minimum 4096MB, recommend 8192MB)
+   - Bridge (usually vmbr0)
+   - IP Address (DHCP or static)
+   - Gateway IP
+   - DNS server
+   - Root password
+
+4. **Wait for the container to be created** - the script will automatically download and configure Ubuntu 22.04 LTS
+
+5. **Start the container** and access it:
+   ```bash
+   pct start <container-id>
+   pct enter <container-id>
+   ```
+
+### Manual LXC Container Creation
+
+Alternatively, you can create an Ubuntu LXC container manually through the Proxmox web interface:
+
+1. Navigate to your Proxmox node in the web interface
+2. Click **Create CT** (Create Container)
+3. Configure the container:
+   - **General**: Container ID, Hostname, Password
+   - **Template**: Select Ubuntu 22.04 template (download if needed)
+   - **Disks**: Root disk size (minimum 20GB, recommend 50GB)
+   - **CPU**: Cores (minimum 2, recommend 4)
+   - **Memory**: RAM (minimum 4096MB, recommend 8192MB)
+   - **Network**: Bridge (vmbr0), IP configuration
+   - **DNS**: Use host settings or specify custom DNS
+4. Click **Finish** to create the container
+5. Start the container and open a console
+
+### Important Proxmox LXC Notes
+
+- **Privileged vs Unprivileged**: For simplicity, use a privileged container. Unprivileged containers require additional configuration for file permissions.
+- **Nesting**: If you plan to run Docker containers inside the LXC (not typically needed for this application), enable "Nesting" in Container Options.
+- **Features**: Enable "Nesting" and "FUSE" if you need advanced filesystem features.
+- **Start at boot**: Enable "Start at boot" in the container options for automatic startup.
+
+### After Container Creation
+
+Once your Ubuntu LXC container is created and running:
+
+1. **Update the system**:
+   ```bash
+   apt update && apt upgrade -y
+   ```
+
+2. **Verify Ubuntu version**:
+   ```bash
+   lsb_release -a
+   # Should show Ubuntu 22.04 LTS or later
+   ```
+
+3. **Proceed to Step 1** of the deployment guide to install PostgreSQL
+
+### Additional Resources
+
+- **Proxmox VE Helper-Scripts**: [https://community-scripts.github.io/ProxmoxVE/](https://community-scripts.github.io/ProxmoxVE/)
+- **Ubuntu LXC Script**: [https://community-scripts.github.io/ProxmoxVE/scripts?id=ubuntu](https://community-scripts.github.io/ProxmoxVE/scripts?id=ubuntu&category=Operating+Systems)
+- **Proxmox LXC Documentation**: [https://pve.proxmox.com/wiki/Linux_Container](https://pve.proxmox.com/wiki/Linux_Container)
+
 ## Before You Start
 
 ### Generate Secure Passwords
@@ -69,8 +151,8 @@ Create a checklist of the information you'll need:
 - [ ] Google OAuth Client ID
 - [ ] Google OAuth Client Secret
 - [ ] PostgreSQL password (generated above)
-- [ ] (Optional) Email SMTP settings for notifications
-- [ ] (Optional) Additional domain names for pgAdmin and SigNoz
+- [ ] Email SMTP settings for notifications
+- [ ] Additional domain names for pgAdmin and SigNoz
 
 ### Review the Deployment Checklist
 
@@ -88,8 +170,8 @@ This deployment will install the following components:
 6. **Pathfinder Photography Application** - The main application
 7. **Systemd Service** - Manages application lifecycle
 8. **Nginx** - Reverse proxy and web server
-9. *(Optional)* **SigNoz** - Observability platform
-10. *(Optional)* **GitHub Actions Runner** - For automated deployments
+9. **SigNoz** - Observability platform
+10. **GitHub Actions Runner** - For automated deployments
 
 ## Estimated Time
 
