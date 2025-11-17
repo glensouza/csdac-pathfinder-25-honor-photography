@@ -14,7 +14,6 @@ This repository contains the Pathfinder Photography Honor application for Pathfi
 ## Deployment Architecture
 
 **Development (Local):**
-- Docker Compose (easiest - no .NET SDK required)
 - .NET Aspire (recommended - integrated observability)
 - Local .NET (direct development)
 - See [SETUP.md](../SETUP.md)
@@ -68,7 +67,7 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 ## Documentation
 
 **Important Files:**
-- `SETUP.md` - Local development setup (Docker Compose, Aspire, local .NET)
+- `SETUP.md` - Local development setup (Aspire, local .NET)
 - `DEPLOY.md` - Production deployment guide (wizard-style with step-by-step files in deploy/ directory)
 - `deploy/*.md` - Individual deployment step files
 - `DEPLOYMENT_CHECKLIST.md` - Deployment verification checklist
@@ -146,7 +145,7 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 ## Testing & Validation
 
 **Before Committing:**
-- Test locally with Docker Compose or Aspire
+- Test locally with Aspire or local .NET
 - Run Entity Framework migrations if model changes
 - Verify Google OAuth still works
 - Check for obvious errors in browser console
@@ -160,9 +159,8 @@ When contributing to this repository, please follow the guidelines in [CONTRIBUT
 ## Deployment Paths
 
 **Local Development:**
-1. Docker Compose: `docker-compose up -d` (uses .env file)
-2. Aspire: `dotnet run --project PathfinderPhotography.AppHost` (automatic SigNoz)
-3. Local .NET: `dotnet run` (manual PostgreSQL setup)
+1. Aspire: `dotnet run --project PathfinderPhotography.AppHost` (automatic SigNoz)
+2. Local .NET: `dotnet run` (manual PostgreSQL setup)
 
 **Production Deployment:**
 1. Manual: Follow [DEPLOY.md](../DEPLOY.md) step-by-step

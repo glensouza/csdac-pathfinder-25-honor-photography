@@ -3,7 +3,7 @@
 This checklist helps ensure successful deployment of the Pathfinder Photography application.
 
 **Choose your deployment type:**
-- **Local Development**: .NET Aspire (recommended) or Docker Compose (see SETUP.md)
+- **Local Development**: .NET Aspire (recommended) or Local .NET (see SETUP.md)
 - **Production Deployment**: Ubuntu VM/Bare Metal (use this checklist with [DEPLOY.md](DEPLOY.md))
 
 ---

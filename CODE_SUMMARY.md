@@ -12,7 +12,6 @@ A Blazor Server web application built with .NET9.0 for SDA Pathfinders to submit
 ✅10 photos submission (one per composition rule)
 ✅ Pathfinders explain their application of rules
 ✅ Space for sample photos and descriptions of each style
-✅ Docker container hosting support
 ✅ Name tracking for submissions
 ✅ Google authentication
 ✅ PostgreSQL database
@@ -63,14 +62,13 @@ All 10 rules implemented with detailed descriptions and explanations:
 ### Technology Stack
 
 - Framework: ASP.NET Core Blazor Server (.NET9.0)
-- Orchestration: .NET Aspire (dev), Docker Compose (homelab)
+- Orchestration: .NET Aspire (dev)
 - Database: PostgreSQL16
 - ORM: Entity Framework Core9.0
 - Authentication: Google OAuth2.0
 - Observability: OpenTelemetry (traces, metrics, logs)
 - Telemetry Platform: SigNoz
 - UI: Bootstrap5
-- Containerization: Docker & Docker Compose
 
 ## Key Features
 
@@ -122,12 +120,13 @@ All 10 rules implemented with detailed descriptions and explanations:
 - All services (PostgreSQL, webapp, SigNoz stack) start automatically
 - SigNoz UI: http://localhost:3301
 
-2) Docker Compose (Homelab/Production)
-- File: single consolidated `docker-compose.yml`
-- Command: `docker compose up -d`
-- With observability: `docker compose --profile signoz up -d`
-- Services: `pathfinder-app`, `pathfinder-postgres` (+ SigNoz services when profile enabled)
-- Note: With Aspire (dev), SigNoz is automatically included; with Docker Compose, enable via profile
+### Production (Ubuntu Server)
+- Direct installation on Ubuntu 22.04 LTS
+- PostgreSQL, .NET Runtime, and application installed natively
+- Nginx reverse proxy with SSL
+- Systemd service for application management
+- Optional: SigNoz can be deployed separately for observability
+- See [DEPLOY.md](DEPLOY.md) for complete production setup guide
 
 ## Observability
 
@@ -140,13 +139,13 @@ All 10 rules implemented with detailed descriptions and explanations:
   - OpenTelemetry Collector at ports 4317 (gRPC) and 4318 (HTTP)
   - Automatic OTLP endpoint injection to webapp
 
-### Docker Compose Production/Home Lab
+### Production Deployment
 - Health endpoints: `/health`, `/alive`, `/ready`
 - Metrics endpoint: `/metrics` (Prometheus format)
 - Tracing: OpenTelemetry
-- SigNoz: Enable with profile `docker compose --profile signoz up -d`
-  - When enabled, traces export to `signoz-otel-collector`
-  - SigNoz UI: `http://localhost:3301`
+- SigNoz: Optional - can be deployed separately on Ubuntu server
+  - See [DEPLOY.md](DEPLOY.md) Step 5 for SigNoz installation
+  - When deployed, traces export to SigNoz OpenTelemetry Collector
 
 ## Configuration
 
@@ -214,13 +213,21 @@ Health & Metrics
 
 Database Backups
 ```bash
-docker exec -t pathfinder-postgres pg_dump -U postgres pathfinder_photography > backup.sql
+# Production server
+sudo -u postgres pg_dump pathfinder_photography > backup.sql
+
+# Local development (Aspire)
+# PostgreSQL runs in container managed by Aspire
+# Use Aspire Dashboard to access database or backup via connection string
 ```
 
 View Logs
 ```bash
-# Docker Compose (V2)
-docker compose logs -f pathfinder-app
+# Production server
+sudo journalctl -u pathfinder-photography -f
+
+# Aspire development
+# View logs in Aspire Dashboard at http://localhost:15888
 ```
 
 Update Dependencies
