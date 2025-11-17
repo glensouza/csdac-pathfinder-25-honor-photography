@@ -329,4 +329,54 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
         return grouped;
     }
+
+    // --- Admin helpers for votes ---
+
+    public async Task<List<PhotoVote>> GetAllVotesAsync()
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        return await context.PhotoVotes
+            .OrderByDescending(v => v.VoteDate)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Delete a vote by id and recalculate ELO ratings for affected photos
+    /// </summary>
+    public async Task DeleteVoteAsync(int voteId, string? actorEmail = null)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        PhotoVote? vote = await context.PhotoVotes.FindAsync(voteId);
+        if (vote == null)
+        {
+            throw new InvalidOperationException($"Vote with ID {voteId} not found.");
+        }
+
+        int winnerId = vote.WinnerPhotoId;
+        int loserId = vote.LoserPhotoId;
+
+        context.PhotoVotes.Remove(vote);
+
+        // Audit
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "DeleteVote",
+                EntityId = voteId,
+                Details = $"Deleted vote {voteId} (winner:{winnerId}, loser:{loserId})",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+            // ignore
+        }
+
+        await context.SaveChangesAsync();
+
+        List<int> affected = [winnerId, loserId];
+        await this.RecalculateEloRatingsForPhotosAsync(affected);
+    }
 }

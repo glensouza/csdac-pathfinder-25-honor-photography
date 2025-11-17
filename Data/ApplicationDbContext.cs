@@ -9,6 +9,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<User> Users { get; set; }
     public DbSet<PhotoVote> PhotoVotes { get; set; }
     public DbSet<CompletionCertificate> CompletionCertificates { get; set; }
+    public DbSet<AuditLog> AuditLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +74,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             
             entity.HasIndex(e => e.PathfinderEmail);
             entity.HasIndex(e => e.CompletionDate);
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.EntityId).IsRequired();
+            entity.Property(e => e.Details).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.Timestamp).IsRequired();
+            entity.Property(e => e.ActorEmail).IsRequired().HasMaxLength(200).HasColumnType("citext");
+
+            entity.HasIndex(e => e.Timestamp);
         });
     }
 }

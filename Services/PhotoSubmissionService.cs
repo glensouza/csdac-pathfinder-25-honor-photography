@@ -10,6 +10,7 @@ public class PhotoSubmissionService(
     UserService userService,
     AiProcessingBackgroundService aiProcessingService,
     CertificateService certificateService,
+    VotingService votingService,
     ILogger<PhotoSubmissionService> logger)
 {
     public async Task<List<PhotoSubmission>> GetAllSubmissionsAsync()
@@ -47,7 +48,7 @@ public class PhotoSubmissionService(
         // Set initial AI processing status
         if (submission.ImageData is { Length: > 0 })
         {
-            submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+            submission.AiProcessingStatus = AiProcessingStatus.Queued;
         }
         
         context.PhotoSubmissions.Add(submission);
@@ -179,6 +180,24 @@ public class PhotoSubmissionService(
         submission.GradedDate = DateTime.UtcNow;
         await context.SaveChangesAsync();
 
+        // Audit grade action
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "GradeSubmission",
+                EntityId = submissionId,
+                Details = $"Set grade {status} by {gradedBy}",
+                ActorEmail = gradedBy,
+                Timestamp = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            // non-critical
+        }
+
         // Send notification to pathfinder asynchronously (don't wait)
         #pragma warning disable CS4014
         Task.Run(() => this.SendGradingNotificationAsync(submission, status, gradedBy))
@@ -189,20 +208,20 @@ public class PhotoSubmissionService(
                     logger.LogWarning(task.Exception, "Failed to send grading email notification for rule {Rule}", submission.CompositionRuleName);
                 }
             }, TaskContinuationOptions.OnlyOnFaulted);
+        #pragma warning restore CS4014
 
         // If graded as Pass, check if pathfinder has completed all rules and issue certificate
         if (status == GradeStatus.Pass)
         {
-            Task.Run(() => this.CheckAndIssueCertificateAsync(submission.PathfinderEmail))
-                .ContinueWith(task =>
-                {
-                    if (task.Exception != null)
-                    {
-                        logger.LogWarning(task.Exception, "Failed to check/issue completion certificate for {Email}", submission.PathfinderEmail);
-                    }
-                }, TaskContinuationOptions.OnlyOnFaulted);
+            try
+            {
+                await this.CheckAndIssueCertificateAsync(submission.PathfinderEmail);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to check/issue completion certificate for {Email}", submission.PathfinderEmail);
+            }
         }
-        #pragma warning restore CS4014
     }
 
     private async Task CheckAndIssueCertificateAsync(string pathfinderEmail)
@@ -260,7 +279,7 @@ public class PhotoSubmissionService(
         return await context.PhotoSubmissions.FindAsync(id);
     }
 
-    public async Task RetryAiAnalysisAsync(int submissionId)
+    public async Task RetryAiAnalysisAsync(int submissionId, string? actorEmail = null)
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
@@ -277,8 +296,25 @@ public class PhotoSubmissionService(
 
         logger.LogInformation("Manually retrying AI analysis for submission {Id}", submissionId);
 
+        // Audit
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "RetryAiAnalysis",
+                EntityId = submissionId,
+                Details = $"Queued AI re-analysis for submission {submissionId}",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+        }
+
         // Reset status to Queued
-        submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+        submission.AiProcessingStatus = AiProcessingStatus.Queued;
         submission.AiProcessingError = null;
         await context.SaveChangesAsync();
 
@@ -290,6 +326,241 @@ public class PhotoSubmissionService(
             ImagePath = submission.ImagePath,
             CompositionRule = submission.CompositionRuleName
         });
+    }
+
+    public async Task ResetAiForSubmissionAsync(int submissionId, string? actorEmail = null)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
+        if (submission == null)
+        {
+            throw new InvalidOperationException($"Submission with ID {submissionId} not found.");
+        }
+
+        submission.AiTitle = null;
+        submission.AiDescription = null;
+        submission.AiRating = null;
+        submission.AiMarketingHeadline = null;
+        submission.AiMarketingCopy = null;
+        submission.AiSuggestedPrice = null;
+        submission.AiSocialMediaText = null;
+        submission.AiMarketingImageData = null;
+        submission.AiProcessingStatus = AiProcessingStatus.NotStarted;
+        submission.AiProcessingError = null;
+        submission.AiProcessingStartTime = null;
+        submission.AiProcessingCompletedTime = null;
+
+        // Audit
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "ResetAi",
+                EntityId = submissionId,
+                Details = $"Reset AI data for submission {submissionId}",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+            // ignored
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    public async Task ResetAllAiAsync(string? actorEmail = null)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        List<PhotoSubmission> all = await context.PhotoSubmissions.ToListAsync();
+        foreach (PhotoSubmission submission in all)
+        {
+            submission.AiTitle = null;
+            submission.AiDescription = null;
+            submission.AiRating = null;
+            submission.AiMarketingHeadline = null;
+            submission.AiMarketingCopy = null;
+            submission.AiSuggestedPrice = null;
+            submission.AiSocialMediaText = null;
+            submission.AiMarketingImageData = null;
+            submission.AiProcessingStatus = AiProcessingStatus.NotStarted;
+            submission.AiProcessingError = null;
+            submission.AiProcessingStartTime = null;
+            submission.AiProcessingCompletedTime = null;
+        }
+
+        // Audit
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "ResetAllAi",
+                EntityId = 0,
+                Details = "Reset AI data for all submissions",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    public async Task DeleteSubmissionAsync(int submissionId, string? actorEmail = null)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
+        if (submission == null)
+        {
+            throw new InvalidOperationException($"Submission with ID {submissionId} not found.");
+        }
+
+        List<PhotoVote> votesToRemove = await context.PhotoVotes
+            .Where(v => v.WinnerPhotoId == submissionId || v.LoserPhotoId == submissionId)
+            .ToListAsync();
+
+        List<int> affectedPhotoIds = new List<int>();
+        foreach (PhotoVote v in votesToRemove)
+        {
+            if (!affectedPhotoIds.Contains(v.WinnerPhotoId) && v.WinnerPhotoId != submissionId)
+            {
+                affectedPhotoIds.Add(v.WinnerPhotoId);
+            }
+
+            if (!affectedPhotoIds.Contains(v.LoserPhotoId) && v.LoserPhotoId != submissionId)
+            {
+                affectedPhotoIds.Add(v.LoserPhotoId);
+            }
+        }
+
+        context.PhotoVotes.RemoveRange(votesToRemove);
+        context.PhotoSubmissions.Remove(submission);
+
+        // Add audit log entry
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "DeleteSubmission",
+                EntityId = submissionId,
+                Details = $"Deleted submission {submissionId} by admin",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+            // non-critical
+        }
+
+        await context.SaveChangesAsync();
+
+        if (affectedPhotoIds.Any())
+        {
+            await votingService.RecalculateEloRatingsForPhotosAsync(affectedPhotoIds);
+        }
+    }
+
+    public async Task DeleteAllSubmissionsAsync(string? actorEmail = null)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+
+        List<PhotoVote> allVotes = await context.PhotoVotes.ToListAsync();
+        List<PhotoSubmission> allSubmissions = await context.PhotoSubmissions.ToListAsync();
+
+        context.PhotoVotes.RemoveRange(allVotes);
+        context.PhotoSubmissions.RemoveRange(allSubmissions);
+
+        // Add audit log
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "DeleteAllSubmissions",
+                EntityId = 0,
+                Details = "Admin deleted all submissions and votes",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+            // ignore
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    public async Task UndoGradeAsync(int submissionId, string? actorEmail = null)
+    {
+        await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
+        PhotoSubmission? submission = await context.PhotoSubmissions.FindAsync(submissionId);
+        if (submission == null)
+        {
+            throw new InvalidOperationException($"Submission with ID {submissionId} not found.");
+        }
+
+        submission.GradeStatus = GradeStatus.NotGraded;
+        submission.GradedBy = null;
+        submission.GradedDate = null;
+
+        // Add audit
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "UndoGrade",
+                EntityId = submissionId,
+                Details = $"Undid grade for submission {submissionId}",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+        }
+
+        await context.SaveChangesAsync();
+
+        // If a certificate exists for this pathfinder, ensure they still qualify. If not, delete the certificate.
+        string pathfinderEmail = submission.PathfinderEmail;
+        bool hasCertificate = await context.CompletionCertificates.AnyAsync(c => c.PathfinderEmail == pathfinderEmail);
+        if (hasCertificate)
+        {
+            bool stillQualified = await certificateService.HasCompletedAllRulesAsync(pathfinderEmail);
+            if (!stillQualified)
+            {
+                List<CompletionCertificate> toRemove = await context.CompletionCertificates
+                    .Where(c => c.PathfinderEmail == pathfinderEmail)
+                    .ToListAsync();
+
+                if (toRemove.Any())
+                {
+                    context.CompletionCertificates.RemoveRange(toRemove);
+
+                    // Audit
+                    try
+                    {
+                        context.AuditLogs.Add(new AuditLog
+                        {
+                            Action = "DeleteCertificate",
+                            EntityId = toRemove.First().Id,
+                            Details = $"Removed certificate for {pathfinderEmail} due to undone grade",
+                            ActorEmail = actorEmail,
+                            Timestamp = DateTime.UtcNow
+                        });
+                    }
+                    catch
+                    {
+                    }
+
+                    await context.SaveChangesAsync();
+                }
+            }
+        }
     }
 
 }

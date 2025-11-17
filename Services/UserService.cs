@@ -61,7 +61,7 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
             .ToListAsync();
     }
 
-    public async Task SetUserRoleAsync(string email, UserRole role)
+    public async Task SetUserRoleAsync(string email, UserRole role, string? actorEmail = null)
     {
         if (role == UserRole.Admin)
             throw new InvalidOperationException("Admin role can only be set through direct database updates for security purposes.");
@@ -78,11 +78,30 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
             throw new InvalidOperationException("Cannot modify admin user roles through API. Use direct database updates.");
         }
 
+        UserRole previousRole = user.Role;
         user.Role = role;
         await context.SaveChangesAsync();
+
+        // Audit role change
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "SetUserRole",
+                EntityId = user.Id,
+                Details = $"Changed role from {previousRole} to {role} for {email}",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            // non-critical
+        }
     }
 
-    public async Task DeleteUserAsync(string email)
+    public async Task DeleteUserAsync(string email, string? actorEmail = null)
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
         User? user = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
@@ -148,6 +167,23 @@ public class UserService(IDbContextFactory<ApplicationDbContext> contextFactory,
         context.PhotoVotes.RemoveRange(allVotesToDelete);
         context.PhotoSubmissions.RemoveRange(submissions);
         context.Users.Remove(user);
+
+        // Audit
+        try
+        {
+            context.AuditLogs.Add(new AuditLog
+            {
+                Action = "DeleteUser",
+                EntityId = user.Id,
+                Details = $"Deleted user {email} and related submissions/votes",
+                ActorEmail = actorEmail,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+            // ignore
+        }
 
         await context.SaveChangesAsync();
     }

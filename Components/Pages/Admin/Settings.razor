@@ -1,0 +1,287 @@
+@page "/admin/settings"
+@using System.Security.Claims
+@using PathfinderPhotography.Services
+@using PathfinderPhotography.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@inject PhotoSubmissionService SubmissionService
+@inject VotingService VotingService
+@inject UserService UserService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+@inject ILogger<Settings> Logger
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Admin Settings</PageTitle>
+
+<ConfirmModal @ref="confirmModal" Title="@modalTitle" Message="@modalMessage" OnConfirmed="OnConfirmAction" />
+
+<div class="container-fluid mt-4">
+    <h1>Admin Settings</h1>
+    <p class="lead">Administrative actions: reset AI, remove submissions/votes, undo grades, and purge data.</p>
+
+    @if (!isAdmin)
+    {
+        <div class="alert alert-danger">
+            <h4>Access Denied</h4>
+            <p>You must be an admin to access this page.</p>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert @(statusMessageType == "success" ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+                @statusMessage
+                <button type="button" class="btn-close" @onclick="() => statusMessage = string.Empty"></button>
+            </div>
+        }
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Bulk Actions</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-warning" @onclick='() => PromptConfirm("Reset All AI Activity", "Reset AI analysis for ALL submissions? This will clear AI-generated fields for every submission.", ActionType.ResetAllAi)'>Reset All AI Activity</button>
+                    <button class="btn btn-danger" @onclick='() => PromptConfirm("Delete All Submissions", "Permanently delete ALL submissions and votes? This action cannot be undone.", ActionType.DeleteAllSubmissions)'>Delete All Submissions</button>
+                    <button class="btn btn-secondary" @onclick="RefreshData">Refresh</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-7">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Photo Submissions</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Pathfinder</th>
+                                        <th>Rule</th>
+                                        <th>AI Status</th>
+                                        <th>Rating</th>
+                                        <th>Grade</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (PhotoSubmission submission in submissions)
+                                    {
+                                        <tr>
+                                            <td>@submission.Id</td>
+                                            <td>@submission.PathfinderName</td>
+                                            <td>@submission.CompositionRuleName</td>
+                                            <td>@submission.AiProcessingStatus</td>
+                                            <td>@(submission.AiRating.HasValue ? submission.AiRating.ToString() : "—")</td>
+                                            <td>
+                                                @switch (submission.GradeStatus)
+                                                {
+                                                    case GradeStatus.NotGraded:
+                                                        <span class="badge bg-secondary">Not Graded</span>
+                                                        break;
+                                                    case GradeStatus.Pass:
+                                                        <span class="badge bg-success">Pass</span>
+                                                        break;
+                                                    case GradeStatus.Fail:
+                                                        <span class="badge bg-danger">Fail</span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button class="btn btn-outline-warning" @onclick='() => PromptConfirm($"Reset AI for #{submission.Id}", $"Reset AI analysis for submission #{submission.Id}? This will clear AI-generated fields.", ActionType.ResetAi, submission.Id)'>Reset AI</button>
+                                                    <button class="btn btn-outline-secondary" @onclick='() => PromptConfirm($"Undo Grade for #{submission.Id}", $"Undo grading for submission #{submission.Id}? This may remove a completion certificate if it causes disqualification.", ActionType.UndoGrade, submission.Id)'>Undo Grade</button>
+                                                    <button class="btn btn-outline-danger" @onclick='() => PromptConfirm($"Delete #{submission.Id}", $"Permanently delete submission #{submission.Id}? This will remove associated votes and recalculate ratings.", ActionType.DeleteSubmission, submission.Id)'>Delete</button>
+                                                    <a class="btn btn-outline-primary" href="/photo/@submission.Id">View</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Votes</h5>
+                        <div class="table-responsive" style="max-height:420px; overflow:auto;">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Voter</th>
+                                        <th>Winner</th>
+                                        <th>Loser</th>
+                                        <th>Date</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (PhotoVote vote in votes)
+                                    {
+                                        <tr>
+                                            <td>@vote.Id</td>
+                                            <td>@vote.VoterEmail</td>
+                                            <td>@vote.WinnerPhotoId</td>
+                                            <td>@vote.LoserPhotoId</td>
+                                            <td>@vote.VoteDate.ToString("g")</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick='() => PromptConfirm($"Delete Vote #{vote.Id}", $"Delete vote #{vote.Id}? Ratings will be recalculated without this vote.", ActionType.DeleteVote, vote.Id)'>Delete</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Quick Info</h5>
+                        <p class="mb-1">Total submissions: <strong>@submissions.Count</strong></p>
+                        <p class="mb-1">Total votes: <strong>@votes.Count</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAdmin = false;
+    private string statusMessage = string.Empty;
+    private string statusMessageType = "success";
+
+    private List<PhotoSubmission> submissions = new();
+    private List<PhotoVote> votes = new();
+
+    private enum ActionType { None, ResetAi, ResetAllAi, DeleteSubmission, DeleteAllSubmissions, DeleteVote, UndoGrade }
+    private ActionType pendingAction = ActionType.None;
+    private int pendingId = 0;
+
+    private ConfirmModal? confirmModal;
+    private string? modalTitle;
+    private string? modalMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            string currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+            string currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(currentUserEmail))
+            {
+                await UserService.GetOrCreateUserAsync(currentUserEmail, currentUserName);
+                isAdmin = await UserService.IsAdminAsync(currentUserEmail);
+            }
+        }
+
+        if (!isAdmin)
+        {
+            return;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        submissions = await SubmissionService.GetAllSubmissionsAsync();
+        votes = await VotingService.GetAllVotesAsync();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+        statusMessage = "Data refreshed.";
+        statusMessageType = "success";
+    }
+
+    private void PromptConfirm(string title, string message, ActionType action, int id = 0)
+    {
+        pendingAction = action;
+        pendingId = id;
+        if (confirmModal == null)
+        {
+            return;
+        }
+
+        modalTitle = title;
+        modalMessage = message;
+        confirmModal.Show();
+    }
+
+    private async Task OnConfirmAction()
+    {
+        try
+        {
+            switch (pendingAction)
+            {
+                case ActionType.ResetAi:
+                    await SubmissionService.ResetAiForSubmissionAsync(pendingId);
+                    Logger.LogInformation("Admin reset AI for submission {SubmissionId}", pendingId);
+                    statusMessage = $"AI data reset for submission #{pendingId}.";
+                    break;
+                case ActionType.ResetAllAi:
+                    await SubmissionService.ResetAllAiAsync();
+                    Logger.LogInformation("Admin reset AI for all submissions");
+                    statusMessage = "AI data reset for all submissions.";
+                    break;
+                case ActionType.DeleteSubmission:
+                    await SubmissionService.DeleteSubmissionAsync(pendingId);
+                    Logger.LogWarning("Admin deleted submission {SubmissionId}", pendingId);
+                    statusMessage = $"Submission #{pendingId} deleted.";
+                    break;
+                case ActionType.DeleteAllSubmissions:
+                    await SubmissionService.DeleteAllSubmissionsAsync();
+                    Logger.LogWarning("Admin deleted ALL submissions and votes");
+                    statusMessage = "All submissions and votes deleted.";
+                    break;
+                case ActionType.DeleteVote:
+                    await VotingService.DeleteVoteAsync(pendingId);
+                    Logger.LogWarning("Admin deleted vote {VoteId}", pendingId);
+                    statusMessage = $"Vote #{pendingId} deleted and ratings recalculated.";
+                    break;
+                case ActionType.UndoGrade:
+                    await SubmissionService.UndoGradeAsync(pendingId);
+                    Logger.LogInformation("Admin undid grade for submission {SubmissionId}", pendingId);
+                    statusMessage = $"Grade undone for submission #{pendingId}.";
+                    break;
+            }
+
+            statusMessageType = "success";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Admin action {Action} failed for id {Id}", pendingAction, pendingId);
+            statusMessage = $"Action failed: {ex.Message}";
+            statusMessageType = "error";
+        }
+        finally
+        {
+            pendingAction = ActionType.None;
+            pendingId = 0;
+        }
+    }
+
+    private async Task ConfirmAndResetAiAsync(int submissionId) => PromptConfirm($"Reset AI for #{submissionId}", $"Reset AI analysis for submission #{submissionId}? This will clear AI-generated fields.", ActionType.ResetAi, submissionId);
+    private async Task ResetAllAiAsync() => PromptConfirm("Reset All AI Activity", "Reset AI analysis for ALL submissions? This will clear AI-generated fields for every submission.", ActionType.ResetAllAi);
+    private async Task ConfirmAndDeleteSubmissionAsync(int submissionId) => PromptConfirm($"Delete #{submissionId}", $"Permanently delete submission #{submissionId}? This will remove associated votes and recalculate ratings.", ActionType.DeleteSubmission, submissionId);
+    private async Task ConfirmAndUndoGradeAsync(int submissionId) => PromptConfirm($"Undo Grade for #{submissionId}", $"Undo grading for submission #{submissionId}? This may remove a completion certificate if it causes disqualification.", ActionType.UndoGrade, submissionId);
+    private async Task ConfirmAndDeleteVoteAsync(int voteId) => PromptConfirm($"Delete Vote #{voteId}", $"Delete vote #{voteId}? Ratings will be recalculated without this vote.", ActionType.DeleteVote, voteId);
+    private async Task DeleteAllSubmissionsAsync() => PromptConfirm("Delete All Submissions", "Permanently delete ALL submissions and votes? This action cannot be undone.", ActionType.DeleteAllSubmissions);
+}
