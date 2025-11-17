@@ -1,0 +1,51 @@
+@inherits Microsoft.AspNetCore.Components.ComponentBase
+
+<div class="modal fade @(IsVisible ? "show d-block" : string.Empty)" tabindex="-1" style="background: rgba(0,0,0,0.5);" aria-hidden="@(IsVisible ? "false" : "true")">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Title</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="Hide"></button>
+            </div>
+            <div class="modal-body">
+                <p>@Message</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="Hide">Cancel</button>
+                <button class="btn btn-danger" @onclick="Confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool IsVisible { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Confirm";
+
+    [Parameter]
+    public string Message { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback OnConfirmed { get; set; }
+
+    public void Show()
+    {
+        IsVisible = true;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+
+    private async Task Confirm()
+    {
+        IsVisible = false;
+        await OnConfirmed.InvokeAsync(null);
+        StateHasChanged();
+    }
+}

@@ -13,6 +13,8 @@
 
 <PageTitle>User Management</PageTitle>
 
+<ConfirmModal @ref="confirmModal" Title="" Message="" OnConfirmed="OnConfirmedAction" />
+
 <div class="container mt-4">
     <h1>User Management</h1>
     <p class="lead">Manage user roles and permissions</p>
@@ -84,17 +86,17 @@
                                     <div class="btn-group" role="group">
                                         @if (user.Role == UserRole.Pathfinder)
                                         {
-                                            <button class="btn btn-sm btn-primary" @onclick="() => PromoteToInstructor(user.Email)">
+                                            <button class="btn btn-sm btn-primary" @onclick="() => PromptRoleChange(user.Email, UserRole.Instructor)">
                                                 Promote to Instructor
                                             </button>
                                         }
                                         else
                                         {
-                                            <button class="btn btn-sm btn-warning" @onclick="() => DemoteToPathfinder(user.Email)">
+                                            <button class="btn btn-sm btn-warning" @onclick="() => PromptRoleChange(user.Email, UserRole.Pathfinder)">
                                                 Demote to Pathfinder
                                             </button>
                                         }
-                                        <button class="btn btn-sm btn-danger" @onclick="() => ShowDeleteConfirmation(user.Email, user.Name)">
+                                        <button class="btn btn-sm btn-danger" @onclick="() => PromptDeleteUser(user.Email, user.Name)">
                                             Delete
                                         </button>
                                     </div>
@@ -127,47 +129,18 @@
     }
 </div>
 
-@if (showDeleteConfirmation)
-{
-    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirm User Deletion</h5>
-                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <strong>⚠️ Warning:</strong> This action cannot be undone!
-                    </div>
-                    <p>Are you sure you want to delete user <strong>@userToDeleteName</strong> (@userToDeleteEmail)?</p>
-                    <p>This will permanently remove:</p>
-                    <ul>
-                        <li>The user account</li>
-                        <li>All photo submissions by this user</li>
-                        <li>All votes involving their photos</li>
-                        <li>All votes made by this user</li>
-                    </ul>
-                    <p><strong>Note:</strong> ELO ratings will be recalculated for photos affected by removing this user's votes (based only on the remaining votes after deletion).</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
-                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete User</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
     private List<User> users = [];
     private string message = string.Empty;
     private bool isError = false;
     private string currentUserEmail = string.Empty;
     private bool isAdmin = false;
-    private bool showDeleteConfirmation = false;
-    private string userToDeleteEmail = string.Empty;
-    private string userToDeleteName = string.Empty;
+
+    private Components.ConfirmModal? confirmModal;
+    private string pendingUserEmail = string.Empty;
+    private string pendingUserName = string.Empty;
+    private string pendingRoleAction = string.Empty; // "promote" or "demote"
+    private UserRole pendingRole;
 
     protected override async Task OnInitializedAsync()
     {
@@ -205,76 +178,60 @@
         users = await UserService.GetAllUsersAsync();
     }
 
-    private async Task PromoteToInstructor(string email)
+    private void PromptRoleChange(string email, UserRole role)
+    {
+        pendingUserEmail = email;
+        pendingRole = role;
+        pendingRoleAction = role == UserRole.Instructor ? "Promote to Instructor" : "Demote to Pathfinder";
+        if (confirmModal != null)
+        {
+            confirmModal.Title = pendingRoleAction;
+            confirmModal.Message = $"Are you sure you want to {pendingRoleAction.ToLower()} for {email}?";
+            confirmModal.Show();
+        }
+    }
+
+    private void PromptDeleteUser(string email, string name)
+    {
+        pendingUserEmail = email;
+        pendingUserName = name;
+        if (confirmModal != null)
+        {
+            confirmModal.Title = "Delete User";
+            confirmModal.Message = $"Permanently delete user {name} ({email}) and all their submissions and votes?";
+            confirmModal.Show();
+        }
+    }
+
+    private async Task OnConfirmedAction()
     {
         try
         {
-            await UserService.SetUserRoleAsync(email, UserRole.Instructor);
-            message = $"User {email} has been promoted to Instructor.";
+            if (!string.IsNullOrEmpty(pendingRoleAction))
+            {
+                await UserService.SetUserRoleAsync(pendingUserEmail, pendingRole, currentUserEmail);
+                message = pendingRole == UserRole.Instructor ? $"User {pendingUserEmail} promoted to Instructor." : $"User {pendingUserEmail} demoted to Pathfinder.";
+                pendingRoleAction = string.Empty;
+            }
+            else if (!string.IsNullOrEmpty(pendingUserEmail))
+            {
+                await UserService.DeleteUserAsync(pendingUserEmail, currentUserEmail);
+                message = $"User {pendingUserName} ({pendingUserEmail}) and all their submissions have been deleted.";
+            }
+
             isError = false;
             await LoadUsers();
         }
         catch (Exception ex)
         {
-            message = $"Error promoting user: {ex.Message}";
-            isError = true;
-        }
-    }
-
-    private async Task DemoteToPathfinder(string email)
-    {
-        try
-        {
-            await UserService.SetUserRoleAsync(email, UserRole.Pathfinder);
-            message = $"User {email} has been demoted to Pathfinder.";
-            isError = false;
-            await LoadUsers();
-        }
-        catch (Exception ex)
-        {
-            message = $"Error demoting user: {ex.Message}";
-            isError = true;
-        }
-    }
-
-    private void ShowDeleteConfirmation(string email, string name)
-    {
-        userToDeleteEmail = email;
-        userToDeleteName = name;
-        showDeleteConfirmation = true;
-    }
-
-    private void CancelDelete()
-    {
-        showDeleteConfirmation = false;
-        userToDeleteEmail = string.Empty;
-        userToDeleteName = string.Empty;
-    }
-
-    private async Task ConfirmDelete()
-    {
-        try
-        {
-            await UserService.DeleteUserAsync(userToDeleteEmail);
-            message = $"User {userToDeleteName} ({userToDeleteEmail}) and all their submissions have been deleted.";
-            isError = false;
-            await LoadUsers();
-        }
-        catch (InvalidOperationException ex)
-        {
-            message = $"Error deleting user: {ex.Message}";
-            isError = true;
-        }
-        catch (DbUpdateException ex)
-        {
-            message = $"Database error deleting user: {ex.InnerException?.Message ?? ex.Message}";
+            message = ex.Message;
             isError = true;
         }
         finally
         {
-            showDeleteConfirmation = false;
-            userToDeleteEmail = string.Empty;
-            userToDeleteName = string.Empty;
+            pendingUserEmail = string.Empty;
+            pendingUserName = string.Empty;
+            pendingRoleAction = string.Empty;
         }
     }
 }
