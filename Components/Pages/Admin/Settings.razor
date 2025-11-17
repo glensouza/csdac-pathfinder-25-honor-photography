@@ -98,7 +98,7 @@
                                             <td>@submission.PathfinderName</td>
                                             <td>@submission.CompositionRuleName</td>
                                             <td>@submission.AiProcessingStatus</td>
-                                            <td>@(submission.AiRating.HasValue ? submission.AiRating.ToString() : "—")</td>
+                                            <td>@(submission.AiRating.HasValue ? submission.AiRating.ToString() : "ï¿½")</td>
                                             <td>
                                                 @switch (submission.GradeStatus)
                                                 {
@@ -205,9 +205,11 @@
         AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         ClaimsPrincipal user = authState.User;
 
+        string currentUserEmail = string.Empty;
+
         if (user.Identity?.IsAuthenticated == true)
         {
-            string currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+            currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
             string currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
 
             if (!string.IsNullOrEmpty(currentUserEmail))
@@ -225,10 +227,7 @@
         await LoadData();
 
         // Prefill test email with admin email if available
-        AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        ClaimsPrincipal principal = state.User;
-        string? currentEmail = principal.FindFirst(ClaimTypes.Email)?.Value;
-        testEmail = currentEmail ?? string.Empty;
+        testEmail = currentUserEmail;
     }
 
     private async Task LoadData()
@@ -331,7 +330,7 @@
             testStatusMessage = $"Test email sent to {testEmail}. Check inbox and spam folder.";
             testStatusIsError = false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
             testStatusMessage = $"Failed to send test email: {ex.Message}";
             testStatusIsError = true;
