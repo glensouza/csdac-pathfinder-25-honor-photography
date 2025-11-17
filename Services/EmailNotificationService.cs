@@ -240,6 +240,10 @@ public class EmailNotificationService
             throw new InvalidOperationException("SMTP host is not configured.");
         }
 
+        // Log connection parameters for debugging
+        this.logger.LogDebug("Connecting to SMTP server {Host}:{Port} using {SecurityOptions}", 
+            smtpHost, smtpPort, secureSocketOptions);
+
         using SmtpClient client = new();
         
         try
@@ -254,9 +258,25 @@ public class EmailNotificationService
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
         }
+        catch (MailKit.Security.SslHandshakeException ex)
+        {
+            this.logger.LogError(ex, 
+                "SSL/TLS handshake failed connecting to {Host}:{Port} with {SecurityOptions}. " +
+                "Ensure the correct port and security options are configured. " +
+                "Port 465 requires SslOnConnect, port 587 requires StartTls.",
+                smtpHost, smtpPort, secureSocketOptions);
+            throw;
+        }
+        catch (MailKit.Security.AuthenticationException ex)
+        {
+            this.logger.LogError(ex, 
+                "Authentication failed for SMTP server {Host}:{Port}. Check username and password.",
+                smtpHost, smtpPort);
+            throw;
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
         {
-            this.logger.LogError(ex, "Error sending email via SMTP");
+            this.logger.LogError(ex, "Error sending email via SMTP to {Host}:{Port}", smtpHost, smtpPort);
             throw;
         }
     }
