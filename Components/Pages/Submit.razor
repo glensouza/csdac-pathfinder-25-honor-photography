@@ -147,7 +147,7 @@
                                     @submission.CompositionRuleName
                                     @if (submission.SubmissionVersion > 1)
                                     {
-                                        <span class="badge bg-warning">v@submission.SubmissionVersion</span>
+                                        <span class="badge bg-warning">@($"v{submission.SubmissionVersion}")</span>
                                     }
                                 </h6>
                                 <p class="card-text small">@submission.Description</p>
@@ -178,11 +178,11 @@
             </div>
 
             <div class="alert alert-info mt-3">
-                <strong>Progress:</strong> You've submitted @userSubmissions.Count out of @rules.Count photos.
+                <strong>Progress:</strong> You've submitted @submittedCount out of @rules.Count photos.
                 <br />
-                <strong>Graded:</strong> @userSubmissions.Count(s => s.GradeStatus != GradeStatus.NotGraded) submissions
+                <strong>Graded:</strong> @gradedCount submissions
                 <br />
-                <strong>Passed:</strong> @userSubmissions.Count(s => s.GradeStatus == GradeStatus.Pass) submissions
+                <strong>Passed:</strong> @passedCount submissions
             </div>
         }
         else
@@ -205,6 +205,9 @@
     private string errorMessage = string.Empty;
     private bool isSubmitting = false;
     private List<PhotoSubmission> userSubmissions = [];
+    private int submittedCount = 0;
+    private int gradedCount = 0;
+    private int passedCount = 0;
     private string currentUserEmail = string.Empty;
     private string currentUserName = string.Empty;
 
@@ -212,6 +215,9 @@
     {
         AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         ClaimsPrincipal user = authState.User;
+
+        // Load rules first so counting logic can reference valid rule IDs
+        rules = RuleService.GetAllRules();
 
         if (user.Identity?.IsAuthenticated == true)
         {
@@ -227,14 +233,13 @@
                 currentSubmission.PathfinderEmail = currentUserEmail;
 
                 userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentUserEmail);
+                UpdateUserSubmissionCounts();
             }
         }
         else
         {
             NavigationManager.NavigateTo("/login");
         }
-
-        rules = RuleService.GetAllRules();
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)
@@ -321,10 +326,11 @@
             await SubmissionService.AddSubmissionAsync(currentSubmission);
 
             userSubmissions = await SubmissionService.GetSubmissionsByPathfinderAsync(currentUserEmail);
+            UpdateUserSubmissionCounts();
 
             successMessage = existingSubmission is { GradeStatus: GradeStatus.Fail }
-                ? $"Photo resubmitted successfully (version {currentSubmission.SubmissionVersion})! You've submitted {userSubmissions.Count} out of {rules.Count} photos."
-                : $"Photo submitted successfully! You've submitted {userSubmissions.Count} out of {rules.Count} photos.";
+                ? $"Photo resubmitted successfully (version {currentSubmission.SubmissionVersion})! You've submitted {submittedCount} out of {rules.Count} photos."
+                : $"Photo submitted successfully! You've submitted {submittedCount} out of {rules.Count} photos.";
 
             // Reset form for next submission, but keep the name
             string name = currentSubmission.PathfinderName;
@@ -341,5 +347,21 @@
         {
             isSubmitting = false;
         }
+    }
+
+    private void UpdateUserSubmissionCounts()
+    {
+        // Only consider submissions that map to known composition rules
+        HashSet<int> validRuleIds = rules.Select(r => r.Id).ToHashSet();
+
+        List<PhotoSubmission> latestPerRule = userSubmissions
+            .Where(s => s.CompositionRuleId != 0 && validRuleIds.Contains(s.CompositionRuleId))
+            .GroupBy(s => s.CompositionRuleId)
+            .Select(g => g.OrderByDescending(s => s.SubmissionVersion).First())
+            .ToList();
+
+        submittedCount = Math.Min(latestPerRule.Count, rules.Count);
+        gradedCount = latestPerRule.Count(s => s.GradeStatus != GradeStatus.NotGraded);
+        passedCount = latestPerRule.Count(s => s.GradeStatus == GradeStatus.Pass);
     }
 }

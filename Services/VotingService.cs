@@ -11,15 +11,17 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
     /// <summary>
     /// Get two random photos for comparison that the user has NOT already voted on.
-    /// Excludes the current user's own submissions. Returns (null,null) when no new pairs remain.
+    /// Excludes the current user's own submissions and any submissions that have been graded as Fail.
+    /// Returns (null,null) when no new pairs remain.
+    /// Pairs are only formed between photos that share the same CompositionRuleId.
     /// </summary>
     public async Task<(PhotoSubmission?, PhotoSubmission?)> GetRandomPhotoPairAsync(string currentUserEmail)
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
 
-        // Load all other users' submissions
+        // Load all other users' submissions (exclude failed submissions)
         List<PhotoSubmission> submissions = await context.PhotoSubmissions
-            .Where(s => s.PathfinderEmail.ToLower() != currentUserEmail.ToLower())
+            .Where(s => s.PathfinderEmail.ToLower() != currentUserEmail.ToLower() && s.GradeStatus != GradeStatus.Fail)
             .ToListAsync();
 
         if (submissions.Count < 2)
@@ -32,7 +34,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             .Where(v => v.VoterEmail.ToLower() == currentUserEmail.ToLower())
             .ToListAsync();
 
-        HashSet<string> votedPairs = [];
+        HashSet<string> votedPairs = new();
         foreach (PhotoVote vote in userVotes)
         {
             int a = Math.Min(vote.WinnerPhotoId, vote.LoserPhotoId);
@@ -40,14 +42,21 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             votedPairs.Add($"{a}-{b}");
         }
 
-        // Generate all possible unseen pairs
-        List<(PhotoSubmission first, PhotoSubmission second)> candidatePairs = [];
+        // Generate all possible unseen pairs but only between photos with the same CompositionRuleId
+        List<(PhotoSubmission first, PhotoSubmission second)> candidatePairs = new();
         for (int i = 0; i < submissions.Count - 1; i++)
         {
             for (int j = i + 1; j < submissions.Count; j++)
             {
                 PhotoSubmission first = submissions[i];
                 PhotoSubmission second = submissions[j];
+
+                // Ensure composition rule matches
+                if (first.CompositionRuleId != second.CompositionRuleId)
+                {
+                    continue;
+                }
+
                 int a = Math.Min(first.Id, second.Id);
                 int b = Math.Max(first.Id, second.Id);
                 string key = $"{a}-{b}";
@@ -60,7 +69,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
 
         if (candidatePairs.Count == 0)
         {
-            // User has voted on all possible pairs
+            // User has voted on all possible same-rule pairs
             return (null, null);
         }
 
@@ -134,6 +143,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
 
         return await context.PhotoSubmissions
+            .Where(s => s.GradeStatus != GradeStatus.Fail)
             .OrderByDescending(s => s.EloRating)
             .ThenByDescending(s => s.SubmissionDate)
             .Take(count)
@@ -169,6 +179,11 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         {
             query = query.Where(s => s.GradeStatus == gradeStatus.Value);
         }
+        else
+        {
+            // Default behavior: exclude failed submissions from top lists
+            query = query.Where(s => s.GradeStatus != GradeStatus.Fail);
+        }
 
         return await query
             .OrderByDescending(s => s.EloRating)
@@ -193,11 +208,25 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
 
-        int otherSubmissionsCount = await context.PhotoSubmissions
-            .Where(s => s.PathfinderEmail.ToLower() != userEmail.ToLower())
-            .CountAsync();
+        // Only allow voting if there exists at least one composition rule with 2+ non-failed submissions from other users
+        List<object> otherSubmissionsByRule = await context.PhotoSubmissions
+            .Where(s => s.PathfinderEmail.ToLower() != userEmail.ToLower() && s.GradeStatus != GradeStatus.Fail)
+            .GroupBy(s => s.CompositionRuleId)
+            .Select(g => new { CompositionRuleId = g.Key, Count = g.Count() })
+            .ToListAsync<object?>();
 
-        return otherSubmissionsCount >= 2;
+        // Evaluate count condition
+        foreach (object item in otherSubmissionsByRule)
+        {
+            // Use reflection to read Count property because we selected an anonymous type
+            int count = (int)item.GetType().GetProperty("Count")!.GetValue(item)!;
+            if (count >= 2)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task RecalculateEloRatingsForPhotosAsync(List<int> photoIds, List<int>? voteIdsToExclude = null)
@@ -207,7 +236,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
             return;
         }
 
-        voteIdsToExclude ??= [];
+        voteIdsToExclude ??= new List<int>();
 
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
 
@@ -259,38 +288,43 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
     /// <summary>
     /// Get top photos for many rules in a single query using a window function.
     /// Returns a dictionary keyed by CompositionRuleId with up to perRuleCount items each.
-    /// If gradeStatus is null, no grade filtering is applied (All).
+    /// If gradeStatus is null, failed submissions are excluded (so Top Photos page never shows failed photos by default).
     /// </summary>
     public async Task<Dictionary<int, List<PhotoSubmission>>> GetTopPhotosByRuleBulkAsync(GradeStatus? gradeStatus, int perRuleCount = 3)
     {
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
 
-        // Use a CTE with ROW_NUMBER() partitioned by CompositionRuleId to select top N per rule
-        List<PhotoSubmission> results = await context.PhotoSubmissions
-            .FromSqlInterpolated($"""
+        IQueryable<PhotoSubmission> query = context.PhotoSubmissions.AsNoTracking();
 
-                                                  WITH ranked AS (
-                                                      SELECT *, ROW_NUMBER() OVER (PARTITION BY "CompositionRuleId" ORDER BY "EloRating" DESC, "SubmissionDate" DESC) AS rn
-                                                      FROM "PhotoSubmissions"
-                                                      WHERE ({(gradeStatus == null)} OR "GradeStatus" = {(int?)gradeStatus})
-                                                  )
-                                                  SELECT * FROM ranked WHERE rn <= {perRuleCount}
-                                  """)
-            .AsNoTracking()
+        if (gradeStatus == null)
+        {
+            query = query.Where(s => s.GradeStatus != GradeStatus.Fail);
+        }
+        else
+        {
+            query = query.Where(s => s.GradeStatus == gradeStatus.Value);
+        }
+
+        List<PhotoSubmission> submissions = await query
+            .OrderByDescending(s => s.EloRating)
+            .ThenByDescending(s => s.SubmissionDate)
             .ToListAsync();
 
-        Dictionary<int, List<PhotoSubmission>> grouped = new();
+        Dictionary<int, List<PhotoSubmission>> grouped = new Dictionary<int, List<PhotoSubmission>>();
 
-        foreach (PhotoSubmission photo in results)
+        foreach (PhotoSubmission submission in submissions)
         {
-            int key = photo.CompositionRuleId;
-            if (!grouped.TryGetValue(key, out List<PhotoSubmission>? value))
+            int key = submission.CompositionRuleId;
+            if (!grouped.TryGetValue(key, out List<PhotoSubmission>? list))
             {
-                value = [];
-                grouped[key] = value;
+                list = new List<PhotoSubmission>();
+                grouped[key] = list;
             }
 
-            value.Add(photo);
+            if (list.Count < perRuleCount)
+            {
+                list.Add(submission);
+            }
         }
 
         return grouped;

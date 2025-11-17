@@ -98,7 +98,7 @@
                                 <td>
                                     @if (submission.SubmissionVersion > 1)
                                     {
-                                        <span class="badge bg-warning">v@submission.SubmissionVersion</span>
+                                        <span class="badge bg-warning">@($"v{submission.SubmissionVersion}")</span>
                                     }
                                     else
                                     {
