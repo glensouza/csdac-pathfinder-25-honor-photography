@@ -1,4 +1,5 @@
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using MimeKit;
 using PathfinderPhotography.Models;
 
@@ -212,9 +213,26 @@ public class EmailNotificationService
         string? smtpUsername = this.configuration["Email:SmtpUsername"];
         string? smtpPassword = this.configuration["Email:SmtpPassword"];
 
-        if (!bool.TryParse(this.configuration["Email:UseSsl"], out bool useSsl))
+        // Determine the appropriate SecureSocketOptions based on port and configuration
+        SecureSocketOptions secureSocketOptions;
+        if (smtpPort == 465)
         {
-            useSsl = true;
+            // Port 465 uses implicit SSL
+            secureSocketOptions = SecureSocketOptions.SslOnConnect;
+        }
+        else if (smtpPort == 587)
+        {
+            // Port 587 uses STARTTLS
+            secureSocketOptions = SecureSocketOptions.StartTls;
+        }
+        else
+        {
+            // For other ports, check the UseSsl configuration
+            if (!bool.TryParse(this.configuration["Email:UseSsl"], out bool useSsl))
+            {
+                useSsl = true;
+            }
+            secureSocketOptions = useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
         }
 
         if (string.IsNullOrEmpty(smtpHost))
@@ -226,7 +244,7 @@ public class EmailNotificationService
         
         try
         {
-            await client.ConnectAsync(smtpHost, smtpPort, useSsl);
+            await client.ConnectAsync(smtpHost, smtpPort, secureSocketOptions);
 
             if (!string.IsNullOrEmpty(smtpUsername) && !string.IsNullOrEmpty(smtpPassword))
             {
