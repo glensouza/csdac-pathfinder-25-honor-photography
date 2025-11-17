@@ -326,7 +326,7 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         // Audit
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "DeleteVote",
                 EntityId = voteId,

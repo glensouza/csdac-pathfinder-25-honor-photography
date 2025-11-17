@@ -9,13 +9,13 @@
 @inject UserService UserService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JSRuntime
-@inject ILogger<Components.Pages.Admin.Settings> Logger
+@inject ILogger<Settings> Logger
 @attribute [Authorize]
 @rendermode InteractiveServer
 
 <PageTitle>Admin Settings</PageTitle>
 
-<ConfirmModal @ref="confirmModal" Title="" Message="" OnConfirmed="OnConfirmAction" />
+<ConfirmModal @ref="confirmModal" Title="@modalTitle" Message="@modalMessage" OnConfirmed="OnConfirmAction" />
 
 <div class="container-fluid mt-4">
     <h1>Admin Settings</h1>
@@ -168,7 +168,9 @@
     private ActionType pendingAction = ActionType.None;
     private int pendingId = 0;
 
-    private Components.ConfirmModal? confirmModal;
+    private ConfirmModal? confirmModal;
+    private string? modalTitle;
+    private string? modalMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -212,12 +214,14 @@
     {
         pendingAction = action;
         pendingId = id;
-        if (confirmModal != null)
+        if (confirmModal == null)
         {
-            confirmModal.Title = title;
-            confirmModal.Message = message;
-            confirmModal.Show();
+            return;
         }
+
+        modalTitle = title;
+        modalMessage = message;
+        confirmModal.Show();
     }
 
     private async Task OnConfirmAction()

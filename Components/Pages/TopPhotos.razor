@@ -48,7 +48,7 @@
             <div class="mb-5">
                 <h2 class="mb-3">@rule.Id. @rule.Name</h2>
                 <div class="row">
-                    @if (topPhotosByRule.TryGetValue(rule.Id, out var photos) && photos.Any())
+                    @if (topPhotosByRule.TryGetValue(rule.Id, out List<PhotoSubmission>? photos) && photos.Any())
                     {
                         @foreach ((PhotoSubmission photo, int index) in photos.Select((p, i) => (p, i)))
                         {

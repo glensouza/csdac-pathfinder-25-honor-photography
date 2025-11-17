@@ -262,7 +262,7 @@
             PathfinderCount = allUsers.Count(u => u.Role == UserRole.Pathfinder),
             InstructorCount = allUsers.Count(u => u.Role == UserRole.Instructor),
             AdminCount = allUsers.Count(u => u.Role == UserRole.Admin),
-            SubmissionsWithAi = allSubmissions.Count(s => s.AiProcessingStatus == Models.AiProcessingStatus.Completed),
+            SubmissionsWithAi = allSubmissions.Count(s => s.AiProcessingStatus == AiProcessingStatus.Completed),
             SubmissionsWithAiRating = allSubmissions.Count(s => s.AiRating.HasValue),
             AverageAiRating = allSubmissions.Where(s => s.AiRating.HasValue).Select(s => (double)s.AiRating!.Value).DefaultIfEmpty(0).Average()
         };

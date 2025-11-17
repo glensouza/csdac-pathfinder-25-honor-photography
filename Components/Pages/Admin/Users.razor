@@ -13,7 +13,7 @@
 
 <PageTitle>User Management</PageTitle>
 
-<ConfirmModal @ref="confirmModal" Title="" Message="" OnConfirmed="OnConfirmedAction" />
+<ConfirmModal @ref="confirmModal" Title="Delete User" Message="@confirmMessage" OnConfirmed="OnConfirmedAction" />
 
 <div class="container mt-4">
     <h1>User Management</h1>
@@ -136,7 +136,8 @@
     private string currentUserEmail = string.Empty;
     private bool isAdmin = false;
 
-    private Components.ConfirmModal? confirmModal;
+    private ConfirmModal? confirmModal;
+    private string? confirmMessage;
     private string pendingUserEmail = string.Empty;
     private string pendingUserName = string.Empty;
     private string pendingRoleAction = string.Empty; // "promote" or "demote"
@@ -183,24 +184,21 @@
         pendingUserEmail = email;
         pendingRole = role;
         pendingRoleAction = role == UserRole.Instructor ? "Promote to Instructor" : "Demote to Pathfinder";
-        if (confirmModal != null)
+        if (confirmModal == null)
         {
-            confirmModal.Title = pendingRoleAction;
-            confirmModal.Message = $"Are you sure you want to {pendingRoleAction.ToLower()} for {email}?";
-            confirmModal.Show();
+            return;
         }
+
+        confirmMessage = $"Are you sure you want to {pendingRoleAction.ToLower()} for {email}?";
+        confirmModal.Show();
     }
 
     private void PromptDeleteUser(string email, string name)
     {
         pendingUserEmail = email;
         pendingUserName = name;
-        if (confirmModal != null)
-        {
-            confirmModal.Title = "Delete User";
-            confirmModal.Message = $"Permanently delete user {name} ({email}) and all their submissions and votes?";
-            confirmModal.Show();
-        }
+        confirmMessage = $"Permanently delete user {name} ({email}) and all their submissions and votes?";
+        confirmModal?.Show();
     }
 
     private async Task OnConfirmedAction()

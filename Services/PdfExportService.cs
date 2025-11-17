@@ -303,68 +303,69 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
         {
             container.Page(page =>
             {
+                // Use tighter margins and slightly smaller fonts to ensure the layout fits on a single landscape page
                 page.Size(PageSizes.A4.Landscape());
-                page.Margin(2, Unit.Centimetre);
+                page.Margin(1, Unit.Centimetre);
                 page.PageColor(Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(14));
+                page.DefaultTextStyle(x => x.FontSize(12));
 
                 page.Content()
-                    .PaddingVertical(1.5f, Unit.Centimetre)
+                    .PaddingVertical(0.5f, Unit.Centimetre)
                     .Column(column =>
                     {
-                        column.Spacing(15);
+                        column.Spacing(10);
 
-                        // Certificate border
-                        column.Item().Border(3).BorderColor(Colors.Blue.Darken2).Padding(25).Column(innerColumn =>
+                        // Certificate border (reduced padding)
+                        column.Item().Border(3).BorderColor(Colors.Blue.Darken2).Padding(10).Column(innerColumn =>
                         {
-                            innerColumn.Spacing(15);
+                            innerColumn.Spacing(10);
 
                             // Title
                             innerColumn.Item().AlignCenter().Text("Certificate of Completion")
-                                .FontSize(36)
+                                .FontSize(30)
                                 .SemiBold()
                                 .FontColor(Colors.Blue.Darken2);
 
                             innerColumn.Item().AlignCenter().Text("Pathfinder Photography Honor")
-                                .FontSize(24)
+                                .FontSize(20)
                                 .FontColor(Colors.Blue.Medium);
 
                             // Decorative line
-                            innerColumn.Item().PaddingVertical(10).AlignCenter()
-                                .Width(400).Height(2).Background(Colors.Blue.Lighten2);
+                            innerColumn.Item().PaddingVertical(8).AlignCenter()
+                                .Width(380).Height(1).Background(Colors.Blue.Lighten2);
 
                             // Main text
-                            innerColumn.Item().PaddingTop(10).AlignCenter().Text("This certifies that")
-                                .FontSize(18);
+                            innerColumn.Item().PaddingTop(8).AlignCenter().Text("This certifies that")
+                                .FontSize(14);
 
                             innerColumn.Item().AlignCenter().Text(pathfinderName)
-                                .FontSize(32)
+                                .FontSize(28)
                                 .Bold()
                                 .FontColor(Colors.Blue.Darken3);
 
-                            innerColumn.Item().PaddingTop(10).AlignCenter()
+                            innerColumn.Item().PaddingTop(8).AlignCenter()
                                 .Text("has successfully completed all composition requirements")
-                                .FontSize(18);
+                                .FontSize(14);
 
                             innerColumn.Item().AlignCenter()
                                 .Text("for the Pathfinder Photography Honor")
-                                .FontSize(18);
+                                .FontSize(14);
 
                             // Composition rules completed
-                            innerColumn.Item().PaddingTop(15).AlignCenter().Text($"All {allRules.Count} Composition Rules Mastered")
-                                .FontSize(14)
+                            innerColumn.Item().PaddingTop(12).AlignCenter().Text($"All {allRules.Count} Composition Rules Mastered")
+                                .FontSize(12)
                                 .SemiBold();
 
                             // Date
-                            innerColumn.Item().PaddingTop(15).AlignCenter()
+                            innerColumn.Item().PaddingTop(10).AlignCenter()
                                 .Text($"Date of Completion: {completionDate:MMMM dd, yyyy}")
-                                .FontSize(16)
+                                .FontSize(14)
                                 .FontColor(Colors.Grey.Darken1);
 
                             // Footer
-                            innerColumn.Item().PaddingTop(10).AlignCenter()
+                            innerColumn.Item().PaddingTop(8).AlignCenter()
                                 .Text("Congratulations on your achievement!")
-                                .FontSize(14)
+                                .FontSize(12)
                                 .Italic()
                                 .FontColor(Colors.Blue.Medium);
                         });

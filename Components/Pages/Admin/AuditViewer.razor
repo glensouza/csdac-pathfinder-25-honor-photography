@@ -1,4 +1,5 @@
 @page "/admin/audit"
+@using System.Security.Claims
 @using PathfinderPhotography.Services
 @using PathfinderPhotography.Models
 @using PathfinderPhotography.Data
@@ -6,7 +7,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject Microsoft.EntityFrameworkCore.IDbContextFactory<PathfinderPhotography.Data.ApplicationDbContext> ContextFactory
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
 @attribute [Authorize]
 @rendermode InteractiveServer
 
@@ -106,15 +107,15 @@
     protected override async Task OnInitializedAsync()
     {
         AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        ClaimsPrincipal user = authState.User;
         if (user.Identity?.IsAuthenticated == true)
         {
-            string? email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            string? email = user.FindFirst(ClaimTypes.Email)?.Value;
             if (!string.IsNullOrEmpty(email))
             {
                 // Check role via DB
-                await using var context = await ContextFactory.CreateDbContextAsync();
-                var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                await using ApplicationDbContext context = await ContextFactory.CreateDbContextAsync();
+                User? dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == email);
                 if (dbUser != null && dbUser.Role == UserRole.Admin)
                 {
                     isAdmin = true;
@@ -142,7 +143,7 @@
 
     private async Task LoadAudit()
     {
-        await using var context = await ContextFactory.CreateDbContextAsync();
+        await using ApplicationDbContext context = await ContextFactory.CreateDbContextAsync();
         IQueryable<AuditLog> query = context.AuditLogs.OrderByDescending(a => a.Timestamp).AsNoTracking();
 
         if (!string.IsNullOrEmpty(selectedAction))

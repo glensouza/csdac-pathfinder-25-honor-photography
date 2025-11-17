@@ -57,7 +57,7 @@
 
                 @if (currentSubmission.CompositionRuleId > 0)
                 {
-                    var selectedRule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
+                    CompositionRule? selectedRule = RuleService.GetRuleById(currentSubmission.CompositionRuleId);
                     if (selectedRule != null)
                     {
                         <div class="alert alert-info">
@@ -65,7 +65,7 @@
                         </div>
                     }
 
-                    var existingSubmission = userSubmissions.FirstOrDefault(s => s.CompositionRuleId == currentSubmission.CompositionRuleId);
+                    PhotoSubmission? existingSubmission = userSubmissions.FirstOrDefault(s => s.CompositionRuleId == currentSubmission.CompositionRuleId);
                     if (existingSubmission != null)
                     {
                         <div class="alert alert-warning">

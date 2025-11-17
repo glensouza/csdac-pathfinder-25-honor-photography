@@ -48,7 +48,7 @@ public class PhotoSubmissionService(
         // Set initial AI processing status
         if (submission.ImageData is { Length: > 0 })
         {
-            submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+            submission.AiProcessingStatus = AiProcessingStatus.Queued;
         }
         
         context.PhotoSubmissions.Add(submission);
@@ -183,7 +183,7 @@ public class PhotoSubmissionService(
         // Audit grade action
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "GradeSubmission",
                 EntityId = submissionId,
@@ -213,16 +213,15 @@ public class PhotoSubmissionService(
         // If graded as Pass, check if pathfinder has completed all rules and issue certificate
         if (status == GradeStatus.Pass)
         {
-            Task.Run(() => this.CheckAndIssueCertificateAsync(submission.PathfinderEmail))
-                .ContinueWith(task =>
-                {
-                    if (task.Exception != null)
-                    {
-                        logger.LogWarning(task.Exception, "Failed to check/issue completion certificate for {Email}", submission.PathfinderEmail);
-                    }
-                }, TaskContinuationOptions.OnlyOnFaulted);
+            try
+            {
+                await this.CheckAndIssueCertificateAsync(submission.PathfinderEmail);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to check/issue completion certificate for {Email}", submission.PathfinderEmail);
+            }
         }
-        #pragma warning restore CS4014
     }
 
     private async Task CheckAndIssueCertificateAsync(string pathfinderEmail)
@@ -300,7 +299,7 @@ public class PhotoSubmissionService(
         // Audit
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "RetryAiAnalysis",
                 EntityId = submissionId,
@@ -315,7 +314,7 @@ public class PhotoSubmissionService(
         }
 
         // Reset status to Queued
-        submission.AiProcessingStatus = Models.AiProcessingStatus.Queued;
+        submission.AiProcessingStatus = AiProcessingStatus.Queued;
         submission.AiProcessingError = null;
         await context.SaveChangesAsync();
 
@@ -354,7 +353,7 @@ public class PhotoSubmissionService(
         // Audit
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "ResetAi",
                 EntityId = submissionId,
@@ -365,6 +364,7 @@ public class PhotoSubmissionService(
         }
         catch
         {
+            // ignored
         }
 
         await context.SaveChangesAsync();
@@ -393,7 +393,7 @@ public class PhotoSubmissionService(
         // Audit
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "ResetAllAi",
                 EntityId = 0,
@@ -442,7 +442,7 @@ public class PhotoSubmissionService(
         // Add audit log entry
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "DeleteSubmission",
                 EntityId = submissionId,
@@ -477,7 +477,7 @@ public class PhotoSubmissionService(
         // Add audit log
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "DeleteAllSubmissions",
                 EntityId = 0,
@@ -510,7 +510,7 @@ public class PhotoSubmissionService(
         // Add audit
         try
         {
-            context.AuditLogs.Add(new Models.AuditLog
+            context.AuditLogs.Add(new AuditLog
             {
                 Action = "UndoGrade",
                 EntityId = submissionId,
@@ -544,7 +544,7 @@ public class PhotoSubmissionService(
                     // Audit
                     try
                     {
-                        context.AuditLogs.Add(new Models.AuditLog
+                        context.AuditLogs.Add(new AuditLog
                         {
                             Action = "DeleteCertificate",
                             EntityId = toRemove.First().Id,
