@@ -8,7 +8,7 @@ This guide will walk you through setting up and running the Pathfinder Photograp
 - 🏆 ELO-based rating system for photo comparison voting
 - 👥 User management (Pathfinder, Instructor, Admin roles)
 - 📊 Admin dashboard with PDF export
-- 🤖 **AI-Powered Photo Analysis** with local Ollama
+- 🤖 **AI-Powered Photo Analysis** with Google Gemini
 - 💼 **Marketing Content Generation** for educational purposes
 
 ## Quick Start Options
@@ -16,7 +16,7 @@ This guide will walk you through setting up and running the Pathfinder Photograp
 Choose your preferred local development setup:
 - **Option 1: .NET Aspire** - Recommended for development with integrated observability
 - **Option 2: Local .NET** - Direct .NET development without containers
-- **AI Features** - Install Ollama for AI photo analysis (see [AI Features Setup](#ai-features-setup))
+- **AI Features** - Configure Google Gemini API for AI photo analysis (see [AI Features Setup](#ai-features-setup))
 
 ## Quick Start (Aspire - Recommended for Local Development)
 
@@ -332,7 +332,7 @@ SELECT * FROM "PhotoSubmissions" LIMIT 5;
 
 ## AI Features Setup
 
-The application includes AI-powered photo analysis and marketing content generation using a local Ollama instance.
+The application includes AI-powered photo analysis and marketing content generation using Google Gemini (Vertex AI).
 
 ### What AI Features Provide
 
@@ -340,102 +340,92 @@ The application includes AI-powered photo analysis and marketing content generat
 - **AI descriptions**: Detailed analysis of composition, lighting, and technique
 - **Composition ratings**: 1-10 scores evaluating how well photos demonstrate composition rules
 - **Marketing education**: Sample headlines, pricing, product copy, and social media posts to teach professional presentation
+- **Marketing images**: AI-generated promotional images using Imagen
 
-### Installing Ollama
+### Setting Up Google Gemini API
 
-1. **Download and install Ollama**:
-   - Visit https://ollama.ai and download for your OS
-   - Or use package managers:
-     ```bash
-     # macOS
-     brew install ollama
-     
-     # Linux
-     curl -fsSL https://ollama.ai/install.sh | sh
-     ```
+1. **Create or use existing Google Cloud Project**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+   - Note the Project ID
 
-2. **Start Ollama service**:
-   ```bash
-   # macOS/Linux - starts automatically or run:
-   ollama serve
-   ```
+2. **Enable required APIs**:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for and enable:
+     - "Vertex AI API"
+     - "Cloud AI Platform API"
 
-3. **Install required models**:
-   ```bash
-   # Vision model (required for image analysis) - ~4.7GB
-   ollama pull llava
-   
-   # Text model (required for marketing content) - ~3.8GB  
-   ollama pull llama2
-   ```
+3. **Create API Key**:
+   - Go to "APIs & Services" > "Credentials"
+   - Click "CREATE CREDENTIALS" > "API key"
+   - Copy the API key and store it securely
+   - Restrict the API key to only the Vertex AI API for security
 
-4. **Verify installation**:
-   ```bash
-   ollama list
-   # Should show llava and llama2
-   
-   curl http://localhost:11434/api/version
-   # Should return version info
-   ```
+4. **Optional: Create Service Account** (for production):
+   - Go to "IAM & Admin" > "Service Accounts"
+   - Create a service account with "Vertex AI User" role
+   - Create and download a JSON key file
+   - Store the JSON key securely
 
 ### Configuration
 
-The default configuration in `appsettings.json` should work if Ollama is running locally:
+Edit `appsettings.Development.json` for local development:
 
 ```json
 {
   "AI": {
-    "Ollama": {
-      "Endpoint": "http://localhost:11434",
-      "VisionModel": "llava",
-      "TextModel": "llama2"
+    "Gemini": {
+      "ProjectId": "your-gcp-project-id",
+      "ApiKey": "your-gemini-api-key",
+      "Location": "us-central1",
+      "VisionModel": "gemini-2.0-flash-exp",
+      "ImageGenerationModel": "imagen-3.0-generate-001"
     }
   }
 }
 ```
 
+**Configuration options**:
+- `ProjectId`: Your Google Cloud Project ID (required)
+- `ApiKey`: Your Gemini API key (required for development)
+- `ServiceAccountJson`: Service account JSON for production (optional)
+- `Location`: GCP region (default: "us-central1")
+- `VisionModel`: Gemini model for analysis (default: "gemini-2.0-flash-exp")
+- `ImageGenerationModel`: Imagen model for image generation (default: "imagen-3.0-generate-001")
+
 ### Using AI Features
 
-Once Ollama is running with the required models:
+Once configured:
 
 1. Submit a photo through the `/submit` page
 2. The photo is saved immediately (not blocked by AI)
 3. AI analysis runs in the background
 4. View results in the Gallery modal or Photo Detail page (`/photo/{id}`)
-5. Results include AI title, description, rating, and marketing ideas
+5. Results include AI title, description, rating, marketing ideas, and generated marketing image
 
 ### Troubleshooting AI Features
 
-- **No AI results showing**: Check Ollama is running (`curl http://localhost:11434/api/version`)
-- **Models not found**: Run `ollama list` to verify models are installed
-- **Slow analysis**: Normal - vision analysis can take 10-60 seconds depending on hardware
+- **No AI results showing**: Check that API key and Project ID are correctly configured
+- **API errors**: Verify that Vertex AI API is enabled in your Google Cloud project
+- **Quota limits**: Check your Google Cloud quota usage if analysis fails
 - **Analysis failed**: Check application logs; the photo submission still succeeds with fallback values
 
 For detailed AI feature documentation, see [AI_FEATURES.md](AI_FEATURES.md).
 
 ### Alternative Models
 
-If you have limited disk space or want faster analysis:
+You can use different Gemini models based on your needs:
 
-```bash
-# Smaller, faster text model (~1.6GB)
-ollama pull phi
+**Vision Models**:
+- `gemini-2.0-flash-exp` (recommended, fast and accurate)
+- `gemini-1.5-pro` (higher quality, slower)
+- `gemini-1.5-flash` (faster, good balance)
 
-# Update appsettings.json:
-"TextModel": "phi"
-```
+**Image Generation Models**:
+- `imagen-3.0-generate-001` (latest, highest quality)
+- `imagen-2.0-generate-001` (previous version)
 
-For better quality with more disk space:
-
-```bash
-# Larger vision model (~8GB)
-ollama pull llava:13b
-
-# Larger text model (~7.4GB)
-ollama pull llama2:13b
-
-# Update appsettings.json accordingly
-```
+Update the model names in your configuration to use different models.
 
 ## Quick Links
 - README overview: `./.github/README.md`
