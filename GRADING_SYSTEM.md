@@ -7,6 +7,7 @@ The Pathfinder Photography application includes a role-based grading system that
 ## Roles
 
 ### Pathfinder (Default Role)
+
 - All users start with the Pathfinder role when they first sign in
 - Can submit photos for composition rules
 - Can view their own submissions and grades
@@ -14,6 +15,7 @@ The Pathfinder Photography application includes a role-based grading system that
 - Cannot resubmit photos that have passed
 
 ### Instructor
+
 - Can view all photo submissions from all pathfinders
 - Can grade submissions as Pass or Fail
 - Can view submission history and versions
@@ -68,16 +70,19 @@ The Pathfinder Photography application includes a role-based grading system that
 ## Features
 
 ### Grade Status Indicators
+
 - **Not Graded** (Gray badge) - Awaiting instructor review
 - **Pass** (Green badge with ✓) - Approved
 - **Fail** (Red badge with ✗) - Needs resubmission
 
 ### Submission Versioning
+
 - When a pathfinder resubmits a failed photo, it creates a new version
 - Version numbers are displayed (v1, v2, v3, etc.)
 - Instructors can see which submissions are resubmissions
 
 ### Gallery Updates
+
 - The Gallery page now shows grade status for each submission
 - Filter by grade status to see only passed, failed, or ungraded submissions
 - Version badges indicate resubmissions
@@ -120,6 +125,7 @@ Admins can delete users who shouldn't be submitting photos to the system:
 ## Workflow Example
 
 ### Typical Student Workflow
+
 1. Student signs in → Automatically created as Pathfinder
 2. Submits 10 photos (one for each composition rule)
 3. Instructor grades the submissions
@@ -129,6 +135,7 @@ Admins can delete users who shouldn't be submitting photos to the system:
 7. Process continues until all 10 photos pass
 
 ### Typical Instructor Workflow
+
 1. Instructor is promoted via `/admin/users`
 2. Signs in and sees "Grade Submissions" in menu
 3. Reviews ungraded submissions
@@ -150,9 +157,9 @@ Admins can delete users who shouldn't be submitting photos to the system:
 When a pathfinder successfully passes all 11 composition rules, the system automatically:
 
 1. **Generates a completion certificate** - A professional PDF certificate with the pathfinder's name and completion date
-2. **Stores it in the database** - The certificate is saved for future re-download
-3. **Emails it to the pathfinder** - An automatic email is sent with the certificate attached
-4. **Makes it available for download** - Pathfinders can access their certificate anytime from the "My Certificate" page
+1. **Stores it in the database** - The certificate is saved for future re-download
+1. **Emails it to the pathfinder** - An automatic email is sent with the certificate attached
+1. **Makes it available for download** - Pathfinders can access their certificate anytime from the "My Certificate" page
 
 ### Accessing Your Certificate
 

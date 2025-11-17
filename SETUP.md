@@ -68,14 +68,14 @@ Choose your preferred local development setup:
 3. Authorized redirect URIs:
    - Local dev HTTPS: `https://localhost:5001/signin-google`
    - Local dev HTTP: `http://localhost:5000/signin-google`
-   - Docker local: `http://localhost:8080/signin-google`
    - Aspire (check port): e.g. `https://localhost:7152/signin-google`
    - Production: `https://your-domain.com/signin-google`
 4. Create and copy Client ID & Secret
 
 ### Step 5: Configure Application
 
-**For local development** (`appsettings.Development.json`):
+**For local development** (`secrets.json`):
+
 ```json
 {
   "Authentication": {
@@ -100,7 +100,8 @@ Used to notify instructors/admins of new submissions and pathfinders of grading 
 
 ### Configure
 
-**For local development** (`appsettings.Development.json`):
+**For local development** (`secrets.json`):
+
 ```json
 {
   "Email": {
@@ -117,10 +118,8 @@ Used to notify instructors/admins of new submissions and pathfinders of grading 
 
 **For production deployment**, see [DEPLOY.md](DEPLOY.md) for secure configuration ([Step 3: Install Application](deploy/03-install-application.md)).
 
-### Disable Email
-Leave `SmtpHost` blank or omit the Email section entirely.
-
 ### Test
+
 1. Submit a photo (instructor/admin should receive notification).
 2. Grade a photo (pathfinder should receive email).
 3. Check logs if issues arise.
@@ -134,13 +133,7 @@ Leave `SmtpHost` blank or omit the Email section entirely.
 
 ### Steps
 1. Install PostgreSQL (remember password).
-2. Create Database:
-   ```bash
-   psql -U postgres
-   CREATE DATABASE pathfinder_photography;
-   \q
-   ```
-3. Configure Connection String in `appsettings.Development.json`:
+1. Configure Connection String in `appsettings.Development.json`:
    ```json
    {
      "ConnectionStrings": {
@@ -154,17 +147,14 @@ Leave `SmtpHost` blank or omit the Email section entirely.
      }
    }
    ```
-4. Apply Migrations:
-   ```bash
-   dotnet ef database update
-   ```
-5. Run Application:
+1. Run Application:
    ```bash
    dotnet run
    ```
-6. Access: https://localhost:5001 or http://localhost:5000
+1. Access: https://localhost:5001 or http://localhost:5000
 
 ## Creating New Migrations
+
 After model changes:
 ```bash
 dotnet ef migrations add MeaningfulName
@@ -192,7 +182,8 @@ For production deployment on Ubuntu servers or VMs, see the wizard-style deploym
 - [Security & Performance](deploy/08-security-performance.md) - Security hardening and optimization
 
 ### Important Notes
-- Use HTTPS for Google OAuth in production
+
+- - Use HTTPS for Google OAuth in production
 - Keep PostgreSQL credentials secure
 - Back up database regularly (photos are stored in database)
 - Follow the deployment checklist in [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)
@@ -200,6 +191,7 @@ For production deployment on Ubuntu servers or VMs, see the wizard-style deploym
 ## Observability & Health
 
 ### Aspire / OpenTelemetry with SigNoz
+
 When running via AppHost, all SigNoz observability components are automatically started and configured:
 - **SigNoz UI**: Access at http://localhost:3301 (check Aspire Dashboard for exact URL)
 - **Automatic telemetry collection**: Traces, logs, and metrics are automatically sent to SigNoz
@@ -248,6 +240,7 @@ This automatically starts:
 Access SigNoz UI at http://localhost:3301 (check Aspire Dashboard for exact URL).
 
 ### Benefits of Aspire Integration
+
 - **Zero manual configuration**: All connection strings and secrets are automatically configured
 - **One-command startup**: All services start together with `dotnet run`
 - **Persistent data**: SigNoz data is preserved across restarts
@@ -255,6 +248,7 @@ Access SigNoz UI at http://localhost:3301 (check Aspire Dashboard for exact URL)
 - **Development-focused**: Optimized for local development and debugging
 
 ## User Roles & Admin Management
+
 Roles:
 - 0 Pathfinder (default)
 - 1 Instructor
@@ -263,6 +257,7 @@ Roles:
 First authenticated user becomes Admin automatically. Subsequent Admins must be promoted via direct DB update.
 
 ### Admin Features
+
 - Navigate to `/admin/users` to manage users
 - Promote users to Instructor role
 - Demote users back to Pathfinder role
@@ -270,6 +265,7 @@ First authenticated user becomes Admin automatically. Subsequent Admins must be 
 - When a user is deleted, ELO ratings are recalculated for affected photos based on the remaining votes
 
 ### Promote User to Admin (Database)
+
 ```bash
 psql -U postgres pathfinder_photography
 UPDATE "Users" SET "Role" = 2 WHERE "Email" = 'email@example.com';
@@ -289,23 +285,26 @@ SELECT "Name","Email","Role" FROM "Users";
 ## Troubleshooting
 
 ### "Invalid redirect_uri"
+
 Match protocol, port, and path exactly in Google Console.
 
 ### Database Connection Issues
+
 Check PostgreSQL service status, credentials, and network connectivity.
 
 ### Photos Not Uploading
+
 Check file size (<10MB), disk space, database connectivity, and application logs for errors.
 
 ### Email Failures
+
 Confirm App Password usage; inspect logs for SMTP errors; verify port 587 is accessible.
 
 ## Database Management
 
 ### Admin Users
-See User Roles above. Only first user auto-admin; others manual SQL updates.
 
-### Backup Database
+See User Roles above. Only first user auto-admin; others manual SQL updates.
 
 ### Backup Database
 
@@ -369,7 +368,7 @@ The application includes AI-powered photo analysis and marketing content generat
 
 ### Configuration
 
-Edit `appsettings.Development.json` for local development:
+Edit `secrets.json` for local development:
 
 ```json
 {
@@ -428,12 +427,13 @@ You can use different Gemini models based on your needs:
 Update the model names in your configuration to use different models.
 
 ## Quick Links
-- README overview: `./.github/README.md`
+- README overview: [README.md](./.github/README.md)
 - Production deployment: [DEPLOY.md](DEPLOY.md)
 - AI Features documentation: [AI_FEATURES.md](AI_FEATURES.md)
-- SigNoz details: `signoz/README.md`
+- SigNoz details: [Signoz](signoz/README.md)
 
 ## Support
+
 For issues:
 - Review logs / dashboard
 - Check README & this guide

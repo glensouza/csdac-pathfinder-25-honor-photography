@@ -26,14 +26,15 @@ For detailed step-by-step instructions, see:
 ### Pre-Deployment
 
 #### Required Information
-- [ ] Server/VM IP address or domain name
+
+- [ ] - [ ] Server/VM IP address or domain name
 - [ ] Google OAuth Client ID
 - [ ] Google OAuth Client Secret
 - [ ] PostgreSQL password (secure, random - use `openssl rand -base64 32`)
 - [ ] Email SMTP settings for notifications
-- [ ] SSL certificate domain (if using Let's Encrypt)
 
 #### Prerequisites Verified
+
 - [ ] Ubuntu 22.04 LTS or later installed (physical server, VM, or cloud instance)
 - [ ] Root or sudo access available
 - [ ] At least 20GB free disk space (50GB+ recommended)
@@ -47,6 +48,7 @@ For detailed step-by-step instructions, see:
 See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step pages linked in the checklist above.
 
 #### Step 1: PostgreSQL
+
 - [ ] Installed PostgreSQL 16
 - [ ] Created database: `pathfinder_photography`
 - [ ] Created user: `pathfinder` with strong password
@@ -54,13 +56,14 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] Verified connection works
 
 #### Step 2: .NET Runtime
+
 - [ ] Installed ASP.NET Core Runtime 9.0
 - [ ] Verified installation: `dotnet --list-runtimes`
 
 #### Step 3: Application
+
 - [ ] Created pathfinder system user
 - [ ] Deployed application to `/opt/pathfinder-photography`
-- [ ] Created uploads directory with correct permissions
 - [ ] Configured `appsettings.Production.json` with proper permissions (600)
 
 > Production-specific configuration to add/check:
@@ -68,6 +71,7 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 > - [ ] DataProtection keys directory configured via `StateDirectory=pathfinder-keys` in systemd service file (creates `/var/lib/pathfinder-keys` automatically with proper permissions).
 
 #### Step 4: Systemd Service
+
 - [ ] Created service file: `/etc/systemd/system/pathfinder-photography.service`
 - [ ] Enabled and started service
 - [ ] Verified service is running
@@ -79,9 +83,9 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 > - Recommended: enable systemd notifications in the app (`builder.Host.UseSystemd();`) and revert to `Type=notify` for proper readiness handling.
 
 #### Step 5: Nginx
+
 - [ ] Installed and configured Nginx
 - [ ] Configured reverse proxy for application
-- [ ] Obtained SSL certificate (Let's Encrypt)
 - [ ] Verified HTTPS working
 - [ ] Added security headers
 
@@ -90,12 +94,14 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 > - Ensure `proxy_set_header X-Forwarded-Proto $scheme;` is present to allow HTTPS redirects to work.
 
 #### Step 6: Firewall
+
 - [ ] Allowed SSH (port 22) BEFORE enabling firewall
 - [ ] Allowed HTTP (port 80) and HTTPS (port 443)
 - [ ] Set default-deny policy
 - [ ] Enabled and verified firewall
 
 #### Step 7: Automated Deployments
+
 - [ ] Created github-runner user (NOT in sudo group)
 - [ ] Configured passwordless sudo via `/etc/sudoers.d/github-runner`
 - [ ] Downloaded and configured GitHub Actions runner
@@ -117,6 +123,7 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 ### Post-Deployment Verification
 
 #### Services Running
+
 - [ ] PostgreSQL service active: `systemctl is-active postgresql`
 - [ ] Application service active: `systemctl is-active pathfinder-photography`
 - [ ] Nginx service active: `systemctl is-active nginx`
@@ -124,18 +131,21 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] No errors in application logs: `journalctl -u pathfinder-photography -n 100`
 
 #### Application Access
+
 - [ ] Can access https://your-domain.com from browser
 - [ ] Home page loads correctly
 - [ ] Can see all 10 composition rules
 - [ ] SSL certificate is valid (no browser warnings)
 
 #### Google Authentication
+
 - [ ] "Sign in with Google" button appears
 - [ ] Clicking redirects to Google OAuth
 - [ ] After authentication, redirected back to app
 - [ ] Signed in with correct user name
 
 #### User Roles
+
 - [ ] First signed-in user automatically has Admin role
 - [ ] Admin can access `/admin/users` page
 - [ ] Admin can promote users to Instructor
@@ -143,6 +153,7 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] Verified ELO ratings recalculate when users are deleted
 
 #### Photo Upload
+
 - [ ] Navigated to Submit page
 - [ ] Selected a composition rule
 - [ ] Uploaded a test photo (<10MB)
@@ -152,6 +163,7 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] Photo displays correctly when clicked
 
 #### Database
+
 - [ ] Database is accessible:
   ```bash
   sudo -u pathfinder psql -h localhost -U pathfinder -d pathfinder_photography -c "SELECT COUNT(*) FROM \"PhotoSubmissions\";"
@@ -159,12 +171,14 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] Data persists after service restart
 
 #### Health Endpoints
+
 - [ ] `/health` endpoint responds
 - [ ] `/alive` endpoint responds
 - [ ] `/ready` endpoint responds
 - [ ] `/metrics` endpoint responds (if enabled)
 
 ### Security Hardening
+
 - [ ] Changed PostgreSQL password to strong random password
 - [ ] Firewall configured with default-deny policy
 - [ ] Using strong passwords for all services
@@ -176,15 +190,16 @@ See the detailed wizard-style guide at [DEPLOY.md](DEPLOY.md) or individual step
 - [ ] Nginx security headers configured
 
 ### Backup Strategy
+
 - [ ] Created backup script: `/opt/backups/backup-pathfinder-db.sh`
 - [ ] Script backs up database
-- [ ] Script backs up uploaded photos
 - [ ] Script keeps last 7 days of backups
 - [ ] Scheduled backup script in crontab (daily at 2 AM)
 - [ ] Test backup created successfully
 - [ ] Test restore successful
 
 ### Monitoring
+
 - [ ] Configured log rotation in journald
 - [ ] Set up external monitoring/alerting
 - [ ] Configured health check script
@@ -235,6 +250,7 @@ If issues occurred, verify resolved:
 ## Production Readiness
 
 ### For Church/Organization Use
+
 - [ ] Announced to pathfinders
 - [ ] Instructions provided to users
 - [ ] Support contact available
@@ -309,6 +325,7 @@ sudo tail -f /var/log/nginx/pathfinder-photography-access.log
 For local development with .NET Aspire or local .NET, see [SETUP.md](SETUP.md).
 
 ### Quick Start with Aspire
+
 - [ ] Cloned repository
 - [ ] Configured Google OAuth in `appsettings.Development.json`
 - [ ] Started Aspire: `dotnet run --project PathfinderPhotography.AppHost`

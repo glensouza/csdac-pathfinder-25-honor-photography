@@ -12,14 +12,14 @@ A Blazor Server web application for SDA Pathfinders from Corona SDA church to su
 - **User Management**: Admin users can promote/demote users between Pathfinder and Instructor roles
 - **Admin Dashboard**: Comprehensive dashboard with statistics, analytics, and quick actions for admins
 - **PDF Export**: Generate detailed PDF reports of submissions and pathfinder progress
-- **Email Notifications**: Automatic email notifications for grading and new submissions (optional)
+- **Email Notifications**: Automatic email notifications for grading and new submissions
 - **Educational Content**: Learn about 10 essential photography composition rules with descriptions and explanations
 - **Photo Submission**: Upload photos for each composition rule with personal descriptions
 - **Automatic Name Tracking**: User names are automatically pulled from Google account
 - **Gallery View**: Browse all submitted photos with filtering by rule or pathfinder name
 - **PostgreSQL Database**: Robust data persistence for submissions
 - **Observability**: Built-in telemetry, metrics, and distributed tracing with OpenTelemetry
-- **SigNoz Integration**: Advanced telemetry dashboards with SigNoz (optional)
+- **SigNoz Integration**: Advanced telemetry dashboards with SigNoz
 
 ## 10 Composition Rules
 
@@ -67,6 +67,7 @@ First user to sign in automatically becomes Admin.
 ## Documentation
 
 ### Setup & Deployment
+
 - **[SETUP.md](../SETUP.md)** - Complete local development setup guide
   - .NET Aspire orchestration (recommended for local development)
   - Local .NET option
@@ -94,6 +95,7 @@ First user to sign in automatically becomes Admin.
   - Backup verification
 
 ### Application Guides
+
 - **[GRADING_SYSTEM.md](../GRADING_SYSTEM.md)** - Role-based grading system
   - User roles and permissions
   - Grading workflow for instructors
@@ -108,6 +110,7 @@ First user to sign in automatically becomes Admin.
   - API endpoints
 
 ### Contributing
+
 - **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
   - How to contribute
   - Development workflow
@@ -120,6 +123,7 @@ First user to sign in automatically becomes Admin.
   - Reporting guidelines
 
 ### Security
+
 - **[SECURITY.md](SECURITY.md)** - Security policy
   - Reporting vulnerabilities
   - Security update process
@@ -143,11 +147,16 @@ sudo systemctl start pathfinder-photography
 sudo systemctl stop pathfinder-photography
 sudo systemctl restart pathfinder-photography
 sudo systemctl status pathfinder-photography
-
+```
 # View logs
+
+```bash
 sudo journalctl -u pathfinder-photography -f
+```
 
 # Database backup
+
+```bash
 sudo -u postgres pg_dump pathfinder_photography > backup.sql
 ```
 

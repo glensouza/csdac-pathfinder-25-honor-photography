@@ -204,3 +204,76 @@ If you have questions or need help:
 - Reach out to the project maintainers
 
 Thank you for contributing to this educational project! 🎉
+
+---
+
+## Guidance for Copilot when writing documentation
+
+Purpose: provide explicit, actionable rules so Copilot produces consistent, well-formatted, and audience-appropriate Markdown documentation for this project.
+
+- Prefer Markdown native elements; avoid HTML unless necessary.
+- Use headings to show document structure. Start with a single H1 and use H2/H3 for sub-sections.
+- Keep paragraphs short (1-3 sentences). Use bulleted or numbered lists for steps and enumerations.
+- Use backticks for inline code, file names, directories, function names, classes, and commands (e.g., `SETUP.md`, `dotnet run`, `PathfinderPhotography.AppHost`).
+- Use fenced code blocks for commands and code examples. Specify language for syntax highlighting (e.g., ```bash, ```csharp).
+- When documenting commands, show the full command and a short explanation on the next line.
+- Provide examples and expected outputs for commands where helpful.
+- Ensure all repository-relative links use correct relative paths (e.g., `[SETUP.md](../SETUP.md)`). Verify links exist before referencing them.
+- Use accessible language: prefer simple sentences, define jargon, and include a short "Who this is for" note when the audience may vary.
+- For content aimed at Pathfinders (10-15 years old), include brief explanations for why steps are done and actionable next steps.
+- When writing step-by-step guides, use numbered lists and include prerequisite checks at the top.
+- Keep list items concise; break complex steps into sub-steps.
+- Add a "Troubleshooting" section for common errors and how to diagnose them (include exact error text and suggested checks).
+- Add a "Verification" or "How to test" section that shows how to confirm the step worked.
+- For configuration examples, include realistic default values but never include secrets or real credentials. Add a placeholder pattern: `<YOUR_VALUE_HERE>`.
+- Use consistent tense and voice (imperative for instructions).
+- Keep line length reasonable (~80-100 chars) to help readability in editors.
+- Use emojis sparingly and only when they add clarity (e.g., checklists).
+- When adding or updating docs, update the `DEPLOYMENT_CHECKLIST.md` or related index files if applicable.
+
+Checklist for generated docs (use this as a final-pass template):
+1. Title and short description (one sentence)
+2. Audience and prerequisites
+3. Step-by-step instructions with code blocks and examples
+4. Verification steps and expected results
+5. Troubleshooting guidance for common failures
+6. Links to related docs and references
+7. No secrets included
+8. Short summary or next steps
+
+Examples (format):
+
+Title: How to run the app locally
+
+Short description: Run the Blazor Server app locally for development.
+
+Prerequisites:
+1. .NET 9 SDK installed
+2. PostgreSQL running and a `pathfinder` database created
+
+Steps:
+1. Restore packages:
+
+```bash
+dotnet restore
+```
+
+2. Run the app:
+
+```bash
+dotnet run --project PathfinderPhotography.AppHost
+```
+
+Verification:
+- Open `https://localhost:5001` in your browser and verify the home page loads.
+
+Troubleshooting:
+- If port conflict occurs, run `dotnet run --urls "https://localhost:5002"` and retry.
+
+
+Notes for Copilot authors:
+- When in doubt, ask for clarification instead of guessing architecture or sensitive values.
+- Keep suggestions short and focused; prefer linking to existing docs in the repo over creating new ones.
+- When creating or editing docs, ensure changes follow existing naming and style patterns in this repo.
+
+---

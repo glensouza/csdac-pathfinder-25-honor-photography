@@ -28,9 +28,11 @@ Before starting, gather the following:
 ## 🎯 Deployment Options
 
 ### Manual Deployment
+
 Follow each step in order using the links above. This is recommended for first-time deployments to understand the process.
 
 ### Automated Deployment
+
 After completing the initial manual setup, you can configure automated deployments via GitHub Actions. See [Step 7](deploy/07-automated-deployments.md) for details.
 
 ## 📖 Additional Resources
