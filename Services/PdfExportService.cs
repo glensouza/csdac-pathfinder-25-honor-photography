@@ -309,15 +309,15 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                 page.DefaultTextStyle(x => x.FontSize(14));
 
                 page.Content()
-                    .PaddingVertical(2, Unit.Centimetre)
+                    .PaddingVertical(1.5f, Unit.Centimetre)
                     .Column(column =>
                     {
-                        column.Spacing(20);
+                        column.Spacing(15);
 
                         // Certificate border
-                        column.Item().Border(3).BorderColor(Colors.Blue.Darken2).Padding(30).Column(innerColumn =>
+                        column.Item().Border(3).BorderColor(Colors.Blue.Darken2).Padding(25).Column(innerColumn =>
                         {
-                            innerColumn.Spacing(25);
+                            innerColumn.Spacing(15);
 
                             // Title
                             innerColumn.Item().AlignCenter().Text("Certificate of Completion")
@@ -334,7 +334,7 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                                 .Width(400).Height(2).Background(Colors.Blue.Lighten2);
 
                             // Main text
-                            innerColumn.Item().PaddingTop(20).AlignCenter().Text("This certifies that")
+                            innerColumn.Item().PaddingTop(10).AlignCenter().Text("This certifies that")
                                 .FontSize(18);
 
                             innerColumn.Item().AlignCenter().Text(pathfinderName)
@@ -351,32 +351,18 @@ public class PdfExportService(IDbContextFactory<ApplicationDbContext> contextFac
                                 .FontSize(18);
 
                             // Composition rules completed
-                            innerColumn.Item().PaddingTop(20).AlignCenter().Text($"All {allRules.Count} Composition Rules Mastered:")
+                            innerColumn.Item().PaddingTop(15).AlignCenter().Text($"All {allRules.Count} Composition Rules Mastered")
                                 .FontSize(14)
                                 .SemiBold();
 
-                            innerColumn.Item().AlignCenter().PaddingHorizontal(40)
-                                .DefaultTextStyle(x => x.FontSize(11).FontColor(Colors.Grey.Darken2))
-                                .Text(text =>
-                                {
-                                    foreach (CompositionRule rule in allRules)
-                                    {
-                                        text.Span($"{rule.Name}");
-                                        if (rule.Id < allRules.Count)
-                                        {
-                                            text.Span(" • ");
-                                        }
-                                    }
-                                });
-
                             // Date
-                            innerColumn.Item().PaddingTop(30).AlignCenter()
+                            innerColumn.Item().PaddingTop(15).AlignCenter()
                                 .Text($"Date of Completion: {completionDate:MMMM dd, yyyy}")
                                 .FontSize(16)
                                 .FontColor(Colors.Grey.Darken1);
 
                             // Footer
-                            innerColumn.Item().PaddingTop(20).AlignCenter()
+                            innerColumn.Item().PaddingTop(10).AlignCenter()
                                 .Text("Congratulations on your achievement!")
                                 .FontSize(14)
                                 .Italic()
