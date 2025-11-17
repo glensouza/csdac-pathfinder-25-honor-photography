@@ -10,6 +10,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JSRuntime
 @inject ILogger<Settings> Logger
+@inject EmailNotificationService EmailService
 @attribute [Authorize]
 @rendermode InteractiveServer
 
@@ -50,6 +51,27 @@
             </div>
         </div>
 
+        <!-- Test Email Card -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Email Test</h5>
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                        <label class="form-label">Destination Email</label>
+                        <input class="form-control" @bind="testEmail" placeholder="admin@example.com" />
+                    </div>
+                    <div class="col-auto mt-4">
+                        <button class="btn btn-primary" @onclick="SendTestEmail" disabled="@isSendingTest">Send Test Email</button>
+                    </div>
+                </div>
+                <small class="text-muted d-block mt-2">This will send a simple test email using current SMTP configuration.</small>
+                @if (!string.IsNullOrEmpty(testStatusMessage))
+                {
+                    <div class="mt-2 alert @(testStatusIsError ? "alert-danger" : "alert-success")">@testStatusMessage</div>
+                }
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-md-7">
                 <div class="card mb-4">
@@ -76,7 +98,7 @@
                                             <td>@submission.PathfinderName</td>
                                             <td>@submission.CompositionRuleName</td>
                                             <td>@submission.AiProcessingStatus</td>
-                                            <td>@(submission.AiRating.HasValue ? submission.AiRating.ToString() : "—")</td>
+                                            <td>@(submission.AiRating.HasValue ? submission.AiRating.ToString() : "ï¿½")</td>
                                             <td>
                                                 @switch (submission.GradeStatus)
                                                 {
@@ -172,14 +194,22 @@
     private string? modalTitle;
     private string? modalMessage;
 
+    // Test email fields
+    private string testEmail = string.Empty;
+    private bool isSendingTest = false;
+    private string testStatusMessage = string.Empty;
+    private bool testStatusIsError = false;
+
     protected override async Task OnInitializedAsync()
     {
         AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         ClaimsPrincipal user = authState.User;
 
+        string currentUserEmail = string.Empty;
+
         if (user.Identity?.IsAuthenticated == true)
         {
-            string currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+            currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
             string currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
 
             if (!string.IsNullOrEmpty(currentUserEmail))
@@ -195,6 +225,9 @@
         }
 
         await LoadData();
+
+        // Prefill test email with admin email if available
+        testEmail = currentUserEmail;
     }
 
     private async Task LoadData()
@@ -275,6 +308,37 @@
         {
             pendingAction = ActionType.None;
             pendingId = 0;
+        }
+    }
+
+    private async Task SendTestEmail()
+    {
+        testStatusMessage = string.Empty;
+        testStatusIsError = false;
+
+        if (string.IsNullOrWhiteSpace(testEmail))
+        {
+            testStatusMessage = "Please enter a destination email address.";
+            testStatusIsError = true;
+            return;
+        }
+
+        isSendingTest = true;
+        try
+        {
+            await EmailService.SendTestEmailAsync(testEmail, "Admin");
+            testStatusMessage = $"Test email sent to {testEmail}. Check inbox and spam folder.";
+            testStatusIsError = false;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        {
+            testStatusMessage = $"Failed to send test email: {ex.Message}";
+            testStatusIsError = true;
+            Logger.LogError(ex, "Failed to send test email to {Email}", testEmail);
+        }
+        finally
+        {
+            isSendingTest = false;
         }
     }
 
