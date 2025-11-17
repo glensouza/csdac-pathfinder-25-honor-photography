@@ -77,38 +77,30 @@ Benefits:
 
 Access points:
 - **Application**: Check Aspire Dashboard for URL
-- **SigNoz UI**: http://localhost:3301
+- **SigNoz UI**: http://localhost:3301 or http://localhost:3302 (check Aspire Dashboard)
 - **Aspire Dashboard**: Shown in console output
 
-### Option 2: Using Docker Compose (Manual Setup)
+## Production Deployment
 
-```bash
-# Start all services including SigNoz
-docker-compose --profile signoz up -d
+For production environments on Ubuntu servers, SigNoz can be deployed separately:
+- See [DEPLOY.md](../DEPLOY.md) Step 5 for production SigNoz installation
+- Production uses native installation on Ubuntu, not containers
+- Configuration files in this directory are used by Aspire for local development
 
-# Access the application
-http://localhost:8080
-
-# Access SigNoz UI
-http://localhost:3301
-```
-
-### Services and Ports
+### Services and Ports (Aspire Development)
 
 | Service | Port | Description |
 |---------|------|-------------|
-| Pathfinder Photography | 8080 | Main application |
-| **SigNoz Nginx Proxy** | **3301** (Docker), **3302** (Aspire) | **Reverse proxy for SigNoz UI (use this!)** |
+| Pathfinder Photography | Dynamic | Main application (check Aspire Dashboard) |
+| **SigNoz Nginx Proxy** | **3301** or **3302** | **Reverse proxy for SigNoz UI (use this!)** |
 | SigNoz Frontend | Internal only | SigNoz UI (accessed through nginx proxy) |
 | SigNoz Query Service | 6060, 8081 | Query service API (accessed through nginx proxy) |
 | OpenTelemetry Collector | 4317, 4318 | OTLP receivers (gRPC, HTTP) |
 | ClickHouse | 9000, 8123 | Database |
-| PostgreSQL | 5432 | Application database |
+| PostgreSQL | Dynamic | Application database (managed by Aspire) |
 | Alert Manager | 9093 | Alert management |
 
-**Important:** Access SigNoz UI through the nginx proxy at:
-- Docker Compose: http://localhost:3301
-- Aspire: http://localhost:3302
+**Important:** Access SigNoz UI through the nginx proxy. Check the Aspire Dashboard for the exact URL.
 
 ## Configuration Files
 
@@ -176,7 +168,7 @@ Alert manager routing and notification configuration.
 
 ## Environment Variables
 
-### With Aspire Integration (Automatic)
+### With Aspire Integration (Automatic - Recommended)
 
 When running via `dotnet run --project PathfinderPhotography.AppHost`, all environment variables are automatically configured:
 
@@ -186,22 +178,22 @@ When running via `dotnet run --project PathfinderPhotography.AppHost`, all envir
 
 No manual configuration needed!
 
-### With Docker Compose (Manual)
+### Production Deployment
 
-The application exports telemetry when these variables are set:
-
-```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4317
-OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
-```
-
-These are pre-configured in `docker-compose.yml` when using the `signoz` profile.
+For production environments:
+- See [DEPLOY.md](../DEPLOY.md) Step 5 for SigNoz installation on Ubuntu
+- Manual configuration of OTLP endpoint in application configuration
+- Native installation, not containers
 
 ## Data Persistence
 
-SigNoz data is persisted in Docker volumes:
+With Aspire, SigNoz data is persisted in Docker volumes managed by Aspire:
 - `clickhouse-data`: ClickHouse database files
 - `signoz-data`: SigNoz application data
+- `zookeeper-data`: Zookeeper coordination data
+- `alertmanager-data`: Alert manager data
+
+These volumes persist across Aspire restarts.
 
 ## Customization
 
@@ -239,28 +231,28 @@ For production:
 ## Troubleshooting
 
 ### SigNoz UI not accessible
-```bash
-# Check if services are running
-docker-compose -f docker-compose.signoz.yml ps
 
-# Check frontend logs
-docker-compose -f docker-compose.signoz.yml logs signoz-frontend
-```
+**With Aspire:**
+1. Check the Aspire Dashboard for service status
+2. Verify all SigNoz containers are running (shown in Aspire Dashboard)
+3. Check the exact URL in the Aspire Dashboard endpoints
+
+**Production:**
+- See [DEPLOY.md](../DEPLOY.md) Step 5 for SigNoz troubleshooting
 
 ### No data showing in SigNoz
-```bash
-# Check collector logs
-docker-compose -f docker-compose.signoz.yml logs signoz-otel-collector
 
-# Verify application is sending data
-docker-compose -f docker-compose.signoz.yml logs pathfinder-photography | grep -i otel
-```
+**With Aspire:**
+1. Check application logs in Aspire Dashboard
+2. Verify `OTEL_EXPORTER_OTLP_ENDPOINT` is set correctly (should be automatic)
+3. Check SigNoz collector logs in Aspire Dashboard
 
 ### ClickHouse connection issues
-```bash
-# Check ClickHouse health
-docker-compose -f docker-compose.signoz.yml exec signoz-clickhouse wget -qO- localhost:8123/ping
-```
+
+**With Aspire:**
+- Check service health in Aspire Dashboard
+- All services should show as "Running"
+- If issues persist, restart the AppHost
 
 ### 405 Error when registering first admin account
 
@@ -270,19 +262,12 @@ If you encounter a 405 (Method Not Allowed) error when trying to register the fi
 POST http://localhost:3301/api/v1/register 405 (Not Allowed)
 ```
 
-**Solution:** This is fixed by the nginx reverse proxy configuration. The proxy routes `/api/*` requests to the query service backend.
+**Solution:** This is fixed by the nginx reverse proxy configuration included in the Aspire setup. The proxy routes `/api/*` requests to the query service backend.
 
-**Verification:**
-```bash
-# Check all SigNoz containers are running
-docker compose --profile signoz ps
-
-# Verify nginx proxy is running
-docker compose --profile signoz logs signoz-nginx
-
-# Test the proxy routing
-curl -v http://localhost:3301/api/v1/version
-```
+**With Aspire:** This should work automatically. If issues occur:
+1. Check Aspire Dashboard to ensure nginx proxy is running
+2. Verify all SigNoz services are healthy
+3. Restart the AppHost if needed
 
 The nginx proxy configuration (`signoz/nginx.conf`) handles:
 - Browser → `/api/v1/register` → Query Service (POST succeeds)
@@ -292,18 +277,20 @@ The nginx proxy configuration (`signoz/nginx.conf`) handles:
 ```
 Browser makes API call
     ↓
-Nginx Proxy (localhost:3301)
+Nginx Proxy (managed by Aspire)
     ↓
 Routes /api/* to Query Service
     ↓
-Registration succeeds!
+Query Service handles registration
 ```
 
-If you're still experiencing issues:
-1. Ensure the nginx proxy container is running: `docker compose --profile signoz ps signoz-nginx`
-2. Check nginx logs: `docker compose --profile signoz logs signoz-nginx`
+Registration succeeds!
+
+If you're still experiencing issues with Aspire:
+1. Check Aspire Dashboard to ensure nginx proxy container is running
+2. View nginx logs in the Aspire Dashboard
 3. Verify the nginx.conf file exists: `ls -la signoz/nginx.conf`
-4. Restart the nginx container: `docker compose --profile signoz restart signoz-nginx`
+4. Restart the AppHost
 
 ## Disabling SigNoz
 
@@ -311,14 +298,9 @@ If you're still experiencing issues:
 
 To run without SigNoz, you would need to modify `PathfinderPhotography.AppHost/Program.cs` and comment out the SigNoz container definitions. However, since SigNoz runs in containers with minimal overhead, it's recommended to keep it enabled for development.
 
-### With Docker Compose
+### Production
 
-To run the application without SigNoz:
-
-```bash
-# Use the standard docker-compose file without the signoz profile
-docker-compose up -d
-```
+For production deployments on Ubuntu, SigNoz is optional. See [DEPLOY.md](../DEPLOY.md) Step 5.
 
 ## Resources
 

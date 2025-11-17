@@ -4,10 +4,11 @@ This application includes AI-powered photo analysis and marketing content genera
 
 ## Overview
 
-When a photo is submitted, the system automatically analyzes it using a local Ollama instance running vision and text models. This provides:
+When a photo is submitted, the system automatically analyzes it using Google Gemini (Vertex AI) vision and text models. This provides:
 
 1. **AI Analysis**: Automated description, title suggestion, and composition rating
 2. **Marketing Education**: Sample marketing materials to teach professional presentation
+3. **Marketing Images**: AI-generated promotional images using Google Imagen
 
 ## Features
 
@@ -28,58 +29,81 @@ To help young photographers understand professional presentation, the AI generat
 - **Suggested Price**: A realistic price range ($5-$25) for an 8x10 print, teaching basic pricing concepts
 - **Social Media Post**: A fun, shareable social media post under 280 characters with relevant hashtags
 
+### 3. AI-Generated Marketing Images
+
+Using Google Imagen, the system generates:
+
+- **Marketing Image**: A professional promotional image based on the photo's content and AI analysis
+- **Educational Tool**: Helps students understand how to present their work visually
+
 ## Technical Setup
 
 ### Prerequisites
 
-1. **Ollama Installation**: You must have Ollama running locally
-   - Download and install from: https://ollama.ai
-   - Default endpoint: `http://localhost:11434`
+1. **Google Cloud Project**: You need a Google Cloud project with billing enabled
+   - Create a project at [Google Cloud Console](https://console.cloud.google.com/)
+   - Note your Project ID
 
-2. **Required Models**:
-   ```bash
-   # Install a vision model (required for image analysis)
-   ollama pull llava
-   
-   # Install a text model (required for marketing content)
-   ollama pull llama2
-   ```
+2. **Enable Required APIs**:
+   - Vertex AI API
+   - Cloud AI Platform API
+
+3. **API Credentials**:
+   - **Development**: API Key (easier setup)
+   - **Production**: Service Account JSON (more secure)
 
 ### Configuration
 
-Edit `appsettings.json` or use environment variables:
+Edit `appsettings.json` or `appsettings.Development.json`:
 
 ```json
 {
   "AI": {
-    "Ollama": {
-      "Endpoint": "http://localhost:11434",
-      "VisionModel": "llava",
-      "TextModel": "llama2"
+    "Gemini": {
+      "ProjectId": "your-gcp-project-id",
+      "ApiKey": "your-gemini-api-key",
+      "Location": "us-central1",
+      "VisionModel": "gemini-2.0-flash-exp",
+      "ImageGenerationModel": "imagen-3.0-generate-001"
     }
   }
 }
 ```
 
-**Alternative Vision Models**:
-- `llava` (recommended, ~4.7GB)
-- `llava:13b` (larger, more accurate, ~8GB)
-- `bakllava` (alternative vision model)
+**For Production (using Service Account)**:
+```json
+{
+  "AI": {
+    "Gemini": {
+      "ProjectId": "your-gcp-project-id",
+      "ServiceAccountJson": "{...service account JSON...}",
+      "Location": "us-central1",
+      "VisionModel": "gemini-2.0-flash-exp",
+      "ImageGenerationModel": "imagen-3.0-generate-001"
+    }
+  }
+}
+```
 
-**Alternative Text Models**:
-- `llama2` (recommended, ~3.8GB)
-- `llama2:13b` (larger, better quality)
-- `mistral` (fast, good quality, ~4GB)
-- `phi` (small, fast, ~1.6GB)
+**Available Vision Models**:
+- `gemini-2.0-flash-exp` (recommended, fast and accurate)
+- `gemini-1.5-pro` (highest quality, slower)
+- `gemini-1.5-flash` (fast, good balance)
+
+**Available Image Generation Models**:
+- `imagen-3.0-generate-001` (latest, highest quality)
+- `imagen-2.0-generate-001` (previous version)
 
 ### Environment Variables
 
 You can override configuration with environment variables:
 
 ```bash
-AI__Ollama__Endpoint=http://localhost:11434
-AI__Ollama__VisionModel=llava
-AI__Ollama__TextModel=llama2
+AI__Gemini__ProjectId=your-project-id
+AI__Gemini__ApiKey=your-api-key
+AI__Gemini__Location=us-central1
+AI__Gemini__VisionModel=gemini-2.0-flash-exp
+AI__Gemini__ImageGenerationModel=imagen-3.0-generate-001
 ```
 
 ## How It Works
@@ -92,17 +116,19 @@ AI__Ollama__TextModel=llama2
 
 ### Analysis Process
 
-The AI analysis happens in two steps:
+The AI analysis happens in a single integrated step:
 
-**Step 1: Vision Analysis** (uses vision model like `llava`)
-- The photo is sent to the vision model along with the composition rule
-- The AI analyzes the image and generates a JSON response with title, description, and rating
-- This step requires a vision-capable model
+**Gemini Vision Analysis** (uses Gemini multimodal model)
+- The photo is sent to Gemini along with the composition rule
+- The AI analyzes the image and generates a comprehensive JSON response with:
+  - Title, description, and rating
+  - Marketing headline, copy, pricing, and social media content
+- This single call handles both vision and text generation efficiently
 
-**Step 2: Marketing Content** (uses text model like `llama2`)
-- Based on the title and description from Step 1, the text model generates marketing materials
-- Includes headline, copy, pricing suggestion, and social media text
-- This step focuses on educational content for young photographers
+**Imagen Marketing Image** (optional, uses Imagen model)
+- Based on the photo and AI analysis, Imagen generates a marketing image
+- This is a separate API call to the image generation endpoint
+- If image generation fails, the text analysis results are still available
 
 ## Viewing AI Analysis
 
@@ -162,40 +188,36 @@ This is useful when:
 
 ### AI Analysis Not Appearing
 
-1. **Check Ollama is running**:
-   ```bash
-   curl http://localhost:11434/api/version
-   ```
+1. **Check Google Cloud Configuration**:
+   - Verify Project ID is correct
+   - Verify API Key or Service Account JSON is valid
+   - Check that Vertex AI API is enabled
 
-2. **Check models are installed**:
-   ```bash
-   ollama list
-   ```
+2. **Check API Quotas**:
+   - Go to Google Cloud Console > IAM & Admin > Quotas
+   - Verify you haven't exceeded API quotas
 
 3. **Check application logs**:
    ```bash
-   # If running with Docker Compose
-   docker-compose logs -f
+   # If running with Aspire
+   dotnet run --project PathfinderPhotography.AppHost
    
    # If running directly
    dotnet run
    ```
 
 4. **Verify configuration**:
-   - Ensure `appsettings.json` has correct Ollama endpoint
-   - Ensure model names match installed models
+   - Ensure `appsettings.json` has correct Project ID and API key
+   - Ensure model names are valid Gemini models
 
-### Slow Analysis
+### API Errors
 
-AI analysis depends on:
-- **Model size**: Larger models (13b) are more accurate but slower
-- **Hardware**: GPU acceleration significantly improves speed
-- **Image size**: Larger images take longer to process
+Common errors and solutions:
 
-Tips for faster analysis:
-- Use smaller models (`llava`, `llama2`, `phi`)
-- Reduce image upload size (configured in app)
-- Enable GPU support in Ollama if available
+- **401 Unauthorized**: API key is invalid or missing
+- **403 Forbidden**: API is not enabled or quota exceeded
+- **404 Not Found**: Model name is incorrect or not available in your region
+- **429 Too Many Requests**: Rate limit exceeded, wait and retry
 
 ### Analysis Failures
 
@@ -204,15 +226,17 @@ If AI analysis fails, the photo submission still succeeds. The system uses fallb
 - **Description**: "AI analysis unavailable"
 - **Rating**: 5 (middle rating)
 - **Marketing**: Generic educational content
+- **Marketing Image**: None (gracefully handled)
 
 Check logs for specific error messages.
 
 ## Privacy and Data
 
-- **Local Processing**: All AI analysis happens on your local Ollama instance
-- **No Cloud API**: No data is sent to external AI services
-- **No API Keys**: No API keys or external accounts required
-- **Full Control**: You control the models and data
+- **Cloud Processing**: AI analysis uses Google Cloud's Vertex AI service
+- **Data Privacy**: Images are sent to Google Cloud for processing per their terms of service
+- **API Keys**: Keep your API keys and service account credentials secure
+- **Cost Control**: Monitor your Google Cloud billing and set up budget alerts
+- **Data Retention**: Understand Google Cloud's data retention policies for Vertex AI
 
 ## Performance Considerations
 
@@ -227,96 +251,93 @@ Check logs for specific error messages.
 The current implementation processes each photo individually:
 1. Photo submitted → saved to database immediately
 2. Background task starts AI analysis for that photo
-3. Vision model analyzes image (generates title, description, rating)
-4. Text model generates marketing content
+3. Gemini vision model analyzes image (generates title, description, rating, and marketing content)
+4. Imagen generates marketing image (optional)
 5. Results saved to database
 
-**Processing Time**: 30-60 seconds per photo depending on:
-- Model size (smaller = faster)
-- Hardware (GPU = much faster)
+**Processing Time**: Typically 5-15 seconds per photo depending on:
+- API response time (usually very fast with Google Cloud)
 - Image size
-- Ollama server load
+- Network latency
+- API quota and throttling
 
 ### Performance Optimization Considerations
 
-**Model Switching Overhead**
+**API Rate Limits**
 
-The current architecture calls the vision model, then switches to the text model for each photo. In high-volume scenarios (many photos submitted in short time), this causes frequent model switching which has overhead.
+Google Cloud has rate limits for Vertex AI APIs. In high-volume scenarios:
+- Monitor API quotas in Google Cloud Console
+- Implement retry logic with exponential backoff
+- Consider upgrading quotas if needed
+
+**Cost Management**
+
+Each API call has a cost:
+- Vision analysis: Per request charge
+- Image generation: Per image charge
+- Monitor costs in Google Cloud Console
+- Set up budget alerts to avoid surprises
 
 **Potential Batch Processing Approach** (Future Enhancement)
 
-For production environments with high submission volume, consider implementing batch processing:
-
-```
-Option 1: Time-based batching (e.g., every 5 minutes)
-- Collect all new submissions
-- Process all vision analysis together (one model load)
-- Process all text generation together (one model load)
-- Reduces model switching, improves throughput
-
-Option 2: Queue-based batching
-- Queue submissions needing AI analysis
-- Process in batches when queue reaches threshold (e.g., 5 photos)
-- Trade-off: slightly longer wait for individual photos, but better overall throughput
-```
-
-**Current Trade-offs**
-
-The current per-photo approach prioritizes:
-- ✅ Simplicity - Easy to understand and maintain
-- ✅ Immediate processing - Each photo analyzed as soon as submitted
-- ✅ Independent failures - One photo failure doesn't affect others
-- ❌ Model switching overhead - May be inefficient at high volume
-
-**When to Consider Batching**
-
-Consider implementing batch processing if:
-- Receiving > 10 photo submissions per minute
-- Model switching delays are measurable (> 5 seconds per switch)
-- Running on hardware where model loading is expensive (CPU-only)
-- Acceptable to delay AI analysis by a few minutes for efficiency
+For production environments with high submission volume, consider:
+- Queueing multiple photos for batch processing
+- Processing during off-peak hours to reduce costs
+- Implementing caching strategies for similar images
 
 **Current Recommendation**
 
-For typical Pathfinder class sizes (10-30 students), the current architecture is sufficient. Students submit photos at different times, so the overhead is minimal. Batch processing would add complexity without significant benefit for this use case.
+For typical Pathfinder class sizes (10-30 students), the current architecture is sufficient. Google Cloud's API is fast and reliable, handling individual requests efficiently. Batch processing would add complexity without significant benefit for this use case.
 
 ## Future Enhancements
 
 Potential improvements for future versions:
 
-- [ ] Batch processing for high-volume scenarios
-- [ ] Support for cloud AI providers (Azure OpenAI, OpenAI, Anthropic) as alternatives
+- [ ] Batch processing for high-volume scenarios to reduce costs
+- [ ] Support for other AI providers (Azure OpenAI, AWS Bedrock) as alternatives
 - [ ] Batch re-analysis of existing photos
 - [x] Admin UI to trigger AI analysis manually ✅
 - [ ] Model selection per photo
 - [ ] AI-powered photo comparison for voting
 - [ ] Automatic composition rule detection
 - [ ] Photo editing suggestions
-- [ ] Automatic retry on transient failures
+- [ ] Automatic retry on transient failures with exponential backoff
 - [ ] Queue monitoring dashboard
 - [ ] AI analysis progress tracking
+- [ ] Cost monitoring and budget alerts
+
+## Cost Considerations
+
+**Google Cloud Pricing** (as of 2024):
+- Gemini API calls: Pay per request (check current pricing)
+- Imagen generation: Pay per image generated
+- Storage: Minimal for config and logs
+
+**Tips to Control Costs**:
+1. Set up billing alerts in Google Cloud Console
+2. Use quotas to limit API usage
+3. Monitor usage in the Google Cloud Console
+4. Consider using cached results when appropriate
+5. Only generate marketing images when needed
 
 ## Model Recommendations
 
 ### For Development/Testing
-- **Vision**: `llava` (balanced size/quality)
-- **Text**: `phi` (fast, small)
+- **Vision**: `gemini-2.0-flash-exp` (fast, cost-effective)
+- **Image Generation**: `imagen-3.0-generate-001` (latest features)
 
 ### For Production
-- **Vision**: `llava:13b` (better quality)
-- **Text**: `llama2:13b` or `mistral` (better quality)
+- **Vision**: `gemini-1.5-pro` (highest quality) or `gemini-2.0-flash-exp` (good balance)
+- **Image Generation**: `imagen-3.0-generate-001` (highest quality)
 
-### With GPU
-Any model works well with GPU acceleration. Larger models become practical.
-
-### Without GPU (CPU only)
-Stick with smaller models:
-- **Vision**: `llava` or `bakllava`
-- **Text**: `phi` or `llama2`
+### Cost-Conscious
+- **Vision**: `gemini-1.5-flash` (faster, lower cost)
+- **Image Generation**: Consider making this optional or on-demand
 
 ## References
 
-- [Ollama Documentation](https://github.com/ollama/ollama)
-- [OllamaSharp Library](https://github.com/awaescher/OllamaSharp)
-- [Available Models](https://ollama.ai/library)
-- [Vision Models Guide](https://ollama.com/blog/vision-models)
+- [Vertex AI Documentation](https://cloud.google.com/vertex-ai/docs)
+- [Gemini API Documentation](https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini)
+- [Imagen Documentation](https://cloud.google.com/vertex-ai/docs/generative-ai/image/overview)
+- [Google Cloud Pricing](https://cloud.google.com/vertex-ai/pricing)
+- [API Quotas and Limits](https://cloud.google.com/vertex-ai/docs/quotas)
