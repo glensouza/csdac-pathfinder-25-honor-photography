@@ -118,7 +118,7 @@ All 10 rules implemented with detailed descriptions and explanations:
 - Command: `dotnet run --project PathfinderPhotography.AppHost`
 - Features: Orchestration, local Postgres, dashboard, **integrated SigNoz observability**
 - All services (PostgreSQL, webapp, SigNoz stack) start automatically
-- SigNoz UI: http://localhost:3301
+- SigNoz UI: Check Aspire Dashboard for URL (typically http://localhost:3301 or http://localhost:3302)
 
 ### Production (Ubuntu Server)
 - Direct installation on Ubuntu 22.04 LTS

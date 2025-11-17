@@ -283,8 +283,8 @@ Routes /api/* to Query Service
     ↓
 Query Service handles registration
 ```
+
 Registration succeeds!
-```
 
 If you're still experiencing issues with Aspire:
 1. Check Aspire Dashboard to ensure nginx proxy container is running
