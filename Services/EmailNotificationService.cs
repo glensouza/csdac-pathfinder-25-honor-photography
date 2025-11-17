@@ -201,6 +201,60 @@ public class EmailNotificationService
         }
     }
 
+    // New public method to send a simple test email from the admin UI
+    public async Task SendTestEmailAsync(string toEmail, string toName)
+    {
+        if (!this.isEnabled)
+        {
+            this.logger.LogDebug("Email notifications disabled, skipping test email.");
+            throw new InvalidOperationException("Email notifications are disabled.");
+        }
+
+        try
+        {
+            using MimeMessage message = new();
+            message.From.Add(new MailboxAddress(this.configuration["Email:FromName"] ?? "Pathfinder Photography", this.configuration["Email:FromAddress"] ?? "noreply@pathfinderphotography.local"));
+            message.To.Add(new MailboxAddress(string.IsNullOrEmpty(toName) ? toEmail : toName, toEmail));
+            message.Subject = "Test Email from Pathfinder Photography";
+
+            BodyBuilder bodyBuilder = new()
+            {
+                HtmlBody = $"<html><body style='font-family: Arial, sans-serif;'><h3>Test Email</h3><p>This is a test email sent from the Pathfinder Photography admin settings page.</p><p>If you received this message, SMTP configuration appears to be working.</p></body></html>",
+                TextBody = "Test Email\n\nThis is a test email sent from the Pathfinder Photography admin settings page. If you received this message, SMTP configuration appears to be working."
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            await this.SendEmailAsync(message);
+            this.logger.LogInformation("Test email sent to {Email}", toEmail);
+        }
+        catch (SmtpCommandException ex)
+        {
+            this.logger.LogError(ex, "SMTP command error while sending test email to {Email}", toEmail);
+            throw;
+        }
+        catch (SmtpProtocolException ex)
+        {
+            this.logger.LogError(ex, "SMTP protocol error while sending test email to {Email}", toEmail);
+            throw;
+        }
+        catch (FormatException ex)
+        {
+            this.logger.LogError(ex, "Email format error while sending test email to {Email}", toEmail);
+            throw;
+        }
+        catch (IOException ex)
+        {
+            this.logger.LogError(ex, "IO error while sending test email to {Email}", toEmail);
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+        {
+            this.logger.LogError(ex, "Failed to send test email to {Email}", toEmail);
+            throw;
+        }
+    }
+
     private async Task SendEmailAsync(MimeMessage message)
     {
         string? smtpHost = this.configuration["Email:SmtpHost"];
@@ -215,24 +269,26 @@ public class EmailNotificationService
 
         // Determine the appropriate SecureSocketOptions based on port and configuration
         SecureSocketOptions secureSocketOptions;
-        if (smtpPort == 465)
+        switch (smtpPort)
         {
-            // Port 465 uses implicit SSL
-            secureSocketOptions = SecureSocketOptions.SslOnConnect;
-        }
-        else if (smtpPort == 587)
-        {
-            // Port 587 uses STARTTLS
-            secureSocketOptions = SecureSocketOptions.StartTls;
-        }
-        else
-        {
-            // For other ports, check the UseSsl configuration
-            if (!bool.TryParse(this.configuration["Email:UseSsl"], out bool useSsl))
+            case 465:
+                // Port 465 uses implicit SSL
+                secureSocketOptions = SecureSocketOptions.SslOnConnect;
+                break;
+            case 587:
+                // Port 587 uses STARTTLS
+                secureSocketOptions = SecureSocketOptions.StartTls;
+                break;
+            default:
             {
-                useSsl = true;
+                // For other ports, check the UseSsl configuration
+                if (!bool.TryParse(this.configuration["Email:UseSsl"], out bool useSsl))
+                {
+                    useSsl = true;
+                }
+                secureSocketOptions = useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
+                break;
             }
-            secureSocketOptions = useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
         }
 
         if (string.IsNullOrEmpty(smtpHost))
