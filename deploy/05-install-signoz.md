@@ -95,6 +95,174 @@ Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://10.10.10.201:4317
 
 Replace `10.10.10.201` with your SigNoz server's IP address.
 
+## Import Application Performance Dashboard
+
+Once SigNoz is running and receiving telemetry from your application, you can import a pre-configured dashboard to monitor key performance metrics.
+
+### Download the Dashboard JSON
+
+The dashboard JSON file is available in this repository at `deploy/signoz-dashboard.json`. You can download it from GitHub or copy the content below.
+
+### Import Dashboard in SigNoz UI
+
+1. Open your SigNoz UI (typically `http://<signoz-ip>:3301`)
+2. Navigate to **Dashboards** in the left sidebar
+3. Click **Import Dashboard** (or **+** button)
+4. Upload or paste the JSON content from `deploy/signoz-dashboard.json`
+5. Click **Import**
+
+### Dashboard Content
+
+The dashboard includes the following panels:
+
+- **HTTP Requests per Minute**: Tracks API request volume
+- **Response Time (P95)**: Shows 95th percentile response times
+- **Error Rate**: Percentage of failed requests
+- **Database Connections**: Active PostgreSQL connections
+- **Photo Uploads per Hour**: Application-specific upload metrics
+- **CPU Usage**: Server CPU utilization
+- **Memory Usage**: Server memory consumption
+
+### Dashboard JSON
+
+```json
+{
+  "dashboard": {
+    "title": "Application Performance Overview",
+    "description": "Key performance metrics for the Pathfinder Photography Honor application",
+    "tags": ["application", "performance", "blazor", "photography"],
+    "panels": [
+      {
+        "id": "http_requests",
+        "title": "HTTP Requests per Minute",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"pathfinder-photography\"}[5m])",
+            "legendFormat": "{{method}} {{route}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "reqps",
+            "label": "Requests/sec"
+          }
+        ]
+      },
+      {
+        "id": "response_time",
+        "title": "Response Time (P95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"pathfinder-photography\"}[5m]))",
+            "legendFormat": "P95 Response Time"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "seconds",
+            "label": "Time"
+          }
+        ]
+      },
+      {
+        "id": "error_rate",
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"pathfinder-photography\", status=~\"5..\"}[5m]) / rate(http_requests_total{job=\"pathfinder-photography\"}[5m]) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "percent",
+            "label": "Percentage"
+          }
+        ]
+      },
+      {
+        "id": "db_connections",
+        "title": "Database Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count{datname=\"pathfinder_photography\"}",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "connections",
+            "label": "Count"
+          }
+        ]
+      },
+      {
+        "id": "photo_uploads",
+        "title": "Photo Uploads per Hour",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(photo_uploads_total[1h])",
+            "legendFormat": "Uploads/hour"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "uploads",
+            "label": "Uploads"
+          }
+        ]
+      },
+      {
+        "id": "cpu_usage",
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(process_cpu_user_seconds_total{job=\"pathfinder-photography\"}[5m]) * 100",
+            "legendFormat": "CPU Usage %"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "percent",
+            "label": "Percentage"
+          }
+        ]
+      },
+      {
+        "id": "memory_usage",
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"pathfinder-photography\"} / 1024 / 1024",
+            "legendFormat": "Memory (MB)"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "MB",
+            "label": "Memory"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5m"
+  }
+}
+```
+
+**Note**: The dashboard queries use Prometheus-style metrics. You may need to adjust the metric names and labels based on your actual OpenTelemetry instrumentation. The dashboard is designed to work with the standard .NET metrics exported via OpenTelemetry.
+
 ## Verification Checklist
 
 Before moving to the next step, verify:
@@ -103,6 +271,7 @@ Before moving to the next step, verify:
 - [ ] SigNoz UI is accessible at `http://<signoz-ip>:3301`
 - [ ] OTLP collector is listening on port 4317
 - [ ] You have noted the SigNoz server IP address for configuration
+- [ ] Application Performance Dashboard imported (optional but recommended)
 
 You can verify the collector is running from the application server:
 ```bash
