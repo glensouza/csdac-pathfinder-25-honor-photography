@@ -9,8 +9,6 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - '.github/**'
-      - '!.github/workflows/deploy-bare-metal.yml'
   workflow_dispatch:
 
 env:
@@ -23,6 +21,8 @@ jobs:
   build:
     name: Build Application
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout repository
@@ -39,15 +39,13 @@ jobs:
       - name: Build application
         run: dotnet build PathfinderPhotography.csproj -c Release --no-restore
       
-      - name: Run tests
-        run: dotnet test --no-build --verbosity normal || echo "No tests found"
-      
       - name: Publish application
         run: dotnet publish PathfinderPhotography.csproj -c Release -o ${{ env.PUBLISH_DIR }} --no-build
       
       - name: Create deployment archive
         run: |
           cd ${{ env.PUBLISH_DIR }}
+          # create tar in repository root for easier reuse across steps
           tar -czf ../pathfinder-photography-${{ github.sha }}.tar.gz .
           cd ..
           sha256sum pathfinder-photography-${{ github.sha }}.tar.gz > pathfinder-photography-${{ github.sha }}.tar.gz.sha256
@@ -61,13 +59,45 @@ jobs:
             pathfinder-photography-${{ github.sha }}.tar.gz.sha256
           retention-days: 30
 
+      - name: Set Build Number
+        id: build_number
+        run: |
+          DATE=$(date +'%Y%m%d')
+          echo "BUILD_NUMBER=${DATE}.${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.BUILD_NUMBER }}
+          release_name: Release ${{ env.BUILD_NUMBER }}
+          body: |
+            Changes in this Release
+            - First Change
+            - Second Change
+          draft: false
+          prerelease: false
+          
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: pathfinder-photography-${{ github.sha }}.tar.gz
+          asset_name: pathfinder-photography.${{ env.BUILD_NUMBER }}.tar.gz
+          asset_content_type: application/gzip
+
   deploy:
     name: Deploy to Server
     needs: build
     runs-on: self-hosted
     environment: 
       name: production
-      url: ${{ vars.APP_URL || 'https://pathfinder.coronasda.church' }}
+      url: https://pathfinder.coronasda.church
     
     steps:
       - name: Download build artifact
@@ -135,21 +165,6 @@ jobs:
                     
           echo "Deployment completed successfully"
       
-      - name: Apply database migrations
-        run: |
-          echo "Checking for database migrations..."
-          cd ${{ env.DEPLOY_DIR }}
-          
-          # Check if EF migrations exist
-          if dotnet ef migrations list 2>/dev/null | grep -q "^[0-9]"; then
-            echo "Applying database migrations..."
-            bash -c "cd ${{ env.DEPLOY_DIR }} && ASPNETCORE_ENVIRONMENT=Production dotnet ef database update"
-            echo "Database migrations applied successfully"
-          else
-            echo "No migrations found or migrations will be applied on startup"
-          fi
-        continue-on-error: true
-      
       - name: Start application service
         run: |
           echo "Starting ${{ env.SERVICE_NAME }} service..."
@@ -206,7 +221,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment:** production >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** production" >> $GITHUB_STEP_SUMMARY
           echo "- **Deployed to:** ${{ env.DEPLOY_DIR }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Service:** ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status:** ✅ Successful" >> $GITHUB_STEP_SUMMARY
