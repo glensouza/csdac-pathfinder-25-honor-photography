@@ -51,6 +51,12 @@ cd /tmp
 git clone https://github.com/glensouza/csdac-pathfinder-25-honor-photography.git
 cd csdac-pathfinder-25-honor-photography
 
+# Apply database migrations (run as pathfinder user)
+sudo -u pathfinder bash
+export ASPNETCORE_ENVIRONMENT=Production
+dotnet ef database update
+exit
+
 # Build application
 dotnet publish -c Release -o /opt/pathfinder-photography
 

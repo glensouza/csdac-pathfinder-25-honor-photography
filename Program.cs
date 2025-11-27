@@ -252,11 +252,4 @@ static void ValidateRequiredConfigurations(IConfiguration configuration)
     {
         throw new InvalidOperationException("SigNoz telemetry is required. Missing 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable or 'OpenTelemetry:OtlpEndpoint' configuration. Set this to your OTLP collector endpoint (e.g., http://localhost:4317 or http://10.10.10.201:4317 for remote SigNoz).");
     }
-
-    // Ensure GitHub Actions automation workflow exists in repo
-    string workflowPath = Path.Combine(Directory.GetCurrentDirectory(), ".github", "workflows", "deploy-bare-metal.yml");
-    if (!File.Exists(workflowPath))
-    {
-        throw new InvalidOperationException($"Automation workflow is required but not found at '{workflowPath}'. Ensure '.github/workflows/deploy-bare-metal.yml' exists in the repository.");
-    }
 }
