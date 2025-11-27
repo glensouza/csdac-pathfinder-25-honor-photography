@@ -62,17 +62,21 @@ sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography
 
 This option is suitable if you only installed the runtime.
 
+Notes:
+- Many tarballs include a top-level folder (e.g., `repo-main/`). Extracting normally will create that folder under the target directory. To avoid that and place the application files directly into `/opt/pathfinder-photography`, use `--strip-components=1` and `-C`.
+- Verify the archive contents first with `tar -tzf` if you want to inspect before extracting.
+
 ```bash
 # Create application directory
 sudo mkdir -p /opt/pathfinder-photography
 cd /opt/pathfinder-photography
 
 # Download latest release (replace URL with actual release)
-sudo wget https://github.com/glensouza/csdac-pathfinder-25-honor-photography/releases/download/vX.X.X/pathfinder-photography.tar.gz
+sudo wget https://github.com/glensouza/csdac-pathfinder-25-honor-photography/archive/refs/tags/main.tar.gz
 
 # Extract
-sudo tar -xzf pathfinder-photography.tar.gz
-sudo rm pathfinder-photography.tar.gz
+sudo tar -xzf main.tar.gz --strip-components=1 -C /opt/pathfinder-photography --no-same-owner
+sudo rm main.tar.gz
 
 # Set ownership
 sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography

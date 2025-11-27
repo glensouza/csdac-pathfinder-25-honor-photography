@@ -25,14 +25,6 @@ SigNoz provides observability (traces, metrics, logs) for monitoring your applic
 
 **Estimated time**: 20-30 minutes
 
-## Important: Port Conflict with Cockpit
-
-**⚠️ SigNoz cannot be installed on the same server as Cockpit** because both services use port 9090:
-- Cockpit (system management UI) uses port 9090
-- SigNoz UI also defaults to port 9090 (or 3301 depending on installation method)
-
-**Recommended Solution**: Install SigNoz on a **separate server or LXC container**.
-
 ## Option A: Install SigNoz on Separate LXC (Recommended)
 
 If you're using Proxmox or another hypervisor, create a dedicated LXC container for SigNoz.
@@ -103,75 +95,11 @@ Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://10.10.10.201:4317
 
 Replace `10.10.10.201` with your SigNoz server's IP address.
 
-## Option B: Install SigNoz on Same Server (Port Conflict)
-
-**⚠️ Not recommended** if Cockpit is installed, as both use port 9090.
-
-If you choose this option, you must either:
-1. Disable Cockpit: `sudo systemctl disable --now cockpit`
-2. Change Cockpit's port (complex)
-3. Change SigNoz UI port (complex)
-
-**Native Linux Installation** (if not using Cockpit):
-
-```bash
-# Create installation directory
-sudo mkdir -p /opt/signoz
-cd /opt/signoz
-
-# Download the installation script
-curl -sL https://github.com/SigNoz/signoz/raw/main/deploy/install-linux.sh -o install-linux.sh
-
-# Make it executable
-chmod +x install-linux.sh
-
-# Run the installation
-sudo ./install-linux.sh
-```
-
-The script will:
-- Install all required dependencies (ClickHouse, OTEL Collector, Query Service)
-- Set up systemd services for automatic startup
-- Configure OTLP collector on port 4317
-- Start SigNoz UI on port 3301
-
-## Manage SigNoz Services
-
-For Docker-based installation (Option A):
-```bash
-# Check status
-docker compose -f docker/clickhouse-setup/docker-compose.yaml ps
-
-# View logs
-docker compose -f docker/clickhouse-setup/docker-compose.yaml logs -f
-
-# Restart services
-docker compose -f docker/clickhouse-setup/docker-compose.yaml restart
-```
-
-For native installation (Option B):
-```bash
-# Check status of all SigNoz services
-sudo systemctl status signoz-otel-collector
-sudo systemctl status signoz-query-service
-sudo systemctl status clickhouse-server
-
-# Start/Stop/Restart services
-sudo systemctl start signoz-otel-collector
-sudo systemctl stop signoz-otel-collector
-sudo systemctl restart signoz-otel-collector
-
-# Enable services to start on boot (should be done by installer)
-sudo systemctl enable signoz-otel-collector
-sudo systemctl enable signoz-query-service
-sudo systemctl enable clickhouse-server
-```
-
 ## Verification Checklist
 
 Before moving to the next step, verify:
 
-- [ ] SigNoz is installed (on separate server or same server)
+- [ ] SigNoz is installed (on separate server)
 - [ ] SigNoz UI is accessible at `http://<signoz-ip>:3301`
 - [ ] OTLP collector is listening on port 4317
 - [ ] You have noted the SigNoz server IP address for configuration
