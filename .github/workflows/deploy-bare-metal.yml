@@ -12,15 +12,6 @@ on:
       - '.github/**'
       - '!.github/workflows/deploy-bare-metal.yml'
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - staging
 
 env:
   DOTNET_VERSION: '9.0.x'
@@ -75,7 +66,7 @@ jobs:
     needs: build
     runs-on: self-hosted
     environment: 
-      name: ${{ github.event.inputs.environment || 'production' }}
+      name: production
       url: ${{ vars.APP_URL || 'https://pathfinder.coronasda.church' }}
     
     steps:
@@ -215,7 +206,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment:** ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** production >> $GITHUB_STEP_SUMMARY
           echo "- **Deployed to:** ${{ env.DEPLOY_DIR }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Service:** ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status:** ✅ Successful" >> $GITHUB_STEP_SUMMARY
