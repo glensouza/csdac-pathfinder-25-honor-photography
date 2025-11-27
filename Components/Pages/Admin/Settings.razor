@@ -341,11 +341,4 @@
             isSendingTest = false;
         }
     }
-
-    private async Task ConfirmAndResetAiAsync(int submissionId) => PromptConfirm($"Reset AI for #{submissionId}", $"Reset AI analysis for submission #{submissionId}? This will clear AI-generated fields.", ActionType.ResetAi, submissionId);
-    private async Task ResetAllAiAsync() => PromptConfirm("Reset All AI Activity", "Reset AI analysis for ALL submissions? This will clear AI-generated fields for every submission.", ActionType.ResetAllAi);
-    private async Task ConfirmAndDeleteSubmissionAsync(int submissionId) => PromptConfirm($"Delete #{submissionId}", $"Permanently delete submission #{submissionId}? This will remove associated votes and recalculate ratings.", ActionType.DeleteSubmission, submissionId);
-    private async Task ConfirmAndUndoGradeAsync(int submissionId) => PromptConfirm($"Undo Grade for #{submissionId}", $"Undo grading for submission #{submissionId}? This may remove a completion certificate if it causes disqualification.", ActionType.UndoGrade, submissionId);
-    private async Task ConfirmAndDeleteVoteAsync(int voteId) => PromptConfirm($"Delete Vote #{voteId}", $"Delete vote #{voteId}? Ratings will be recalculated without this vote.", ActionType.DeleteVote, voteId);
-    private async Task DeleteAllSubmissionsAsync() => PromptConfirm("Delete All Submissions", "Permanently delete ALL submissions and votes? This action cannot be undone.", ActionType.DeleteAllSubmissions);
 }
