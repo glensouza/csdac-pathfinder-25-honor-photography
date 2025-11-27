@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -70,11 +71,14 @@ public static class Extensions
 
     private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
     {
-        bool useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        // Check for OTLP endpoint in environment variable or configuration
+        string? otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] 
+                               ?? builder.Configuration["OpenTelemetry:OtlpEndpoint"];
+        bool useOtlpExporter = !string.IsNullOrWhiteSpace(otlpEndpoint);
 
         if (useOtlpExporter)
         {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+            builder.Services.AddOpenTelemetry().UseOtlpExporter(OtlpExportProtocol.Grpc, new Uri(otlpEndpoint!));
         }
 
         // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
@@ -109,12 +113,13 @@ public static class Extensions
             // Add SigNoz/OTLP configuration health check
             .AddCheck("signoz_configuration", () =>
             {
-                string? otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+                string? otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
+                                       ?? builder.Configuration["OpenTelemetry:OtlpEndpoint"];
                 
                 if (string.IsNullOrWhiteSpace(otlpEndpoint))
                 {
                     return HealthCheckResult.Unhealthy(
-                        "SigNoz telemetry configuration is missing. Required: OTEL_EXPORTER_OTLP_ENDPOINT environment variable");
+                        "SigNoz telemetry configuration is missing. Required: OTEL_EXPORTER_OTLP_ENDPOINT environment variable or OpenTelemetry:OtlpEndpoint in appsettings");
                 }
                 
                 return HealthCheckResult.Healthy($"SigNoz configured at {otlpEndpoint}");

@@ -57,6 +57,7 @@ SyslogIdentifier=pathfinder-photography
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:5000
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+# SigNoz OTLP endpoint - Update IP if SigNoz is on a separate server
 Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 Environment=OTEL_RESOURCE_ATTRIBUTES=service.name=pathfinder-photography
 
@@ -73,6 +74,26 @@ TasksMax=4096
 
 [Install]
 WantedBy=multi-user.target
+```
+
+### Configuring Remote SigNoz Server
+
+**Important**: If you installed SigNoz on a separate server/LXC (recommended due to Cockpit port conflict), update the `OTEL_EXPORTER_OTLP_ENDPOINT` with your SigNoz server's IP address:
+
+```ini
+# Example: SigNoz installed on separate LXC at 10.10.10.201
+Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://10.10.10.201:4317
+```
+
+Replace `10.10.10.201` with your actual SigNoz server IP address. You can also configure this in `appsettings.Production.json`:
+
+```json
+{
+  "OpenTelemetry": {
+    "OtlpEndpoint": "http://10.10.10.201:4317",
+    "ServiceName": "pathfinder-photography"
+  }
+}
 ```
 
 ### Service Configuration Explained
@@ -93,7 +114,7 @@ WantedBy=multi-user.target
 - `ProtectHome=true` - Hide home directories from the service
 
 **SigNoz Integration**:
-- `OTEL_EXPORTER_OTLP_ENDPOINT` - OpenTelemetry collector endpoint (required, configured in Step 3)
+- `OTEL_EXPORTER_OTLP_ENDPOINT` - OpenTelemetry collector endpoint (update IP if SigNoz is on separate server)
 - `OTEL_RESOURCE_ATTRIBUTES` - Service name for telemetry identification
 
 ### Important: Data Protection Keys

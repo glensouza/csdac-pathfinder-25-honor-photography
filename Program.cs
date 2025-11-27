@@ -246,10 +246,11 @@ static void ValidateRequiredConfigurations(IConfiguration configuration)
     }
 
     // OpenTelemetry OTLP endpoint (SigNoz collector)
-    string? otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+    string? otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] 
+                           ?? configuration["OpenTelemetry:OtlpEndpoint"];
     if (string.IsNullOrWhiteSpace(otlpEndpoint))
     {
-        throw new InvalidOperationException("SigNoz telemetry is required. Missing 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable or configuration. Set this to your OTLP collector endpoint.");
+        throw new InvalidOperationException("SigNoz telemetry is required. Missing 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable or 'OpenTelemetry:OtlpEndpoint' configuration. Set this to your OTLP collector endpoint (e.g., http://localhost:4317 or http://10.10.10.201:4317 for remote SigNoz).");
     }
 
     // Ensure GitHub Actions automation workflow exists in repo
