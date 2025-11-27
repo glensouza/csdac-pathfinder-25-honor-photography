@@ -136,9 +136,9 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # Proxy to SigNoz on port 3301
+    # Proxy to SigNoz on separate server port 8080
     location / {
-        proxy_pass http://localhost:3301;
+        proxy_pass http://<SIGNOZ_SERVER_IP>:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -160,7 +160,7 @@ server {
 }
 ```
 
-**Note**: Using single-level subdomains (e.g., `photohonorpgadmin`, `photohonorsignoz`) instead of multi-level subdomains (e.g., `pgadmin.photohonor`, `signoz.photohonor`) avoids SSL/TLS certificate issues with wildcard certificates.
+**Note**: Replace `<SIGNOZ_SERVER_IP>` with the IP address of your separate SigNoz server. Using single-level subdomains (e.g., `photohonorpgadmin`, `photohonorsignoz`) instead of multi-level subdomains (e.g., `pgadmin.photohonor`, `signoz.photohonor`) avoids SSL/TLS certificate issues with wildcard certificates.
 
 ## Enable and Test Nginx
 
@@ -211,6 +211,8 @@ If you're using Cloudflare Tunnel, you need to configure your tunnel to route tr
 
 **Important**: Nginx listens on port 80 (HTTP) on this server. If your cloudflared service runs on a different machine/VM, configure the service URLs to point to this server's IP address.
 
+**If SigNoz is on a separate server**, you may need to configure separate ingress rules or tunnels for the SigNoz subdomain. Consult your Cloudflare Tunnel documentation for routing to multiple backends.
+
 **1. Add the service to your cloudflared configuration:**
 
 Edit your cloudflared config file (typically `/etc/cloudflared/config.yml` or in your container) and add the following ingress rules:
@@ -248,7 +250,7 @@ Replace `<YOUR_SERVER_IP>` with the IP address of this Pathfinder Photography se
 **Note**: All services are routed through Nginx on port 80. Nginx handles the routing to the appropriate backend services:
 - Main application runs on port 5000 (proxied by Nginx)
 - pgAdmin runs on port 8080 (proxied by Nginx)
-- SigNoz runs on port 3301 (proxied by Nginx - see [Step 6](06-install-signoz.md))
+- SigNoz runs on port 8080 on separate server (proxied by Nginx - see [Step 3](05-install-signoz.md))
 
 **Security Note**: PGAdmin provides database management capabilities. Ensure strong passwords are configured and consider additional authentication layers if exposing publicly.
 
@@ -360,6 +362,7 @@ Before moving to the next step, verify:
 - [ ] Nginx configuration test passes (`sudo nginx -t`)
 - [ ] Application is accessible via your domain (e.g., `https://photohonor.coronasda.church`)
 - [ ] PGAdmin is accessible via subdomain (e.g., `https://photohonorpgadmin.coronasda.church`)
+- [ ] SigNoz is accessible via subdomain (e.g., `https://photohonorsignoz.coronasda.church`)
 - [ ] Cloudflare SSL/TLS is configured (if using Cloudflare)
 - [ ] DNS records are configured and propagated
 - [ ] Firewall is configured and enabled
