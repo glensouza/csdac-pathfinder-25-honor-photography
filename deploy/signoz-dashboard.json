@@ -1,0 +1,133 @@
+{
+  "dashboard": {
+    "title": "Application Performance Overview",
+    "description": "Key performance metrics for the Pathfinder Photography Honor application",
+    "tags": ["application", "performance", "blazor", "photography"],
+    "panels": [
+      {
+        "id": "http_requests",
+        "title": "HTTP Requests per Minute",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"pathfinder-photography\"}[5m])",
+            "legendFormat": "{{method}} {{route}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "reqps",
+            "label": "Requests/sec"
+          }
+        ]
+      },
+      {
+        "id": "response_time",
+        "title": "Response Time (P95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"pathfinder-photography\"}[5m]))",
+            "legendFormat": "P95 Response Time"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "seconds",
+            "label": "Time"
+          }
+        ]
+      },
+      {
+        "id": "error_rate",
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"pathfinder-photography\", status=~\"5..\"}[5m]) / rate(http_requests_total{job=\"pathfinder-photography\"}[5m]) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "percent",
+            "label": "Percentage"
+          }
+        ]
+      },
+      {
+        "id": "db_connections",
+        "title": "Database Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count{datname=\"pathfinder_photography\"}",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "connections",
+            "label": "Count"
+          }
+        ]
+      },
+      {
+        "id": "photo_uploads",
+        "title": "Photo Uploads per Hour",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(photo_uploads_total[1h])",
+            "legendFormat": "Uploads/hour"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "uploads",
+            "label": "Uploads"
+          }
+        ]
+      },
+      {
+        "id": "cpu_usage",
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(process_cpu_user_seconds_total{job=\"pathfinder-photography\"}[5m]) * 100",
+            "legendFormat": "CPU Usage %"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "percent",
+            "label": "Percentage"
+          }
+        ]
+      },
+      {
+        "id": "memory_usage",
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"pathfinder-photography\"} / 1024 / 1024",
+            "legendFormat": "Memory (MB)"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "MB",
+            "label": "Memory"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5m"
+  }
+}
