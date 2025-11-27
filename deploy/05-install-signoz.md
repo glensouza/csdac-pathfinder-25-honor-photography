@@ -133,15 +133,21 @@ The dashboard includes the following panels:
     "tags": ["application", "performance", "blazor", "photography"],
     "panels": [
       {
-        "id": "http_requests",
+        "id": 1,
         "title": "HTTP Requests per Minute",
         "type": "graph",
         "targets": [
           {
-            "expr": "rate(http_requests_total{job=\"pathfinder-photography\"}[5m])",
+            "expr": "rate(http_requests_total{job='pathfinder-photography'}[5m])",
             "legendFormat": "{{method}} {{route}}"
           }
         ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
         "yAxes": [
           {
             "unit": "reqps",
@@ -150,15 +156,21 @@ The dashboard includes the following panels:
         ]
       },
       {
-        "id": "response_time",
+        "id": 2,
         "title": "Response Time (P95)",
         "type": "graph",
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"pathfinder-photography\"}[5m]))",
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job='pathfinder-photography'}[5m]))",
             "legendFormat": "P95 Response Time"
           }
         ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
         "yAxes": [
           {
             "unit": "seconds",
@@ -167,15 +179,21 @@ The dashboard includes the following panels:
         ]
       },
       {
-        "id": "error_rate",
+        "id": 3,
         "title": "Error Rate",
         "type": "graph",
         "targets": [
           {
-            "expr": "rate(http_requests_total{job=\"pathfinder-photography\", status=~\"5..\"}[5m]) / rate(http_requests_total{job=\"pathfinder-photography\"}[5m]) * 100",
+            "expr": "rate(http_requests_total{job='pathfinder-photography', status~='5..'}[5m]) / rate(http_requests_total{job='pathfinder-photography'}[5m]) * 100",
             "legendFormat": "Error Rate %"
           }
         ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
         "yAxes": [
           {
             "unit": "percent",
@@ -184,15 +202,21 @@ The dashboard includes the following panels:
         ]
       },
       {
-        "id": "db_connections",
+        "id": 4,
         "title": "Database Connections",
         "type": "graph",
         "targets": [
           {
-            "expr": "pg_stat_activity_count{datname=\"pathfinder_photography\"}",
+            "expr": "pg_stat_activity_count{datname='pathfinder_photography'}",
             "legendFormat": "Active Connections"
           }
         ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 24
+        },
         "yAxes": [
           {
             "unit": "connections",
@@ -201,7 +225,7 @@ The dashboard includes the following panels:
         ]
       },
       {
-        "id": "photo_uploads",
+        "id": 5,
         "title": "Photo Uploads per Hour",
         "type": "graph",
         "targets": [
@@ -210,6 +234,12 @@ The dashboard includes the following panels:
             "legendFormat": "Uploads/hour"
           }
         ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 32
+        },
         "yAxes": [
           {
             "unit": "uploads",
@@ -218,15 +248,21 @@ The dashboard includes the following panels:
         ]
       },
       {
-        "id": "cpu_usage",
+        "id": 6,
         "title": "CPU Usage",
         "type": "graph",
         "targets": [
           {
-            "expr": "rate(process_cpu_user_seconds_total{job=\"pathfinder-photography\"}[5m]) * 100",
+            "expr": "rate(process_cpu_user_seconds_total{job='pathfinder-photography'}[5m]) * 100",
             "legendFormat": "CPU Usage %"
           }
         ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 40
+        },
         "yAxes": [
           {
             "unit": "percent",
@@ -235,15 +271,21 @@ The dashboard includes the following panels:
         ]
       },
       {
-        "id": "memory_usage",
+        "id": 7,
         "title": "Memory Usage",
         "type": "graph",
         "targets": [
           {
-            "expr": "process_resident_memory_bytes{job=\"pathfinder-photography\"} / 1024 / 1024",
+            "expr": "process_resident_memory_bytes{job='pathfinder-photography'} / 1024 / 1024",
             "legendFormat": "Memory (MB)"
           }
         ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 48
+        },
         "yAxes": [
           {
             "unit": "MB",
