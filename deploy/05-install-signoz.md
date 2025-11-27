@@ -110,6 +110,27 @@ sudo ss -tlnp | grep 4317
 
 ## Troubleshooting
 
+### Installation Script Syntax Error
+
+If you see `syntax error near unexpected token 'newline'` when running the installation script, the download was corrupted or received an HTML error page instead of the script.
+
+```bash
+# Check if you got a valid script or an HTML error page
+head -5 install-linux.sh
+
+# If you see HTML content like '<html>' or '<!DOCTYPE html>', the download failed
+# Delete and re-download with verbose output to see what's happening:
+rm install-linux.sh
+curl -L https://github.com/SigNoz/signoz/raw/main/deploy/install-linux.sh -o install-linux.sh
+
+# If the above URL doesn't work, check the official SigNoz documentation for the current installation method:
+# https://signoz.io/docs/install/linux/
+chmod +x install-linux.sh
+sudo ./install-linux.sh
+```
+
+**Note**: GitHub sometimes returns redirect pages. Using `-L` (follow redirects) instead of `-sL` can help diagnose issues by showing errors.
+
 ### SigNoz Services Not Starting
 
 Check the logs for each service:
