@@ -122,6 +122,17 @@ If you see "Could not execute because the specified command or file was not foun
 - The tools path is not in PATH - add `~/.dotnet/tools` to your PATH environment variable
 - Try updating the tools: `dotnet tool update --global dotnet-ef`
 
+If you see "Settings file 'DotnetToolSettings.xml' was not found in the package" when installing:
+```bash
+# Clear the NuGet cache and reinstall
+dotnet nuget locals all --clear
+dotnet tool install --global dotnet-ef
+
+# If that doesn't work, try uninstalling first (ignore errors if not installed)
+dotnet tool uninstall --global dotnet-ef
+dotnet tool install --global dotnet-ef
+```
+
 ## Install Git (Required for Building from Source)
 
 If you plan to build the application from source (recommended), install Git:
