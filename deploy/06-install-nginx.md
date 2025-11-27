@@ -162,6 +162,43 @@ server {
 
 **Note**: Replace `<SIGNOZ_SERVER_IP>` with the IP address of your separate SigNoz server. Using single-level subdomains (e.g., `photohonorpgadmin`, `photohonorsignoz`) instead of multi-level subdomains (e.g., `pgadmin.photohonor`, `signoz.photohonor`) avoids SSL/TLS certificate issues with wildcard certificates.
 
+## Configure Apache to Free Port 80
+
+Since PGAdmin runs on Apache but only needs port 8080, you need to prevent Apache from listening on port 80 to avoid conflicts with Nginx.
+
+Edit Apache's ports configuration:
+
+```bash
+sudo nano /etc/apache2/ports.conf
+```
+
+**Remove or comment out the line `Listen 80`** so Apache only listens on port 8080 for PGAdmin. Your file should look like this:
+
+```apache
+Listen 127.0.0.1:8080
+
+<IfModule ssl_module>
+        Listen 443
+</IfModule>
+
+<IfModule mod_gnutls.c>
+        Listen 443
+</IfModule>
+```
+
+Restart Apache to apply the changes:
+
+```bash
+sudo systemctl restart apache2
+```
+
+Verify Apache is no longer listening on port 80:
+
+```bash
+sudo ss -tlnp | grep :80
+# Should show only Nginx (if running) or nothing on port 80
+```
+
 ## Enable and Test Nginx
 
 Enable the site and test:
