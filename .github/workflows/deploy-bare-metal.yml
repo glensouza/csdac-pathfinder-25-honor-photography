@@ -53,17 +53,17 @@ jobs:
         run: |
           cd ${{ env.PUBLISH_DIR }}
           # create tar in repository root for easier reuse across steps
-          tar -czf ../pathfinder-photography-${{ github.sha }}.tar.gz .
+          tar -czf ../pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz .
           cd ..
-          sha256sum pathfinder-photography-${{ github.sha }}.tar.gz > pathfinder-photography-${{ github.sha }}.tar.gz.sha256
+          sha256sum pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz > pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz.sha256
       
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: pathfinder-photography-build
           path: |
-            pathfinder-photography-${{ github.sha }}.tar.gz
-            pathfinder-photography-${{ github.sha }}.tar.gz.sha256
+            pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz
+            pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz.sha256
           retention-days: 30
 
       - name: Set Build Number
@@ -87,7 +87,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME=${{ env.BUILD_NUMBER }}
-          ASSET=pathfinder-photography-${{ github.sha }}.tar.gz
+          ASSET=pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz
 
           echo "Creating release $TAG_NAME and uploading asset $ASSET"
 
@@ -131,7 +131,7 @@ jobs:
       - name: Verify artifact checksum
         run: |
           echo "Verifying deployment artifact integrity..."
-          if sha256sum -c pathfinder-photography-${{ github.sha }}.tar.gz.sha256; then
+          if sha256sum -c pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz.sha256; then
             echo "✅ Checksum verified - artifact integrity confirmed"
           else
             echo "❌ Checksum verification failed - artifact may be corrupted"
@@ -181,7 +181,7 @@ jobs:
           sudo mkdir -p ${{ env.DEPLOY_DIR }}
           
           # Extract new version
-          sudo tar -xzf pathfinder-photography-${{ github.sha }}.tar.gz -C ${{ env.DEPLOY_DIR }}
+          sudo tar -xzf pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz -C ${{ env.DEPLOY_DIR }}
           
           # Set correct ownership for deployed files (pathfinder user owns everything)
           sudo chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}

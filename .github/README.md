@@ -3,7 +3,6 @@
 A Blazor Server web application for SDA Pathfinders from Corona SDA church to submit photos demonstrating 10 photography composition rules. Built with .NET 9.0 and .NET Aspire for improved observability and service orchestration.
 
 [![Deploy to Bare Metal Server](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/deploy-bare-metal.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/deploy-bare-metal.yml)
-[![Build and Publish Release](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/publish-release.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/publish-release.yml)
 
 ## Features
 
