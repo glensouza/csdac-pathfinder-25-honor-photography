@@ -2,6 +2,10 @@
 
 A Blazor Server web application for SDA Pathfinders from Corona SDA church to submit photos demonstrating 10 photography composition rules. Built with .NET 9.0 and .NET Aspire for improved observability and service orchestration.
 
+[![Automatic Dependency Submission](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/dependency-graph/auto-submission/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/dependency-graph/auto-submission)
+[![CodeQL](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/github-code-scanning/codeql)
+[![Copilot code review](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/copilot-pull-request-reviewer/copilot-pull-request-reviewer/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/copilot-pull-request-reviewer/copilot-pull-request-reviewer)
+[![Copilot coding agent](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/copilot-swe-agent/copilot/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/copilot-swe-agent/copilot)
 [![Deploy to Bare Metal Server](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/deploy-bare-metal.yml/badge.svg)](https://github.com/glensouza/csdac-pathfinder-25-honor-photography/actions/workflows/deploy-bare-metal.yml)
 
 ## Features

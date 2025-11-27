@@ -39,7 +39,37 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      
+
+      - name: Set Build Number (daily counter)
+        id: set_build_number
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          DATE=$(date +'%Y%m%d')
+
+          echo "Counting existing releases for date $DATE..."
+
+          # Fetch recent releases (first 100)
+          RELEASES_JSON=$(curl -s -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+
+          # Extract tag_name values without requiring jq
+          TAGS=$(echo "$RELEASES_JSON" | grep -oP '"tag_name"\s*:\s*"\K[^"]+')
+
+          # Count tags that start with DATE.
+          COUNT=0
+          if [ -n "$TAGS" ]; then
+            COUNT=$(echo "$TAGS" | grep -E "^${DATE}\." | wc -l | tr -d ' ')
+          fi
+
+          # Increment for this build
+          NEXT=$((COUNT + 1))
+          BUILD_NUMBER="${DATE}.${NEXT}"
+
+          echo "Computed BUILD_NUMBER=$BUILD_NUMBER"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+
       - name: Restore dependencies
         run: dotnet restore PathfinderPhotography.csproj
       
@@ -65,12 +95,6 @@ jobs:
             pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz
             pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz.sha256
           retention-days: 30
-
-      - name: Set Build Number
-        id: build_number
-        run: |
-          DATE=$(date +'%Y%m%d')
-          echo "BUILD_NUMBER=${DATE}.${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Install GitHub CLI
         run: |
