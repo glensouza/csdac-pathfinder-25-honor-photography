@@ -167,10 +167,6 @@ server {
 Enable the site and test:
 
 ```bash
-# Stop and disable Apache if it's running
-sudo systemctl stop apache2
-sudo systemctl disable apache2
-
 # Enable site
 sudo ln -s /etc/nginx/sites-available/pathfinder-photography /etc/nginx/sites-enabled/
 
