@@ -209,17 +209,17 @@ public class VotingService(IDbContextFactory<ApplicationDbContext> contextFactor
         await using ApplicationDbContext context = await contextFactory.CreateDbContextAsync();
 
         // Only allow voting if there exists at least one composition rule with 2+ non-failed submissions from other users
-        List<object> otherSubmissionsByRule = await context.PhotoSubmissions
+        List<object?> otherSubmissionsByRule = await context.PhotoSubmissions
             .Where(s => s.PathfinderEmail.ToLower() != userEmail.ToLower() && s.GradeStatus != GradeStatus.Fail)
             .GroupBy(s => s.CompositionRuleId)
             .Select(g => new { CompositionRuleId = g.Key, Count = g.Count() })
             .ToListAsync<object?>();
 
         // Evaluate count condition
-        foreach (object item in otherSubmissionsByRule)
+        foreach (object? item in otherSubmissionsByRule)
         {
             // Use reflection to read Count property because we selected an anonymous type
-            int count = (int)item.GetType().GetProperty("Count")!.GetValue(item)!;
+            int count = (int)item?.GetType().GetProperty("Count")!.GetValue(item)!;
             if (count >= 2)
             {
                 return true;

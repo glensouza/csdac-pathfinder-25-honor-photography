@@ -154,7 +154,7 @@
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             string term = searchTerm.ToLower();
-            query = query.Where(a => EF.Functions.ILike(a.Details, $"%{term}%") || EF.Functions.ILike(a.ActorEmail, $"%{term}%") || EF.Functions.ILike(a.Action, $"%{term}%"));
+            query = query.Where(a => a.ActorEmail != null && (EF.Functions.ILike(a.Details, $"%{term}%") || EF.Functions.ILike(a.ActorEmail, $"%{term}%") || EF.Functions.ILike(a.Action, $"%{term}%")));
         }
 
         totalCount = await query.CountAsync();
