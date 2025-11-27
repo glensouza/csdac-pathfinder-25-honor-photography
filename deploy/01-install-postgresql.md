@@ -182,7 +182,7 @@ sudo ss -tlnp | grep 8080
 
 # Test pgAdmin accessibility
 curl -I http://localhost:8080/pgadmin4
-# Should return HTTP 200 OK or 302 redirect
+# Should return HTTP 200 OK, 302 redirect, or 308 permanent redirect
 ```
 
 If the service fails to start, check the logs:
