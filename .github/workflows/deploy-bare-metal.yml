@@ -17,6 +17,11 @@ env:
   DEPLOY_DIR: '/opt/pathfinder-photography'
   SERVICE_NAME: 'pathfinder-photography'
 
+# Ensure only the latest run for a given branch proceeds; cancel previous in-progress/queued runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build Application
@@ -76,16 +81,10 @@ jobs:
             echo "gh already installed"
           fi
 
-      - name: Authenticate GitHub CLI
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Authenticating gh..."
-          echo "${GITHUB_TOKEN}" | gh auth login --with-token
-
+      # Note: don't run 'gh auth login' when GITHUB_TOKEN is present; use GH_TOKEN env var for non-interactive auth
       - name: Create Release and upload asset with gh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME=${{ env.BUILD_NUMBER }}
           ASSET=pathfinder-photography-${{ github.sha }}.tar.gz
