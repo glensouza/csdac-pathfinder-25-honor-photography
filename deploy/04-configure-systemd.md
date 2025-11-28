@@ -45,7 +45,7 @@ After=network.target postgresql.service
 Wants=postgresql.service
 
 [Service]
-Type=notify
+Type=simple
 User=pathfinder
 Group=pathfinder
 WorkingDirectory=/opt/pathfinder-photography
@@ -103,7 +103,7 @@ Replace `10.10.10.201` with your actual SigNoz server IP address. You can also c
 - `Wants=postgresql.service` - Prefer to start PostgreSQL first, but don't fail if it's not available
 
 **Service Section**:
-- `Type=notify` - Application notifies systemd when it's ready
+- `Type=simple` - Service is considered started immediately when ExecStart is executed
 - `User=pathfinder` - Run as the pathfinder user (non-root)
 - `Restart=always` - Automatically restart if the application crashes
 - `StateDirectory=pathfinder-keys` - Creates `/var/lib/pathfinder-keys` for Data Protection keys
