@@ -152,6 +152,10 @@ jobs:
         with:
           name: pathfinder-photography-build
       
+      - name: Set Build Number
+        run: |
+          echo "BUILD_NUMBER=${{ needs.build.outputs.build_number }}" >> $GITHUB_ENV
+      
       - name: Verify artifact checksum
         run: |
           echo "Verifying deployment artifact integrity..."

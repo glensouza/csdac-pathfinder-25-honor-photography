@@ -58,7 +58,7 @@ dotnet ef database update
 exit
 
 # Build application
-dotnet publish -c Release -o /opt/pathfinder-photography
+dotnet publish -c Release --property:PublishDir=/opt/pathfinder-photography
 
 # Set ownership
 sudo chown -R pathfinder:pathfinder /opt/pathfinder-photography
