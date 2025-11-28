@@ -220,6 +220,9 @@ jobs:
       
       - name: Start application service
         run: |
+          echo "Debugging allowed sudo commands"
+          sudo -u pathfinder sudo -l
+
           echo "Starting ${{ env.SERVICE_NAME }} service..."
 
           # Runner runs as pathfinder user with passwordless sudo configured
