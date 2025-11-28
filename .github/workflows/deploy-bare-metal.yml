@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      build_number: ${{ steps.set_build_number.outputs.build_number }}
     
     steps:
       - name: Checkout repository
