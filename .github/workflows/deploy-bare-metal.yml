@@ -226,18 +226,13 @@ jobs:
 
       - name: Start application service
         run: |
-          # Debug info first
+          # Debug info
           id
-          echo "Runner labels: $RUNNER_LABELS"
           echo "Work dir: $GITHUB_WORKSPACE"
-          echo "PATH=$PATH"
-          which systemctl || true
           sudo -l || true
-          if sudo -n $(which systemctl) --version >/dev/null 2>&1; then echo "sudo -n works for systemctl"; else echo "sudo -n failed for systemctl"; fi
         
           echo "Starting ${{ env.SERVICE_NAME }} service..."
-
-          # Runner runs as pathfinder user with passwordless sudo configured
+          echo "Running: sudo -n /usr/bin/systemctl start ${{ env.SERVICE_NAME }}"
           sudo -n $(which systemctl) start ${{ env.SERVICE_NAME }}
           echo "Service start command executed"
 
