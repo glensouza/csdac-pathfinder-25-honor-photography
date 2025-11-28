@@ -175,21 +175,21 @@ jobs:
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
             
             # Create backup directory
-            sudo -n mkdir -p $BACKUP_DIR
+            sudo -n /usr/bin/mkdir -p $BACKUP_DIR
             
             echo "Creating backup at $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
             
             # Create backup (pathfinder user runs the runner and owns the files)
-            sudo -n $(which tar) -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
+            sudo -n /usr/bin/tar -czf $BACKUP_DIR/backup_$TIMESTAMP.tar.gz -C ${{ env.DEPLOY_DIR }} .
             
             # Set ownership of the backup file to pathfinder for consistency
-            sudo -n chown pathfinder:pathfinder $BACKUP_DIR/backup_$TIMESTAMP.tar.gz
+            sudo -n /usr/bin/chown pathfinder:pathfinder $BACKUP_DIR/backup_$TIMESTAMP.tar.gz
             
             # Keep only last 5 backups using find for safer sudo access
-            OLD_BACKUPS=$(sudo -n find $BACKUP_DIR -name 'backup_*.tar.gz' -type f -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2-)
+            OLD_BACKUPS=$(sudo -n /usr/bin/find $BACKUP_DIR -name 'backup_*.tar.gz' -type f -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2-)
             if [ -n "$OLD_BACKUPS" ]; then
               echo "$OLD_BACKUPS" | while read backup_file; do
-                sudo -n rm -f "$backup_file"
+                sudo -n /usr/bin/rm -f "$backup_file"
               done
             fi
             
@@ -202,7 +202,7 @@ jobs:
         run: |
           echo "Stopping ${{ env.SERVICE_NAME }} service..."
           # Runner runs as pathfinder user with passwordless sudo configured
-          sudo -n $(which systemctl) stop ${{ env.SERVICE_NAME }}
+          sudo -n /usr/bin/systemctl stop ${{ env.SERVICE_NAME }}
           echo "Service stopped successfully"
       
       - name: Deploy application
@@ -211,40 +211,32 @@ jobs:
           ls -la ${{ env.DEPLOY_DIR }} || true
 
           echo "Deploying to ${{ env.DEPLOY_DIR }}..."
-          sudo -n mkdir -p ${{ env.DEPLOY_DIR }}
+          sudo -n /usr/bin/mkdir -p ${{ env.DEPLOY_DIR }}
           
           # Extract new version
-          sudo -n $(which tar) -xzf pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz -C ${{ env.DEPLOY_DIR }}
+          sudo -n /usr/bin/tar -xzf pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz -C ${{ env.DEPLOY_DIR }}
           
           # Set correct ownership for deployed files (pathfinder user owns everything)
-          sudo -n chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
+          sudo -n /usr/bin/chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
                     
           echo "Deployment completed successfully"
       
-          # Print ownership and permissions for deployment dir after deploy:
-          ls -la ${{ env.DEPLOY_DIR }} || true
-
       - name: Start application service
         run: |
-          # Debug info
-          id
-          echo "Work dir: $GITHUB_WORKSPACE"
-          sudo -l || true
-        
           echo "Starting ${{ env.SERVICE_NAME }} service..."
           echo "Running: sudo -n /usr/bin/systemctl start ${{ env.SERVICE_NAME }}"
-          sudo -n $(which systemctl) start ${{ env.SERVICE_NAME }}
+          sudo -n /usr/bin/systemctl start ${{ env.SERVICE_NAME }}
           echo "Service start command executed"
 
           # Wait a short period for the service to become active
           sleep 5
         
           # Check if service is running
-          if sudo -n $(which systemctl) is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if sudo -n /usr/bin/systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
               echo "Service started successfully"
           else
               echo "Service failed to start. Checking logs..."
-              sudo -n $(which journalctl) -u ${{ env.SERVICE_NAME }} -n50 --no-pager || true
+              sudo -n /usr/bin/journalctl -u ${{ env.SERVICE_NAME }} -n50 --no-pager || true
               exit 1
           fi
       
@@ -276,7 +268,7 @@ jobs:
       - name: Reload Nginx
         run: |
           echo "Reloading Nginx configuration..."
-          sudo -n $(which nginx) -t && sudo -n $(which systemctl) reload nginx || echo "nginx reload failed"
+          sudo -n /usr/sbin/nginx -t && sudo -n /usr/bin/systemctl reload nginx || echo "nginx reload failed"
       
       - name: Create deployment summary
         run: |
@@ -328,27 +320,27 @@ jobs:
           echo "Rolling back to backup: ${{ steps.find_backup.outputs.backup_file }}"
           
           # Stop service
-          sudo -n $(which systemctl) stop ${{ env.SERVICE_NAME }}
+          sudo -n /usr/bin/systemctl stop ${{ env.SERVICE_NAME }}
           
           # Restore backup
-          sudo -n $(which tar) -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
+          sudo -n /usr/bin/tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
           
           # Set correct ownership after restore
           sudo -n chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
           
           # Start service
-          sudo -n $(which systemctl) start ${{ env.SERVICE_NAME }}
+          sudo -n /usr/bin/systemctl start ${{ env.SERVICE_NAME }}
           
           echo "Rollback completed"
       
       - name: Verify rollback
         run: |
           sleep 5
-          if sudo -n $(which systemctl) is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if sudo -n /usr/bin/systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
             echo "✅ Rollback successful - service is running"
           else
             echo "❌ Rollback failed - service is not running"
-            sudo -n journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            sudo -n /usr/bin/journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
             exit 1
           fi
 
