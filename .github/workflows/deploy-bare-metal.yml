@@ -202,7 +202,7 @@ jobs:
         run: |
           echo "Stopping ${{ env.SERVICE_NAME }} service..."
           # Runner runs as pathfinder user with passwordless sudo configured
-          sudo -n /usr/bin/systemctl stop ${{ env.SERVICE_NAME }}
+          sudo -n /usr/local/bin/pathfinder-deploy stop
           echo "Service stopped successfully"
       
       - name: Deploy application
@@ -224,19 +224,18 @@ jobs:
       - name: Start application service
         run: |
           echo "Starting ${{ env.SERVICE_NAME }} service..."
-          echo "Running: sudo -n /usr/bin/systemctl start ${{ env.SERVICE_NAME }}"
-          sudo -n /usr/bin/systemctl start ${{ env.SERVICE_NAME }}
+          sudo -n /usr/local/bin/pathfinder-deploy start
           echo "Service start command executed"
 
           # Wait a short period for the service to become active
           sleep 5
         
           # Check if service is running
-          if sudo -n /usr/bin/systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if sudo -n /usr/local/bin/pathfinder-deploy is-active --quiet; then
               echo "Service started successfully"
           else
               echo "Service failed to start. Checking logs..."
-              sudo -n /usr/bin/journalctl -u ${{ env.SERVICE_NAME }} -n50 --no-pager || true
+              sudo -n /usr/local/bin/pathfinder-deploy journal -n50 --no-pager || true
               exit 1
           fi
       
@@ -261,7 +260,7 @@ jobs:
           else
             echo "❌ Deployment verification failed"
             echo "Application is not responding on health endpoint"
-            journalctl -u ${{ env.SERVICE_NAME }} -n100 --no-pager || true
+            sudo -n /usr/local/bin/pathfinder-deploy journal -n100 --no-pager || true
             exit 1
           fi
       
@@ -283,7 +282,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service Status" >> $GITHUB_STEP_SUMMARY
           echo "```" >> $GITHUB_STEP_SUMMARY
-          sudo -n systemctl status ${{ env.SERVICE_NAME }} --no-pager || true >> $GITHUB_STEP_SUMMARY
+          sudo -n /usr/local/bin/pathfinder-deploy status --no-pager || true >> $GITHUB_STEP_SUMMARY
           echo "```" >> $GITHUB_STEP_SUMMARY
       
       - name: Cleanup old artifacts
@@ -320,7 +319,7 @@ jobs:
           echo "Rolling back to backup: ${{ steps.find_backup.outputs.backup_file }}"
           
           # Stop service
-          sudo -n /usr/bin/systemctl stop ${{ env.SERVICE_NAME }}
+          sudo -n /usr/local/bin/pathfinder-deploy stop
           
           # Restore backup
           sudo -n /usr/bin/tar -xzf ${{ steps.find_backup.outputs.backup_file }} -C ${{ env.DEPLOY_DIR }}
@@ -329,18 +328,18 @@ jobs:
           sudo -n chown -R pathfinder:pathfinder ${{ env.DEPLOY_DIR }}
           
           # Start service
-          sudo -n /usr/bin/systemctl start ${{ env.SERVICE_NAME }}
-          
+          sudo -n /usr/local/bin/pathfinder-deploy start
+
           echo "Rollback completed"
       
       - name: Verify rollback
         run: |
           sleep 5
-          if sudo -n /usr/bin/systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+          if sudo -n /usr/local/bin/pathfinder-deploy is-active --quiet; then
             echo "✅ Rollback successful - service is running"
           else
             echo "❌ Rollback failed - service is not running"
-            sudo -n /usr/bin/journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+            sudo -n /usr/local/bin/pathfinder-deploy journal -n50 --no-pager
             exit 1
           fi
 
