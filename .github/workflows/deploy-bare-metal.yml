@@ -140,9 +140,6 @@ jobs:
             gh release create "$TAG_NAME" "$ASSET" --title "Release $TAG_NAME" --notes "$NOTES" --repo "${{ github.repository }}"
           fi
 
-    outputs:
-      build_number: ${{ steps.set_build_number.outputs.build_number }}
-
   deploy:
     name: Deploy to Server
     needs: build
