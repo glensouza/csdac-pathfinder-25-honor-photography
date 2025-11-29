@@ -351,8 +351,6 @@ jobs:
           fi
 
           echo "Release created: ${{ steps.determine.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "Build Number: ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
-          echo "Tag Name: $TAG_NAME" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup artifacts
         if: always()
