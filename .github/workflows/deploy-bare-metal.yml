@@ -288,6 +288,7 @@ jobs:
             echo "No build artifact found (pathfinder-photography-*.tar.gz)" 1>&2
             exit 1
           fi
+          echo "Asset File: ASSET_FILE"
 
           # prefer build job output if available, otherwise derive from filename
           BUILD_TAG="${{ needs.build.outputs.build_number }}"
@@ -302,7 +303,8 @@ jobs:
 
           echo "asset_file=$ASSET_FILE" >> $GITHUB_OUTPUT
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "Derived TAG_NAME=$TAG_NAME and ASSET_FILE=$ASSET_FILE"
+          echo "Derived TAG_NAME=$TAG_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "Derived ASSET_FILE=$ASSET_FILE" >> $GITHUB_STEP_SUMMARY
 
       - name: Install GitHub CLI
         run: |
@@ -322,6 +324,7 @@ jobs:
           TAG_NAME=${{ steps.determine.outputs.tag_name }}
           ASSET_FILE=${{ steps.determine.outputs.asset_file }}
 
+          echo "Build Number: ${{ env.BUILD_NUMBER }}
           echo "Creating release $TAG_NAME and uploading asset $ASSET_FILE"
 
           # Generate release notes dynamically from git commits.
@@ -348,7 +351,7 @@ jobs:
           fi
 
           echo "Release created: ${{ steps.determine.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "Build Number: ${{ env.BUILD_NUMBER }} >> $GITHUB_STEP_SUMMARY
+          echo "Build Number: ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
           echo "Tag Name: $TAG_NAME" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup artifacts
