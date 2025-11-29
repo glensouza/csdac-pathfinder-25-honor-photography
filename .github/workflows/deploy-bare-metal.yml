@@ -288,7 +288,7 @@ jobs:
             echo "No build artifact found (pathfinder-photography-*.tar.gz)" 1>&2
             exit 1
           fi
-          echo "Asset File: ASSET_FILE"
+          echo "Asset File: $ASSET_FILE"
 
           # prefer build job output if available, otherwise derive from filename
           BUILD_TAG="${{ needs.build.outputs.build_number }}"
@@ -324,7 +324,7 @@ jobs:
           TAG_NAME=${{ steps.determine.outputs.tag_name }}
           ASSET_FILE=${{ steps.determine.outputs.asset_file }}
 
-          echo "Build Number: ${{ env.BUILD_NUMBER }}
+          echo "Build Number: ${{ env.BUILD_NUMBER }}"
           echo "Creating release $TAG_NAME and uploading asset $ASSET_FILE"
 
           # Generate release notes dynamically from git commits.
