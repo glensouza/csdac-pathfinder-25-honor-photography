@@ -265,16 +265,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: pathfinder-photography-build
-
-      - name: Set Build Number
-        run: |
-          echo "BUILD_NUMBER=${{ needs.build.outputs.build_number }}" >> $GITHUB_ENV
 
       - name: Install GitHub CLI
         run: |
@@ -289,8 +292,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME=${{ env.BUILD_NUMBER }}
-          ASSET=pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz
+          TAG_NAME=${BUILD_NUMBER}
+          ASSET=pathfinder-photography-${TAG_NAME}.tar.gz
 
           echo "Creating release $TAG_NAME and uploading asset $ASSET"
 
@@ -319,7 +322,7 @@ jobs:
 
       - name: Create release summary
         run: |
-          echo "Release created: ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+          echo "Release created: ${BUILD_NUMBER}" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup artifacts
         if: always()
