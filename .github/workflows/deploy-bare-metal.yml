@@ -98,14 +98,14 @@ jobs:
             pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz.sha256
           retention-days: 30
 
-      - name: Install GitHub CLI
+      - name: Create deployment summary
         run: |
-          if ! command -v gh >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y gh
-          else
-            echo "gh already installed"
-          fi
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Number:** ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** production" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ✅ Successful" >> $GITHUB_STEP_SUMMARY
 
   deploy:
     name: Deploy to Server
@@ -265,8 +265,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    env:
-      BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
 
     steps:
       - name: Checkout repository
@@ -288,11 +286,15 @@ jobs:
             echo "gh already installed"
           fi
 
+      - name: Set Build Number
+        run: |
+          echo "BUILD_NUMBER=${{ needs.build.outputs.build_number }}" >> $GITHUB_ENV
+          
       - name: Create Release and upload asset with gh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME=${BUILD_NUMBER}
+          TAG_NAME=${{ env.BUILD_NUMBER }}
           ASSET=pathfinder-photography-${TAG_NAME}.tar.gz
 
           echo "Creating release $TAG_NAME and uploading asset $ASSET"
@@ -322,7 +324,7 @@ jobs:
 
       - name: Create release summary
         run: |
-          echo "Release created: ${BUILD_NUMBER}" >> $GITHUB_STEP_SUMMARY
+          echo "Release created: ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup artifacts
         if: always()
