@@ -324,13 +324,13 @@ jobs:
           TAG_NAME=${{ steps.determine.outputs.tag_name }}
           ASSET_FILE=${{ steps.determine.outputs.asset_file }}
 
-          echo "Build Number: ${{ env.BUILD_NUMBER }}
+          echo "Build Number = ${{ env.BUILD_NUMBER }}
           echo "Creating release $TAG_NAME and uploading asset $ASSET_FILE"
 
           # Generate release notes dynamically from git commits.
           if git describe --tags --abbrev=0 >/dev/null 2>&1; then
             PREV_TAG=$(git describe --tags --abbrev=0)
-            echo "Found previous tag: $PREV_TAG"
+            echo "Found previous tag = $PREV_TAG"
             NOTES=$(git log --pretty=format:'- %s (%h)' "$PREV_TAG"..HEAD)
           else
             echo "No previous tag found, using last 20 commits"
@@ -349,6 +349,10 @@ jobs:
           else
             gh release create "$TAG_NAME" "$ASSET_FILE" --title "Release $TAG_NAME" --notes "$NOTES" --repo "${{ github.repository }}"
           fi
+
+          echo "Release created = ${{ steps.determine.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Build Number = ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+          echo "Tag Name = $TAG_NAME" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup artifacts
         if: always()
