@@ -134,6 +134,82 @@ sudo visudo -c -f /etc/sudoers.d/pathfinder
 sudo chmod 0440 /etc/sudoers.d/pathfinder
 ```
 
+## Optional: Install a small wrapper script (recommended)
+
+To avoid fragile exact-path and argument matching in `sudoers`, install a tiny wrapper script and grant a single `NOPASSWD` entry for it. This makes workflows simpler and audit-friendly.
+
+1. Create the wrapper script as root:
+
+```bash
+sudo tee /usr/local/bin/pathfinder-deploy > /dev/null <<'EOF'
+#!/bin/bash
+SERVICE=pathfinder-photography
+
+case "$1" in
+  start|stop|restart|status|is-active)
+    # Forward additional options (e.g. --quiet) before the unit name
+    exec /usr/bin/systemctl "$1" "${@:2}" "$SERVICE"
+    ;;
+  journal)
+    # usage: pathfinder-deploy journal [journalctl-args...]
+    exec /usr/bin/journalctl -u "$SERVICE" "${@:2}"
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status|is-active|journal} [...args]" >&2
+    exit 2
+    ;;
+esac
+EOF
+
+sudo chmod 750 /usr/local/bin/pathfinder-deploy
+sudo chown root:root /usr/local/bin/pathfinder-deploy
+```
+
+2. Add a single sudoers file for the wrapper:
+
+```bash
+sudo visudo -f /etc/sudoers.d/pathfinder-deploy
+```
+
+Add this line:
+
+```sudoers
+# Allow GitHub runner (pathfinder) to run the wrapper without a password
+pathfinder ALL=(ALL) NOPASSWD: /usr/local/bin/pathfinder-deploy *
+```
+
+Validate and secure the sudoers file:
+
+```bash
+sudo visudo -c -f /etc/sudoers.d/pathfinder-deploy
+sudo chmod 0440 /etc/sudoers.d/pathfinder-deploy
+```
+
+3. Workflow usage examples (use `-n` to fail fast if NOPASSWD not applied):
+
+```bash
+# Start service
+sudo -n /usr/local/bin/pathfinder-deploy start
+
+# Check active (quiet)
+sudo -n /usr/local/bin/pathfinder-deploy is-active --quiet
+
+# Show last 50 journal lines
+sudo -n /usr/local/bin/pathfinder-deploy journal -n50 --no-pager
+```
+
+4. Quick tests (run as root to simulate runner user):
+
+```bash
+sudo -u pathfinder sudo -n /usr/local/bin/pathfinder-deploy is-active --quiet; echo "is-active exit:$?"
+sudo -u pathfinder sudo -n /usr/local/bin/pathfinder-deploy start; echo "start exit:$?"
+sudo -u pathfinder sudo -n /usr/local/bin/pathfinder-deploy journal -n1 --no-pager; echo "journal exit:$?"
+```
+
+If these tests succeed without a password prompt, your workflow will be able to call the wrapper non-interactively.
+
+---
+
 ## Step 7.3: Download and Configure GitHub Runner
 
 Create runner directory and download the runner software:

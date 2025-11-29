@@ -107,39 +107,6 @@ jobs:
             echo "gh already installed"
           fi
 
-      # Note: don't run 'gh auth login' when GITHUB_TOKEN is present; use GH_TOKEN env var for non-interactive auth
-      - name: Create Release and upload asset with gh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG_NAME=${{ env.BUILD_NUMBER }}
-          ASSET=pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz
-
-          echo "Creating release $TAG_NAME and uploading asset $ASSET"
-
-          # Generate release notes dynamically from git commits.
-          # If a previous tag exists, use commits since that tag; otherwise include the last 20 commits.
-          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
-            PREV_TAG=$(git describe --tags --abbrev=0)
-            echo "Found previous tag: $PREV_TAG"
-            NOTES=$(git log --pretty=format:'- %s (%h)' "$PREV_TAG"..HEAD)
-          else
-            echo "No previous tag found, using last 20 commits"
-            NOTES=$(git log -n 20 --pretty=format:'- %s (%h)')
-          fi
-
-          if [ -z "$NOTES" ]; then
-            NOTES="No notable changes"
-          fi
-
-          # Create or update release and upload the asset
-          if gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release $TAG_NAME already exists. Uploading asset."
-            gh release upload "$TAG_NAME" "$ASSET" --repo "${{ github.repository }}" --clobber
-          else
-            gh release create "$TAG_NAME" "$ASSET" --title "Release $TAG_NAME" --notes "$NOTES" --repo "${{ github.repository }}"
-          fi
-
   deploy:
     name: Deploy to Server
     needs: build
@@ -263,12 +230,12 @@ jobs:
             sudo -n /usr/local/bin/pathfinder-deploy journal -n100 --no-pager || true
             exit 1
           fi
-      
+
       - name: Reload Nginx
         run: |
           echo "Reloading Nginx configuration..."
           sudo -n /usr/sbin/nginx -t && sudo -n /usr/bin/systemctl reload nginx || echo "nginx reload failed"
-      
+
       - name: Create deployment summary
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
@@ -290,6 +257,76 @@ jobs:
         run: |
           rm -f pathfinder-photography-*.tar.gz*
           echo "Cleaned up deployment artifacts"
+
+  release:
+    name: Create GitHub Release
+    needs: deploy
+    if: needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pathfinder-photography-build
+
+      - name: Set Build Number
+        run: |
+          echo "BUILD_NUMBER=${{ needs.build.outputs.build_number }}" >> $GITHUB_ENV
+
+      - name: Install GitHub CLI
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y gh
+          else
+            echo "gh already installed"
+          fi
+
+      - name: Create Release and upload asset with gh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=${{ env.BUILD_NUMBER }}
+          ASSET=pathfinder-photography-${{ env.BUILD_NUMBER }}.tar.gz
+
+          echo "Creating release $TAG_NAME and uploading asset $ASSET"
+
+          # Generate release notes dynamically from git commits.
+          # If a previous tag exists, use commits since that tag; otherwise include the last 20 commits.
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            PREV_TAG=$(git describe --tags --abbrev=0)
+            echo "Found previous tag: $PREV_TAG"
+            NOTES=$(git log --pretty=format:'- %s (%h)' "$PREV_TAG"..HEAD)
+          else
+            echo "No previous tag found, using last 20 commits"
+            NOTES=$(git log -n 20 --pretty=format:'- %s (%h)')
+          fi
+
+          if [ -z "$NOTES" ]; then
+            NOTES="No notable changes"
+          fi
+
+          # Create or update release and upload the asset
+          if gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG_NAME already exists. Uploading asset."
+            gh release upload "$TAG_NAME" "$ASSET" --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "$TAG_NAME" "$ASSET" --title "Release $TAG_NAME" --notes "$NOTES" --repo "${{ github.repository }}"
+          fi
+
+      - name: Create release summary
+        run: |
+          echo "Release created: ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup artifacts
+        if: always()
+        run: |
+          rm -f pathfinder-photography-*.tar.gz*
+          echo "Cleaned up release artifacts"
+
 
   rollback:
     name: Rollback on Failure
@@ -345,7 +382,7 @@ jobs:
 
   notify:
     name: Send Notification
-    needs: [build, deploy]
+    needs: [build, deploy, release]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -354,7 +391,7 @@ jobs:
     steps:
       - name: Create notification summary
         run: |
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
+          if [ "${{ needs.deploy.result }}" == "success" ] && [ "${{ needs.release.result }}" == "success" ]; then
             echo "status=✅ Deployment Successful" >> $GITHUB_ENV
             echo "color=success" >> $GITHUB_ENV
           else
