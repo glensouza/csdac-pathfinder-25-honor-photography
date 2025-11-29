@@ -350,14 +350,11 @@ jobs:
             gh release create "$TAG_NAME" "$ASSET_FILE" --title "Release $TAG_NAME" --notes "$NOTES" --repo "${{ github.repository }}"
           fi
 
-          echo "Release created: ${{ steps.determine.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-
       - name: Cleanup artifacts
         if: always()
         run: |
           rm -f pathfinder-photography-*.tar.gz*
           echo "Cleaned up release artifacts"
-
 
   rollback:
     name: Rollback on Failure
