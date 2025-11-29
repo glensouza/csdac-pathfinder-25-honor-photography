@@ -277,6 +277,33 @@ jobs:
         with:
           name: pathfinder-photography-build
 
+      - name: Determine artifact and tag
+        id: determine
+        run: |
+          set -euo pipefail
+          # locate artifact downloaded by previous step
+          ASSET_FILE=$(ls pathfinder-photography-*.tar.gz 2>/dev/null | head -n1 || true)
+          if [ -z "$ASSET_FILE" ]; then
+            echo "error=artifact_missing" >> $GITHUB_OUTPUT
+            echo "No build artifact found (pathfinder-photography-*.tar.gz)" 1>&2
+            exit 1
+          fi
+
+          # prefer build job output if available, otherwise derive from filename
+          BUILD_TAG="${{ needs.build.outputs.build_number }}"
+          if [ -n "$BUILD_TAG" ]; then
+            echo "getting tag from BUILD_TAG: $BUILD_TAG"
+            TAG_NAME="$BUILD_TAG"
+          else
+            BASENAME=$(basename "$ASSET_FILE" .tar.gz)
+            echo "getting tag from BASENAME: $BASENAME"
+            TAG_NAME=${BASENAME#pathfinder-photography-}
+          fi
+
+          echo "asset_file=$ASSET_FILE" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Derived TAG_NAME=$TAG_NAME and ASSET_FILE=$ASSET_FILE"
+
       - name: Install GitHub CLI
         run: |
           if ! command -v gh >/dev/null 2>&1; then
@@ -286,28 +313,26 @@ jobs:
             echo "gh already installed"
           fi
 
-      - name: Set Build Number
-        run: |
-          echo "BUILD_NUMBER=${{ needs.build.outputs.build_number }}" >> $GITHUB_ENV
-          
       - name: Create Release and upload asset with gh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
         run: |
-          TAG_NAME=${{ env.BUILD_NUMBER }}
-          ASSET=pathfinder-photography-${TAG_NAME}.tar.gz
+          set -euo pipefail
+          TAG_NAME=${{ steps.determine.outputs.tag_name }}
+          ASSET_FILE=${{ steps.determine.outputs.asset_file }}
 
-          echo "Creating release $TAG_NAME and uploading asset $ASSET"
+          echo "Creating release $TAG_NAME and uploading asset $ASSET_FILE"
 
           # Generate release notes dynamically from git commits.
-          # If a previous tag exists, use commits since that tag; otherwise include the last 20 commits.
           if git describe --tags --abbrev=0 >/dev/null 2>&1; then
             PREV_TAG=$(git describe --tags --abbrev=0)
             echo "Found previous tag: $PREV_TAG"
             NOTES=$(git log --pretty=format:'- %s (%h)' "$PREV_TAG"..HEAD)
           else
             echo "No previous tag found, using last 20 commits"
-            NOTES=$(git log -n 20 --pretty=format:'- %s (%h)')
+            # fallback to last 20 commits; if git not available this will fail fast
+            NOTES=$(git log -n 20 --pretty=format:'- %s (%h)') || NOTES="No notable changes"
           fi
 
           if [ -z "$NOTES" ]; then
@@ -317,14 +342,14 @@ jobs:
           # Create or update release and upload the asset
           if gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "Release $TAG_NAME already exists. Uploading asset."
-            gh release upload "$TAG_NAME" "$ASSET" --repo "${{ github.repository }}" --clobber
+            gh release upload "$TAG_NAME" "$ASSET_FILE" --repo "${{ github.repository }}" --clobber
           else
-            gh release create "$TAG_NAME" "$ASSET" --title "Release $TAG_NAME" --notes "$NOTES" --repo "${{ github.repository }}"
+            gh release create "$TAG_NAME" "$ASSET_FILE" --title "Release $TAG_NAME" --notes "$NOTES" --repo "${{ github.repository }}"
           fi
 
-      - name: Create release summary
-        run: |
-          echo "Release created: ${{ env.BUILD_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+          echo "Release created: ${{ steps.determine.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Build Number: ${{ env.BUILD_NUMBER }} >> $GITHUB_STEP_SUMMARY
+          echo "Tag Name: $TAG_NAME" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup artifacts
         if: always()
